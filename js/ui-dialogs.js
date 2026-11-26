@@ -181,8 +181,21 @@ Object.assign(UI, {
         const winner = res.results.find(r => r.id === res.winner);
         let body = `<p>Turnout: ${pct(res.turnout)}. ${res.fraud ? '<span class="warn">The ballot boxes were stuffed in our favor.</span>' : ''}</p>${this.seatBar(res)}`;
         if (res.exposed) body += '<div class="alert bad" style="margin-top:10px">The fraud has been exposed! Stability −15, legitimacy −25.</div>';
-        if (it.won) {
-          body += `<p class="good">The <b>${esc(winner.name)}</b> is returned to power. Legitimacy is renewed.</p>`;
+        if (it.hung) {
+          const seats = seatsOf(res);
+          const mine = rulingPartyObj(c);
+          body += `<p>No party has a majority (${MAJORITY} of 200 seats needed). The ${esc(mine.name)} holds ${seats[mine.id] || 0}. Who will we govern with?</p>`;
+          const pname = id => c.parties.find(p => p.id === id).name;
+          const buttons = it.options.map((o, i) => ({
+            cls: 'opt',
+            label: `<div class="lbl">Coalition with ${o.partners.map(id => esc(pname(id))).join(' and ')}: ${o.seats} seats</div><div class="small muted">They want: ${o.partners.map(id => esc(coalitionDemandText(makeDemand(c, c.parties.find(p => p.id === id))))).join('; ')}, and a cabinet post each.</div>`,
+            fn: () => { this.toast(resolveCoalitionChoice(g, it, i), 'good'); },
+          }));
+          if (it.canMinority) buttons.push({ cls: 'opt', label: '<div class="lbl">Govern alone as a minority</div><div class="small muted">No demands, but less political capital and the government can fall at any time.</div>', fn: () => { this.toast(resolveCoalitionChoice(g, it, 'minority'), 'info'); } });
+          buttons.push({ cls: 'opt', label: '<div class="lbl">Go into opposition</div><div class="small muted">Let the other parties form a government.</div>', fn: () => { this.toast(resolveCoalitionChoice(g, it, 'concede'), 'info'); } });
+          this.openModal({ title: 'A Hung Parliament', body, buttons });
+        } else if (it.won) {
+          body += `<p class="good">The <b>${esc(winner.name)}</b> wins an outright majority. Legitimacy is renewed.</p>`;
           this.openModal({ title: 'Election Victory', body, buttons: [{ label: 'Continue', cls: 'primary' }] });
         } else {
           const chance = clamp(c.factions.military / 100 * 0.9 - 0.05, 0.05, 0.9);
@@ -389,6 +402,8 @@ Object.assign(UI, {
       <p class="small">${GOV_ORDER.map(k => `${govBadge(k)} ${GOVS[k].desc}`).join('<br><br>')}</p>
       <h4>Elections</h4>
       <p class="small">Democracies and constitutional monarchies vote every 4 years. Parties poll according to how close they are to public opinion, and the governing party gains or loses votes with approval. Lose, and you can concede or refuse to leave (if the army backs you). Campaigns, snap elections, ballot rigging and states of emergency are all on the table.</p>
+      <h4>Coalitions</h4>
+      <p class="small">Parliament has 200 seats; a majority is ${MAJORITY}. If no party wins one, parties negotiate: you can form a coalition with nearby parties, govern alone as a fragile minority, or go into opposition. Partners take a cabinet post and make a policy demand; keep them satisfied (Politics tab), or they walk out and the government may fall.</p>
       <h4>Pops & the economy</h4>
       <p class="small">Every province is home to nine social classes (peasants, laborers, workers, soldiers, clerks, officials, clergy, capitalists, landowners), each with its own income, savings, standard of living and politics. Farms, mines and factories employ them and turn inputs into goods: iron and coal into steel, steel into tools, arms and appliances, fiber into clothes, and so on. Raw producers need the right land or deposits, so resources are scarce.</p>
       <p class="small">Each nation has a market where prices follow supply and demand, and shortages and surpluses are traded on the world market. Pops buy basic needs first, then everyday goods, then luxuries. Their standard of living against what their class expects drives approval, unrest and which way they vote, and the poor radicalize. Capitalists invest profits in whatever pays best; the state builds from its investment fund. Watch the <b>Market</b> and <b>Pops</b> tabs, and build in the <b>Economy</b> tab.</p>

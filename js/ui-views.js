@@ -188,6 +188,7 @@ Object.assign(UI, {
       h += `<div class="card"><h3>Ruling body</h3><p class="small">${esc(c.parties[0].name)} holds all power. No opposition is permitted.</p></div>`;
     }
     h += `<div class="card"><h3>Political compass</h3>${compassSVG(c)}<p class="small muted" style="text-align:center">● public · ■ regime${gv.party === 'multi' ? ' · small dots: parties' : ''}</p></div>`;
+    h += this.coalitionHtml(c, g);
     h += this.movementsHtml(c);
     h += this.regionsHtml(c, g);
     h += `<div class="card"><h3>Domestic actions</h3><p class="small muted">You have <b>${Math.floor(c.pc)}</b> political capital.</p><div class="actions">`;
@@ -561,6 +562,22 @@ Object.assign(UI, {
     const FA = FEDERAL_ACTIONS[fa];
     h += `<h4>${c.federal ? 'Federation' : 'Unitary state'}</h4><p class="small muted">${FA.desc}</p>
       <button class="small" data-act="federal" data-a="${fa}" ${c.pc < FA.pc || (fa === 'federalize' && c.provinceCount < 6) ? 'disabled' : ''}>${FA.name} (${FA.pc} PC)</button>`;
+    return h + '</div>';
+  },
+
+  coalitionHtml(c, g) {
+    const C = c.coalition;
+    if (!C || GOVS[c.gov].elections !== 'free') return '';
+    if (C.minority) return `<div class="card"><h3>Minority government</h3><p class="small">${esc(rulingPartyObj(c).name)} governs without a majority. Political capital comes 25% slower, and the government can lose a confidence vote at any time.</p></div>`;
+    let h = `<div class="card"><h3>Coalition government</h3><p class="small muted">Partners hold cabinet posts and expect their demands met. Below 20 satisfaction they may walk out; if we lose our majority, the government falls and snap elections follow.</p>`;
+    for (const pt of C.partners) {
+      const party = c.parties.find(p => p.id === pt.id);
+      if (!party) continue;
+      const met = demandMet(c, pt.demand);
+      h += `<div class="person"><div class="pinfo"><div><span class="swatch" style="background:${party.color};width:10px;height:10px"></span> <b>${esc(party.name)}</b> <span class="small muted">· ${CABINET_POSTS[pt.post].name}</span></div>
+        <div class="small">Demand: <span class="${met ? 'good' : 'warn'}">${esc(coalitionDemandText(pt.demand))}${met ? ' ✓' : ''}</span></div>${bar('Satisfaction', pt.satisfaction)}</div>
+        <div class="pact"><button class="small" data-act="coalition" data-p="${pt.id}" data-a="meet" ${met || c.pc < 5 ? 'disabled' : ''}>Meet demand (5 PC)</button><button class="small" data-act="coalition" data-p="${pt.id}" data-a="concede" ${c.pc < 12 ? 'disabled' : ''}>Concessions (12 PC)</button></div></div>`;
+    }
     return h + '</div>';
   },
 

@@ -219,6 +219,7 @@ const CAMPAIGN_STEPS = [
     },
     brief: [
       ['mara', 'Now we wait for the voters. Kovar has challenged you to a radio debate; your charisma against hers. Keep approval up until election day: the budget, welfare and the economy all count.'],
+      ['mara', 'Parliament has 200 seats, and a government needs 101. If no party gets there, we\'ll have to bargain for a coalition: partners want a ministry and a policy of their own.'],
       ['mara', 'If we lose, you\'ll have a choice to make. A democrat concedes. Others have not.'],
     ],
     objective: 'Hold the election (advance time until election day).',
@@ -336,6 +337,31 @@ const CAMPAIGN_STEPS = [
     hint: 'Politics tab → Political movements → Labor Movement → choose an action.',
     highlight: { tab: 'politics', sel: '[data-act="move"]' },
     check: (game, c, ui, cs) => Object.keys(cs.actions).some(k => k.startsWith('move:')),
+  },
+  // ---------------------------------------------- Chapter VII
+  {
+    chapter: 'VII. Friends Across the Border', title: 'A Common Market',
+    start: (game, c) => { const a = C_NAT(game, 'aldmark'); if (a && a.alive) setRel(game, c.id, a.id, Math.max(relation(game, c.id, a.id), 60)); },
+    brief: [
+      ['sol', 'From Aldmark: "Small nations prosper together or not at all. Let our merchants cross the border without paying for the privilege."'],
+      ['ilse', 'Henrike Sol is proposing a bloc. In a free-trade zone or customs union, members trade their surpluses with each other first and tariff-free; a customs union also sets one tariff toward the rest of the world. Military pacts work the same way for defense: an attack on one is an attack on all.'],
+      ['mara', 'Open the Blocs tab. Found a bloc with Aldmark, or join one that already exists.'],
+    ],
+    objective: 'Join or found an economic bloc (Blocs tab).',
+    hint: 'Blocs tab → Found a bloc → pick Free-Trade Zone or Customs Union, choose Aldmark as partner, then Found.',
+    highlight: { tab: 'blocs', sel: '[data-act="bloc"][data-a="found"]' },
+    check: (game, c) => !!economicBloc(game, c.id),
+  },
+  {
+    chapter: 'VII. Friends Across the Border', title: 'The Free Port',
+    brief: [
+      ['ilse', 'One more idea, Mr. President. Pick one province and make it a special economic zone: low taxes, light rules. Investors will build there first, and its factories will be more productive.'],
+      ['mara', 'Click any of our provinces on the map: the province panel shows its people, buildings and resources, and lets you change how it is administered. Remember, workers elsewhere will resent a zone that pays less tax.'],
+    ],
+    objective: 'Make one of our provinces a special economic zone.',
+    hint: 'Click a Velmoran province on the map → province panel → Special Economic Zone. Conquered land can also be made autonomous or run as a colony.',
+    highlight: { tab: 'overview', sel: '[data-act="designate"][data-key="sez"]' },
+    check: (game, c) => game.world.provinces.some(p => p.owner === c.id && p.designation === 'sez'),
   },
   // ---------------------------------------------- Epilogue
   {

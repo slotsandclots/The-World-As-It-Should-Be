@@ -180,6 +180,28 @@ test('designations, separatism and federation work', () => {
   assert(r.bad.length === 0, r.bad.join('; '));
 });
 
+test('hung parliaments form coalitions that can collapse', () => {
+  const r = run(`(() => { const g = createGame('coal', { size: 'small' });
+    const c = g.countries.find(x => GOVS[x.gov].elections === 'free' && x.parties.length >= 4);
+    if (!c) return { skip: true };
+    const seats = {}; c.parties.forEach((p, i) => { seats[p.id] = i === 0 ? 80 : Math.floor(120 / (c.parties.length - 1)); });
+    const opt = formGovernment(g, c, seats);
+    applyGovernment(g, c, opt);
+    const formed = opt.partners.length > 0 ? !!c.coalition && c.coalition.partners.length === opt.partners.length : !!(c.coalition && c.coalition.minority);
+    c.lastElection = { month: g.month, results: c.parties.map(p => ({ id: p.id, seats: seats[p.id] })) };
+    // An ignored partner eventually walks out and brings the government down.
+    let fell = false;
+    if (c.coalition && c.coalition.partners.length) {
+      const pt = c.coalition.partners[0]; pt.demand = { key: 'welfare', op: '>=', value: 25 };
+      const before = c.nextElection;
+      for (let i = 0; i < 120 && c.coalition && !fell; i++) { pt.satisfaction = 5; tickCoalition(g, c); if (c.nextElection < before || !c.coalition || !c.coalition.partners.includes(pt)) fell = true; }
+    } else fell = true;
+    return { formed, fell }; })()`);
+  if (r.skip) return;
+  assert(r.formed, 'no government formed from a hung parliament');
+  assert(r.fell, 'an ignored partner never walked out');
+});
+
 test('the campaign can be completed', () => {
   const r = run(`(() => {
     const g = startCampaign(); const c = g.countries[g.player]; const cs = g.campaign;
@@ -200,10 +222,13 @@ test('the campaign can be completed', () => {
       if (s === 12) { c.pc = 100; performDiplo(g, 'improve', cs.nations.drevany); }
       if (s === 13) setResearch(g, TECH_KEYS.find(id => techAvailable(c, id)));
       if (s === 14) { c.pc = 100; movementAction(g, 'labor', 'enact'); cs.actions['move:enact'] = true; }
+      if (s === 15) { c.pc = 100; const b = foundBloc(g, c.id, 'freeTrade'); joinBloc(g, b, cs.nations.aldmark); }
+      if (s === 16) { c.pc = 100; setDesignation(g, provincesOf(g, c.id).find(p => p.id !== c.capital).id, 'sez'); }
       // Resolve whatever the simulation asks of the player, then let a month pass.
       for (const p of g.pending.splice(0)) {
         if (p.type === 'event') resolveEvent(g, p, eventOptions(g, c, p)[0].i);
-        if (p.type === 'election' && !p.won) resolveElectionLoss(g, 'concede');
+        if (p.type === 'election' && p.hung) resolveCoalitionChoice(g, p, p.options.length ? 0 : 'minority');
+        else if (p.type === 'election' && !p.won) resolveElectionLoss(g, 'concede');
         if (p.type === 'peaceOffer') resolvePeaceOffer(g, p, true);
         if (p.type === 'allyCall') resolveAllyCall(g, p, false);
       }

@@ -357,7 +357,7 @@ function tickCountry(game, c) {
 }
 
 function pcIncome(c) {
-  return GOVS[c.gov].pcGain * (c.federal ? 0.9 : 1) * (0.6 + c.stability / 120) + techSum(c, 'pc') + (traitFx(c.leader).pc || 0) + (c.cabinet ? cabinetFx(c).pc : 0);
+  return GOVS[c.gov].pcGain * (c.federal ? 0.9 : 1) * (c.coalition && c.coalition.minority ? 0.75 : 1) * (0.6 + c.stability / 120) + techSum(c, 'pc') + (traitFx(c.leader).pc || 0) + (c.cabinet ? cabinetFx(c).pc : 0);
 }
 
 function sovereignDefault(game, c) {
@@ -435,22 +435,32 @@ function runElection(game, c) {
     results: c.parties.map((p, i) => ({ id: p.id, name: p.name, color: p.color, vote: shares[i], seats: seats[i] })),
   };
   c.lastElection = result;
-  const won = winner === c.rulingParty;
+  const seatMap = seatsOf(result);
+  const majority = (seatMap[c.rulingParty] || 0) >= MAJORITY;
+  let won = winner === c.rulingParty && majority;
+  // Hung parliament for the player: coalition talks (or a minority government) if we can lead one.
+  let hung = null;
+  if (isPlayer(game, c) && !majority) {
+    const options = coalitionOptions(c, seatMap, c.rulingParty);
+    const canMinority = winner === c.rulingParty;
+    if (options.length || canMinority) { hung = { options, canMinority }; result.hung = true; }
+    else result.winner = formGovernment(game, c, seatMap, c.rulingParty).lead;
+  }
   if (exposed) {
     adjust(c, { stability: -15, legitimacy: -25, intelligentsia: -20, approval: -10 });
     logNews(game, `Election fraud exposed in ${c.name}! Protesters fill the streets.`, 'election', [c.id]);
   }
-  if (won) {
+  if (won || (winner === c.rulingParty && !isPlayer(game, c))) {
     c.legitimacy = Math.max(c.legitimacy, 72);
     c.approval = clamp(c.approval + 2, 0, 100);
   }
   const wp = c.parties[wi];
-  logNews(game, `${c.name} election: ${wp.name} wins ${seats[wi]}/200 seats (${(shares[wi] * 100).toFixed(1)}%).${won ? ' The government is returned.' : ' A change of government.'}`, 'election', [c.id]);
+  logNews(game, `${c.name} election: ${wp.name} wins ${seats[wi]}/200 seats (${(shares[wi] * 100).toFixed(1)}%)${seats[wi] >= MAJORITY ? ', an outright majority' : ', short of a majority'}.`, 'election', [c.id]);
   if (isPlayer(game, c)) {
-    if (won) c.termsWon++;
-    game.pending.push({ type: 'election', result, won });
-  } else if (!won) {
-    setRulingParty(game, c, winner);
+    if (won) { c.termsWon++; c.coalition = null; }
+    game.pending.push(Object.assign({ type: 'election', result, won }, hung ? { hung: true, options: hung.options, canMinority: hung.canMinority } : {}));
+  } else {
+    applyGovernment(game, c, formGovernment(game, c, seatMap));
   }
 }
 
@@ -506,6 +516,7 @@ function changeGovernment(game, c, newGov, how, opts) {
   initCharacters(game, c, { cabinet: !!opts.keepLeader, generals: true, dissidents: g.party === 'single' && GOVS[old].party === 'single' });
   c.emergency = false;
   c.flags.fraud = false;
+  c.coalition = null;
   c.nextElection = g.elections ? game.month + (how === 'reform' ? 6 : 12) : null;
   c.legitimacy = how === 'reform' ? 50 : 32;
   if (how === 'reform') c.stability = clamp(c.stability - 10, 5, 100);
@@ -1026,6 +1037,7 @@ function tickPolitics(game, c) {
     else if (game.month >= c.nextElection) runElection(game, c);
   }
   tickCharacters(game, c);
+  tickCoalition(game, c);
   tickResearch(game, c);
   tickMovements(game, c);
   if (!isPlayer(game, c)) { aiPolicy(game, c); aiShock(game, c); }
@@ -1366,7 +1378,8 @@ function resolveElectionLoss(game, choice) {
   const c = game.countries[game.player];
   const res = c.lastElection;
   if (choice === 'concede') {
-    setRulingParty(game, c, res.winner);
+    applyGovernment(game, c, formGovernment(game, c, seatsOf(res), c.rulingParty));
+    res.winner = c.rulingParty;
     adjust(c, { legitimacy: 5 });
     return { ok: true, msg: `Power passes peacefully to ${rulingPartyObj(c).name}. You continue to guide the nation through the new government of ${leaderLine(c)}.` };
   }

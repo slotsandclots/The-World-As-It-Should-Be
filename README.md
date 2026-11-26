@@ -16,13 +16,14 @@ Then visit http://localhost:8000. It can also be hosted as-is on GitHub Pages.
 
 ## What's in it
 
-**The First Republic: a story campaign and tutorial.** Lead the young Republic of Velmora after its king abdicates, guided by your chief of staff through six chapters:
+**The First Republic: a story campaign and tutorial.** Lead the young Republic of Velmora after its king abdicates, guided by your chief of staff through seven chapters:
 - forming a cabinet
 - balancing the budget, plus markets, construction and pops
 - a first election against the opposition leader
 - a general's ultimatum
 - a hostile junta next door
 - research and a dockyard strike
+- a common market with a neighbor, and a special economic zone
 
 Briefings are written as dialogue with portraits. Objectives are checked against the live simulation and highlight the part of the screen to use. The ending depends on what kind of state you built.
 
@@ -82,6 +83,14 @@ Characters are managed from the Leader tab: appoint and dismiss ministers, honor
 - **The state is part of the economy:** taxes come from pop incomes; soldiers, officials and teachers draw state wages; the army buys arms (shortages weaken it); infrastructure spending buys steel, timber and tools.
 - **Budget:** set taxes, tariffs and spending on the military, welfare, education, police, infrastructure and state investment. Deficits pile up debt, and at 150% of GDP the state defaults.
 
+**Empires, blocs and federations.**
+- **Subjects:** nations can be made protectorates, vassals, puppets or colonies through peace terms, protection offers or ultimatums. Subjects pay tribute and fight their overlord's wars. Their desire for independence grows with tribute, ideological distance and a weak overlord, and can end in a war of independence. Overlords can tighten or loosen control, invest, integrate peacefully, annex outright or set subjects free.
+- **Releases:** conquered land can be returned to its people, or used to restore a fallen nation, independent or as a subject.
+- **Blocs:** military pacts (collective defense), free-trade zones and customs unions (a shared market that trades tariff-free before the world market, with a common external tariff for customs unions) and confederations. Members vote on applicants; leaders invite, expel and set the tariff. AI nations found and join blocs too.
+- **Provinces:** click any province for its details. Your own can become special economic zones, autonomous regions or (if conquered) colonial administrations.
+- **Separatism:** unintegrated conquests and federal states grow separatist movements, answered with autonomy, repression or a referendum. Large nations can federalize, and confederations can merge into one federation.
+- **Coalitions:** with no majority (101 of 200 seats), parties form coalitions. Partners hold ministries and make policy demands; ignore them and they walk out, bringing the government down. Minority governments are possible but fragile.
+
 **Technology.** 19 technologies across industry, land, society, military and statecraft. They're researched with points from education, literacy and the economy, and each gives specific bonuses: more productive buildings, a stronger army or defense, less corruption, better tax collection.
 
 **War & diplomacy.**
@@ -114,6 +123,10 @@ The game saves to your browser's local storage (Menu → Save game).
 | `js/mapgen.js` | World models (heightmaps) → land/sea → provinces → nations |
 | `js/economy.js` | Pops, goods, buildings, markets, world trade, investment |
 | `js/balance.js` | Infamy, coalitions, occupation, core land, arms races, difficulty |
+| `js/empire.js` | Subjects, integration, annexation, releasing and restoring nations |
+| `js/blocs.js` | Military pacts, free-trade zones, customs unions, confederations |
+| `js/federal.js` | Province designations, separatism, federations |
+| `js/coalitions.js` | Hung parliaments, coalition governments, partner demands |
 | `js/sim.js` | The monthly simulation: politics, elections, regime change, war, peace, diplomacy, actions, save/load |
 | `js/characters.js` | Leaders, cabinets, generals, opposition, heirs; loyalty and succession |
 | `js/portrait.js` | Procedural SVG portraits |

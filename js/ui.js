@@ -319,6 +319,7 @@ const UI = {
       case 'autoinvest': { const c = this.player(); c.econ.autoInvest = !c.econ.autoInvest; this.renderTab(); return; }
       case 'empire': { const r = performEmpire(g, ds.id, +ds.target); this.track('empire:' + ds.id, r.ok); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }
       case 'release': this.showReleaseModal(+ds.core); return;
+      case 'coalition': { const r = coalitionAction(g, ds.p, ds.a); this.track('coalition:' + ds.a, r.ok); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }
       case 'designate': { const r = setDesignation(g, +ds.prov, ds.key || null); this.track('designate:' + (ds.key || 'none'), r.ok); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }
       case 'closeprov': this.selProv = null; this.renderTab(); return;
       case 'separatism': { const r = separatismAction(g, ds.key, ds.a); this.track('separatism:' + ds.a, r.ok); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }

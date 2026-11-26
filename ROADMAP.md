@@ -20,12 +20,13 @@ The milestones below are ordered that way.
 - Tutorial campaign "The First Republic"
 - Map zoom and pan, test suites, CI
 - Checks on runaway conquest (infamy, coalitions, occupation, core land, arms races) and four difficulty levels
+- **Milestone 1:** subjects and empires, releases, blocs (pacts, free-trade zones, customs unions, confederations), province designations, separatism, federations, parliamentary coalitions. Still open from it: war coalitions with joint war goals and joint peace deals, and bloc councils voting on shared policy.
 
 ---
 
-## Milestone 1: Empires, blocs and coalitions (L)
+## Milestone 1: Empires, blocs and coalitions (L) ✓
 
-The next build. Turns the map from a set of independent states into a web of hierarchies and blocs.
+Done, except war coalitions with joint war goals and peace, and confederation councils voting on shared policy. Turns the map from a set of independent states into a web of hierarchies and blocs.
 
 ### 1a. Subjects, annexation and releases
 - **Overlord–subject relations:** puppet, vassal, protectorate and colony, each with its own autonomy, obligations (tribute, troops, following the overlord's foreign policy) and liberty desire.
