@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>The World As It Should Be</title>
+  <meta name="description" content="A political simulator: lead any nation on a randomly generated world through elections, coups, revolutions and wars.">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header id="topbar">
+    <div class="brand" title="The World As It Should Be">🜨 <span>The World As It Should Be</span></div>
+    <div id="tb-nation" class="tb-nation"></div>
+    <div id="tb-stats" class="tb-stats"></div>
+    <div class="tb-controls">
+      <span id="tb-date" class="tb-date"></span>
+      <div class="speed" role="group" aria-label="Game speed">
+        <button data-speed="0" title="Pause (Space)">❚❚</button>
+        <button data-speed="1" title="Normal speed (1)">▶</button>
+        <button data-speed="2" title="Fast (2)">▶▶</button>
+        <button data-speed="3" title="Very fast (3)">▶▶▶</button>
+      </div>
+      <button id="btn-next" class="primary" title="Advance one month (N)">Next month ⏭</button>
+      <button id="btn-menu" title="Menu">☰</button>
+    </div>
+  </header>
+
+  <main id="main">
+    <section id="map-wrap">
+      <div id="map-inner">
+        <canvas id="map"></canvas>
+      </div>
+      <div id="map-tooltip" class="hidden"></div>
+      <div id="map-modes"></div>
+      <div id="choose-banner" class="hidden">Click a nation on the map to inspect it, then choose <b>Lead this nation</b>.</div>
+    </section>
+    <aside id="panel">
+      <nav id="tabs"></nav>
+      <div id="tab-body"></div>
+    </aside>
+  </main>
+
+  <div id="modal-root"></div>
+  <div id="toast-root"></div>
+
+  <script src="js/rng.js"></script>
+  <script src="js/names.js"></script>
+  <script src="js/governments.js"></script>
+  <script src="js/mapgen.js"></script>
+  <script src="js/sim.js"></script>
+  <script src="js/events.js"></script>
+  <script src="js/render.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
