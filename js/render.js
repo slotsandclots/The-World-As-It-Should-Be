@@ -23,6 +23,7 @@ const MAP_MODES = {
   terrain: { name: 'Terrain', legend: 'Lowlands green, highlands brown, peaks white', tile: true },
   resources: { name: 'Resources', legend: 'Each province\'s richest resource', province: p => resourceColor(p), key: true },
   sol: { name: 'Living Standard', legend: 'Standard of living by province: red = destitute, green = prosperous', province: p => rampRgb((provinceSol(p) - 15) / 50 * 100) },
+  blocs: { name: 'Blocs', legend: '', blocMode: true },
   industry: { name: 'Industry', legend: 'Share of each province working in factories: grey = rural, orange = industrial', province: p => mixRgb([75, 78, 92], [240, 130, 40], clamp(provinceIndustry(p) / 0.4, 0, 1)) },
   relations: { name: 'Relations', legend: 'Your relations: red = hostile, green = friendly' },
 };
@@ -57,6 +58,12 @@ class MapRenderer {
         const me = game.countries[player];
         if (me.allies.includes(c.id)) return [60, 150, 230];
         return rampRgb((relation(game, player, c.id) + 100) / 2);
+      }
+      case 'blocs': {
+        const eb = economicBloc(game, c.id), mb = militaryBloc(game, c.id);
+        if (eb) return eb.color;
+        if (mb) return mixRgb([95, 98, 110], mb.color, 0.45);
+        return [95, 98, 110];
       }
       default: return c.overlord != null && game.countries[c.overlord] ? mixRgb(c.rgb, game.countries[c.overlord].rgb, 0.45) : c.rgb;
     }

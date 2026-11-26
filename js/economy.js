@@ -299,7 +299,7 @@ function tickEconomy(game, warmup) {
     E.S = zeroGoods(); E.D = zeroGoods(); E.govQ = zeroGoods();
     E.prod = productivity(game, c);
     E.N = zeroPops();
-    E.tau = clamp(0.2 + 0.07 * c.trade.length - c.policy.tariff * 0.6 - (isAtWar(game, c.id) ? 0.1 : 0) - (c.gov === 'communist' ? 0.08 : 0), 0.03, 0.75);
+    E.tau = clamp(0.2 + 0.07 * c.trade.length - effectiveTariff(game, c) * 0.6 - (isAtWar(game, c.id) ? 0.1 : 0) - (c.gov === 'communist' ? 0.08 : 0), 0.03, 0.75);
     E.vec = {}; E.cost = {};
     for (const tier in NEEDS) {
       const v = zeroGoods();
@@ -586,13 +586,35 @@ function tickEconomy(game, warmup) {
 
 function clearMarkets(game, alive) {
   const W = game.worldMarket || (game.worldMarket = { prices: {}, S: {}, D: {}, traded: {} });
-  for (const c of alive) c.econ.tariffK = 0;
+  // Economic blocs: each is a shared market that clears before the world market.
+  const blocs = (game.blocs || []).filter(b => BLOC_TYPES[b.type].economic);
+  const blocOf = {};
+  for (const b of blocs) { b.prices = b.prices || {}; for (const m of b.members) blocOf[m] = b; }
+  for (const c of alive) { c.econ.tariffK = 0; c.econ.blocEx = c.econ.blocEx || zeroGoods(); c.econ.blocIm = c.econ.blocIm || zeroGoods(); }
   for (const g of GOOD_KEYS) {
     const base = GOODS[g].base;
+    const res = {}; // remaining surplus/shortage after bloc trade
+    for (const c of alive) res[c.id] = { S: c.econ.S[g], D: c.econ.D[g], exB: 0, imB: 0 };
+    for (const b of blocs) {
+      const ms = b.members.map(id => game.countries[id]).filter(c => c.alive);
+      const tb = BLOC_TYPES[b.type].openness;
+      let ex = 0, need = 0, SS = 0, DD = 0;
+      for (const c of ms) { const r = res[c.id]; SS += r.S; DD += r.D; if (r.S > r.D) ex += (r.S - r.D) * tb; else need += (r.D - r.S) * tb; }
+      const traded = Math.min(ex, need);
+      const rE = ex > 0 ? traded / ex : 0, rI = need > 0 ? traded / need : 0;
+      const bpT = base * clamp(Math.pow((DD + 1e-6) / (SS + 1e-6), ECON.ELASTICITY), ECON.PRICE_MIN, ECON.PRICE_MAX);
+      b.prices[g] = (b.prices[g] || base) * (1 - ECON.PRICE_SPEED) + bpT * ECON.PRICE_SPEED;
+      for (const c of ms) {
+        const r = res[c.id];
+        r.exB = r.S > r.D ? (r.S - r.D) * tb * rE : 0;
+        r.imB = r.D > r.S ? (r.D - r.S) * tb * rI : 0;
+      }
+    }
     let exportable = 0, need = 0, SS = 0, DD = 0;
     for (const c of alive) {
-      const E = c.econ, S = E.S[g], D = E.D[g];
-      SS += S; DD += D;
+      const E = c.econ, r = res[c.id];
+      const S = r.S - r.exB, D = r.D - r.imB;
+      SS += E.S[g]; DD += E.D[g];
       if (S > D) exportable += (S - D) * E.tau; else need += (D - S) * E.tau;
     }
     const traded = Math.min(exportable, need);
@@ -601,22 +623,29 @@ function clearMarkets(game, alive) {
     const wp = W.prices[g] = (W.prices[g] || base) * (1 - ECON.PRICE_SPEED) + wpT * ECON.PRICE_SPEED;
     W.S[g] = SS; W.D[g] = DD; W.traded[g] = traded;
     for (const c of alive) {
-      const E = c.econ, S = E.S[g], D = E.D[g];
-      const ex = S > D ? (S - D) * E.tau * rE : 0;
-      const im = D > S ? (D - S) * E.tau * rI : 0;
-      const avail = S - ex + im;
-      E.exports[g] = ex; E.imports[g] = im;
+      const E = c.econ, r = res[c.id], S = E.S[g], D = E.D[g];
+      const S2 = r.S - r.exB, D2 = r.D - r.imB;
+      const ex = S2 > D2 ? (S2 - D2) * E.tau * rE : 0;
+      const im = D2 > S2 ? (D2 - S2) * E.tau * rI : 0;
+      const avail = S - r.exB - ex + r.imB + im;
+      E.exports[g] = ex + r.exB; E.imports[g] = im + r.imB;
+      E.blocEx[g] = r.exB; E.blocIm[g] = r.imB;
       E.fulfill[g] = D > 0 ? Math.min(1, avail / D) : 1;
       let localT;
       if (D <= 0 && S <= 0) localT = base;
       else if (avail <= 0) localT = base * ECON.PRICE_MAX;
       else localT = base * clamp(Math.pow((D + 1e-6) / avail, ECON.ELASTICITY), ECON.PRICE_MIN, ECON.PRICE_MAX);
-      const wpEff = wp * (im > 0 ? 1 + c.policy.tariff : 1);
-      const target = Math.exp((1 - E.tau) * Math.log(localT) + E.tau * Math.log(wpEff));
+      const tariff = effectiveTariff(game, c);
+      const wpEff = wp * (im > 0 ? 1 + tariff : 1);
+      const b = blocOf[c.id];
+      const tb = b ? BLOC_TYPES[b.type].openness * 0.6 : 0;
+      const tw = Math.min(E.tau, 0.9 - tb);
+      const target = Math.exp((1 - tw - tb) * Math.log(localT) + tw * Math.log(wpEff) + (b ? tb * Math.log(b.prices[g]) : 0));
       E.prices[g] = E.prices[g] * (1 - ECON.PRICE_SPEED) + target * ECON.PRICE_SPEED;
-      // Producers sell exports at the world price.
-      E.pprod[g] = S > 0 ? ((S - ex) * E.prices[g] + ex * wp) / S : E.prices[g];
-      E.tariffK += im * wp * c.policy.tariff;
+      // Producers sell exports at the bloc or world price.
+      const bp = b ? b.prices[g] : wp;
+      E.pprod[g] = S > 0 ? ((S - ex - r.exB) * E.prices[g] + ex * wp + r.exB * bp) / S : E.prices[g];
+      E.tariffK += im * wp * tariff;
     }
   }
   for (const c of alive) c.econ.tariffRev = c.econ.tariffK / 1e6;

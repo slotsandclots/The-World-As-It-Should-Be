@@ -631,6 +631,7 @@ function declareWar(game, aId, bId, opts) {
     }
   }
   for (const s of subjectsOf(game, bId)) if (!war.a.includes(s.id)) joinWar(game, war, s.id, 'b');
+  if (!war.independence) blocDefense(game, war, aId, bId);
   for (const s of subjectsOf(game, aId)) if (SUBJECT_TYPES[s.subjectType].joinsWars && !war.b.includes(s.id)) joinWar(game, war, s.id, 'a');
   return war;
 }
@@ -910,6 +911,7 @@ function relationTarget(game, a, b) {
   if (getNeighbors(game, a.id).includes(b.id)) t -= 10;
   if (a.allies.includes(b.id)) t += 25;
   if (a.overlord === b.id || b.overlord === a.id) t += 20;
+  for (const bl of blocsOf(game, a.id)) if (bl.members.includes(b.id)) t += BLOC_TYPES[bl.type].rel;
   if (a.trade.includes(b.id)) t += 10;
   if (hasTruce(game, a.id, b.id)) t -= 20;
   // Infamous nations are distrusted by everyone; nations sharing a dangerous neighbor draw together.
@@ -1044,6 +1046,7 @@ function tick(game) {
   tickBalance(game);
   tickSubjects(game);
   aiEmpire(game);
+  tickBlocs(game);
   tickReparations(game);
   tickDiplomacy(game);
   for (const c of game.countries) if (c.alive) tickPolitics(game, c);
@@ -1384,7 +1387,12 @@ function resolveAllyCall(game, item, accept) {
   const war = game.wars.find(w => w.id === item.warId);
   const c = game.countries[game.player];
   if (!war) return 'The war is already over.';
-  if (accept) { joinWar(game, war, game.player, war.b.includes(item.ally) ? 'b' : 'a'); return `We honor our alliance with ${game.countries[item.ally].name}.`; }
+  if (accept) { joinWar(game, war, game.player, war.b.includes(item.ally) ? 'b' : 'a'); return `We honor our ${item.bloc ? 'pledge to the ' + item.bloc : 'alliance with ' + game.countries[item.ally].name}.`; }
+  if (item.bloc) {
+    const b = (game.blocs || []).find(x => x.name === item.bloc);
+    if (b && b.members.includes(c.id)) leaveBloc(game, b, c.id, 'expelled');
+    return `We abandon ${game.countries[item.ally].name}. The ${item.bloc} expels us.`;
+  }
   if (item.subject) {
     const S = game.countries[item.ally];
     S.libertyMod = (S.libertyMod || 0) + 40;
@@ -1437,6 +1445,7 @@ function serializeGame(game) {
     worldMarket: game.worldMarket,
     lastEvents: game.lastEvents, stats: game.stats, playerMonths: game.playerMonths || 0, nextCharId: game.nextCharId,
     flags: game.flags || {}, scheduled: game.scheduled || [], campaign: game.campaign || null, reparations: game.reparations || [],
+    blocs: game.blocs || [], nextBlocId: game.nextBlocId || 1,
   });
 }
 
@@ -1459,6 +1468,7 @@ function deserializeGame(str) {
     pending: [], over: false, neighborCache: {}, mapDirty: true, lastEvents: d.lastEvents || [], stats: d.stats,
     playerMonths: d.playerMonths, worldMarket: d.worldMarket, nextCharId: d.nextCharId || 1,
     flags: d.flags || {}, scheduled: d.scheduled || [], campaign: d.campaign || null, reparations: d.reparations || [],
+    blocs: d.blocs || [], nextBlocId: d.nextBlocId || 1,
   };
   game.rng.setState(d.rng);
   refreshAll(game);

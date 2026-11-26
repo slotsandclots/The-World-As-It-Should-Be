@@ -132,6 +132,27 @@ test('subjects pay tribute, can win independence, and fallen nations can be rest
   assert(r.bad.length === 0, r.bad.join('; '));
 });
 
+test('blocs trade inside a shared market, defend members and apply a common tariff', () => {
+  const r = run(`(() => { const g = createGame('blocs', { size: 'small' }); setPlayer(g, 0); g.truces = {};
+    const n = getNeighbors(g, 0)[0];
+    setRel(g, 0, n, 80); // members who fall out with the leader leave, so keep this one friendly
+    const cu = foundBloc(g, 0, 'customs'); joinBloc(g, cu, n); cu.tariff = 0.4;
+    const pact = foundBloc(g, 0, 'pact'); joinBloc(g, pact, n);
+    // Bloc trade can pause when members happen to have the same surpluses; count the whole year.
+    let blocTrade = 0;
+    for (let i = 0; i < 12; i++) { tick(g); g.pending.length = 0; for (const k of GOOD_KEYS) blocTrade += g.countries[n].econ.blocEx[k] + g.countries[n].econ.blocIm[k]; }
+    const tariffOk = effectiveTariff(g, g.countries[n]) === 0.4;
+    // An attack on the neighbor must pull us in (we are the player: we get asked).
+    const attacker = g.countries.find(c => c.alive && c.id !== 0 && c.id !== n && getNeighbors(g, n).includes(c.id));
+    let asked = null;
+    if (attacker) { declareWar(g, attacker.id, n); asked = g.pending.some(p => p.type === 'allyCall' && p.bloc); }
+    return { blocTrade, tariffOk, asked, bad: __sane(g) }; })()`);
+  assert(r.blocTrade > 0, 'no trade inside the customs union');
+  assert(r.tariffOk, 'common tariff not applied');
+  assert(r.asked !== false, 'pact member was not called to defend');
+  assert(r.bad.length === 0, r.bad.join('; '));
+});
+
 test('the campaign can be completed', () => {
   const r = run(`(() => {
     const g = startCampaign(); const c = g.countries[g.player]; const cs = g.campaign;

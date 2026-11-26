@@ -250,6 +250,20 @@ Object.assign(UI, {
         });
         break;
       }
+      case 'blocInvite': {
+        const b = blocById(g, it.bloc);
+        if (!b) { this.processPending(); return; }
+        const T = BLOC_TYPES[b.type];
+        this.openModal({
+          title: `Invitation: ${esc(b.name)}`,
+          body: this.withPortrait(g.countries[b.leader].leader.id, `<p>The ${esc(formalName(g.countries[b.leader]))} invites us to join the <b>${esc(b.name)}</b>, a ${T.name.toLowerCase()} with ${b.members.map(m => esc(g.countries[m].name)).join(', ')}.</p><p class="small muted">${T.desc}</p>`),
+          buttons: [
+            { label: 'Join', cls: 'primary', fn: () => done(resolveBlocInvite(g, it, true)) },
+            { label: 'Decline', fn: () => done(resolveBlocInvite(g, it, false)) },
+          ],
+        });
+        break;
+      }
       case 'diploOffer': {
         const from = g.countries[it.from];
         if (!from.alive) { this.processPending(); return; }
@@ -384,6 +398,8 @@ Object.assign(UI, {
       <p class="small">Wars of aggression, conquered provinces, reparations and imposed regimes raise <b>infamy</b>. It fades over time, faster at peace. Infamy sours relations with everyone, drives threatened neighbors into arms races and toward each other, and above ${INFAMY.coalitionAt} can trigger a <b>coalition</b> war against you. Conquered land is <b>occupied</b> for five years (half output, unrest, revolts back to its former owner) and <b>non-core</b> for twenty: it pays less tax, supplies fewer soldiers, lowers legitimacy, and every non-core province weighs on stability. On Hard and Brutal, AI nations are also stronger and warier of you.</p>
       <h4>Empires and subjects</h4>
       <p class="small">Nations can become subjects of others: <b>protectorates</b> (defended, free foreign policy), <b>vassals</b> (10% tribute, fight their overlord's wars), <b>puppets</b> (15%) and <b>colonies</b> (25%, deep resentment). Make subjects through peace terms, by offering protection to threatened weak nations, or by ultimatum. A subject's desire for independence grows with tribute, ideological distance and its overlord's weakness; above 72 it may fight a war of independence. Overlords can integrate loyal subjects peacefully, annex them outright, or set them free. Conquered land that belongs to others can be returned, and fallen nations restored, from the Diplomacy tab.</p>
+      <h4>Blocs</h4>
+      <p class="small">From the Blocs tab, found or join <b>military pacts</b> (collective defense), <b>free-trade zones</b> (tariff-free trade inside a shared market), <b>customs unions</b> (free trade plus a common external tariff) and <b>confederations</b> (all of it, plus a council). Members vote on new applicants; leaders invite, expel and set the common tariff. Abandoning a pact ally in their hour of need gets you expelled.</p>
       <h4>War & diplomacy</h4>
       <p class="small">Click any nation to improve relations, trade, ally, fund rebels or declare war. You can only invade nations that share a border or a narrow strait. Battles capture provinces; take the enemy capital after a third of their land is gone, or take 60%, and they capitulate. Lose all your provinces and the game is over.</p>
       <h4>Political capital (★ PC)</h4>

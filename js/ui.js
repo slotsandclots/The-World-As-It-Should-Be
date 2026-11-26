@@ -86,7 +86,7 @@ function describeEffects(fx) {
   }).join('');
 }
 
-const TABS = [['overview', 'Nation'], ['leader', 'Leader'], ['politics', 'Politics'], ['economy', 'Economy'], ['market', 'Market'], ['pops', 'Pops'], ['research', 'Research'], ['military', 'Military'], ['diplomacy', 'Diplomacy'], ['world', 'World'], ['news', 'News']];
+const TABS = [['overview', 'Nation'], ['leader', 'Leader'], ['politics', 'Politics'], ['economy', 'Economy'], ['market', 'Market'], ['pops', 'Pops'], ['research', 'Research'], ['military', 'Military'], ['diplomacy', 'Diplomacy'], ['blocs', 'Blocs'], ['world', 'World'], ['news', 'News']];
 const SAVE_KEY = 'twaisb-save-v1';
 
 const UI = {
@@ -114,6 +114,7 @@ const UI = {
     });
     body.addEventListener('input', e => {
       const el = e.target;
+      if (el.dataset.bloctariff) { setBlocTariff(App.game, +el.dataset.bloctariff, parseFloat(el.value)); const lb = $('#bt-' + el.dataset.bloctariff); if (lb) lb.textContent = pct(+el.value); return; }
       if (!el.dataset.policy) return;
       const c = this.player();
       if (!c) return;
@@ -254,6 +255,9 @@ const UI = {
     if (!lg) return;
     if (this.mapMode === 'government') {
       lg.innerHTML = GOV_ORDER.map(k => `<div class="row"><span class="swatch" style="background:${GOVS[k].color}"></span>${GOVS[k].name}</div>`).join('');
+    } else if (this.mapMode === 'blocs') {
+      const bl = (App.game && App.game.blocs) || [];
+      lg.innerHTML = bl.length ? bl.map(b => `<div class="row"><span class="swatch" style="background:rgb(${b.color.join(',')})"></span>${BLOC_TYPES[b.type].icon} ${esc(b.name)}</div>`).join('') + '<div class="muted small">Economic blocs fill provinces; nations in only a military pact are tinted.</div>' : '<span class="muted">No blocs yet.</span>';
     } else if (this.mapMode === 'resources') {
       lg.innerHTML = Object.entries(RESOURCE_COLORS).map(([k, c]) => `<div class="row"><span class="swatch" style="background:rgb(${c.join(',')})"></span>${RES_INFO[k]}</div>`).join('');
     } else if (this.mapMode === 'political') {
@@ -270,7 +274,7 @@ const UI = {
     else {
       const c = this.player();
       if (!c) { body.innerHTML = '<p class="muted">No nation selected.</p>'; return; }
-      const views = { overview: this.viewOverview, leader: this.viewLeader, politics: this.viewPolitics, economy: this.viewEconomy, market: this.viewMarket, pops: this.viewPops, research: this.viewResearch, military: this.viewMilitary, diplomacy: this.viewDiplomacy, world: this.viewWorld, news: this.viewNews };
+      const views = { overview: this.viewOverview, leader: this.viewLeader, politics: this.viewPolitics, economy: this.viewEconomy, market: this.viewMarket, pops: this.viewPops, research: this.viewResearch, military: this.viewMilitary, diplomacy: this.viewDiplomacy, blocs: this.viewBlocs, world: this.viewWorld, news: this.viewNews };
       body.innerHTML = views[this.tab].call(this, c, g);
     }
     body.scrollTop = st;
@@ -315,6 +319,18 @@ const UI = {
       case 'autoinvest': { const c = this.player(); c.econ.autoInvest = !c.econ.autoInvest; this.renderTab(); return; }
       case 'empire': { const r = performEmpire(g, ds.id, +ds.target); this.track('empire:' + ds.id, r.ok); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }
       case 'release': this.showReleaseModal(+ds.core); return;
+      case 'bloc': {
+        let r;
+        if (ds.a === 'found') { const sel = document.querySelector(`#found-partner-${ds.type}`); r = playerFoundBloc(g, ds.type, sel ? +sel.value : -1); }
+        else if (ds.a === 'invite') { const sel = document.querySelector(`#invite-${ds.bloc}`); r = playerInvite(g, +ds.bloc, sel ? +sel.value : -1); }
+        else if (ds.a === 'apply') r = playerApply(g, +ds.bloc);
+        else if (ds.a === 'leave') r = playerLeave(g, +ds.bloc);
+        else if (ds.a === 'expel') r = playerExpel(g, +ds.bloc, +ds.target);
+        this.track('bloc:' + ds.a, r && r.ok);
+        if (r) this.toast(r.msg, r.ok ? 'good' : 'bad');
+        App.afterAction();
+        return;
+      }
       case 'diplo': {
         if (ds.id === 'war') { this.confirmWar(+ds.target); return; }
         if (ds.id === 'peace') { const w = warBetween(g, g.player, +ds.target); if (w) this.showPeaceModal(w.id); return; }

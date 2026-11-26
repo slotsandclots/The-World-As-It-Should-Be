@@ -217,7 +217,7 @@ Object.assign(UI, {
     for (const k of Object.keys(POLICY_LIMITS)) {
       const L = POLICY_LIMITS[k];
       h += `<div class="slider-row"><label><span>${L.label}</span><b id="pv-${k}">${this.policyValue(c, k)}</b></label>
-        <input type="range" data-policy="${k}" min="${L.min}" max="${L.max}" step="${L.step}" value="${c.policy[k]}"><small>${L.hint}</small></div>`;
+        <input type="range" data-policy="${k}" min="${L.min}" max="${L.max}" step="${L.step}" value="${c.policy[k]}" ${k === 'tariff' && effectiveTariff(g, c) !== c.policy.tariff ? 'disabled' : ''}><small>${k === 'tariff' && effectiveTariff(g, c) !== c.policy.tariff ? `Set by the ${esc(economicBloc(g, c.id).name)}: ${pct(effectiveTariff(g, c))} on imports from outside the bloc.` : L.hint}</small></div>`;
     }
     h += '</div>';
     h += `<div class="card"><h3>History</h3><div class="lbl small muted">GDP over the last 10 years</div>${spark(c.hist.gdp, '#5b8cff')}</div>`;
@@ -450,6 +450,51 @@ Object.assign(UI, {
         h += `<div class="kv small" style="align-items:center"><span>${swatch(N)} ${gr.provs.length} province${gr.provs.length > 1 ? 's' : ''} of ${esc(N.name)}${N.alive ? '' : ' <span class="muted">(fallen)</span>'}</span>
           <span><button class="small" data-act="release" data-core="${N.id}">${N.alive ? 'Return' : 'Restore…'}</button></span></div>`;
       }
+    }
+    return h + '</div>';
+  },
+
+  viewBlocs(c, g) {
+    const blocs = g.blocs || [];
+    const mine = blocs.filter(b => b.members.includes(c.id));
+    const others = blocs.filter(b => !b.members.includes(c.id));
+    let h = `<div class="card small"><p>Blocs bind nations together. <b>Military pacts</b> defend every member. <b>Free-trade zones</b> and <b>customs unions</b> form a shared market that trades tariff-free before the world market; customs unions also share one external tariff set by the leader. <b>Confederations</b> do both, with a council. A nation can belong to one military and one economic bloc.</p></div>`;
+    for (const b of mine) {
+      const T = BLOC_TYPES[b.type], lead = b.leader === c.id;
+      const candidates = g.countries.filter(o => o.alive && !b.members.includes(o.id) && !canJoin(g, o, b.type)).sort((x, y) => relation(g, c.id, y.id) - relation(g, c.id, x.id));
+      h += `<div class="card bloc" style="border-left:4px solid rgb(${b.color.join(',')})"><h3>${T.icon} ${esc(b.name)}</h3>
+        <div class="small muted">${T.name} · founded ${gameDate(g, b.founded)} · led by ${esc(g.countries[b.leader].name)}${lead ? ' (us)' : ''}</div>
+        <p class="small">${T.desc}</p>
+        <table class="list"><tr><th>Member</th><th>Gov</th><th>Strength</th><th>Rel.</th><th></th></tr>${b.members.map(m => { const o = g.countries[m]; return `<tr><td>${swatch(o)} ${esc(o.name)}${m === b.leader ? ' ★' : ''}</td><td>${govBadge(o.gov)}</td><td>${strength(o).toFixed(0)}</td><td>${m === c.id ? '' : Math.round(relation(g, c.id, m))}</td><td>${lead && m !== c.id ? `<button class="small" data-act="bloc" data-a="expel" data-bloc="${b.id}" data-target="${m}" title="10 PC">Expel</button>` : ''}</td></tr>`; }).join('')}</table>`;
+      if (T.economic) {
+        let ex = 0, im = 0;
+        for (const k of GOOD_KEYS) { ex += (c.econ.blocEx ? c.econ.blocEx[k] : 0) * c.econ.prices[k]; im += (c.econ.blocIm ? c.econ.blocIm[k] : 0) * c.econ.prices[k]; }
+        h += `<div class="kv small" style="margin-top:6px"><span>Our trade inside the bloc</span><span>exports ${fmtMoney(ex / 1e6)} · imports ${fmtMoney(im / 1e6)} /mo</span></div>`;
+      }
+      if (b.type === 'customs' || b.type === 'confederation') {
+        h += lead ? `<div class="slider-row"><label><span>Common external tariff</span><b id="bt-${b.id}">${pct(b.tariff)}</b></label><input type="range" data-bloctariff="${b.id}" min="0" max="0.5" step="0.01" value="${b.tariff}"><small>Applies to every member's imports from outside the bloc.</small></div>`
+          : `<div class="kv small"><span>Common external tariff</span><span>${pct(b.tariff)} (set by ${esc(g.countries[b.leader].name)})</span></div>`;
+      }
+      h += `<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;align-items:center">`;
+      if (lead && candidates.length) h += `<select id="invite-${b.id}">${candidates.map(o => `<option value="${o.id}">${esc(o.name)} (rel ${Math.round(relation(g, c.id, o.id))})</option>`).join('')}</select><button class="small" data-act="bloc" data-a="invite" data-bloc="${b.id}" ${c.pc < 10 ? 'disabled' : ''} title="Members vote; then they decide. 10 PC">Invite</button>`;
+      h += `<button class="small" data-act="bloc" data-a="leave" data-bloc="${b.id}">Leave</button></div></div>`;
+    }
+    if (others.length) {
+      h += `<div class="card"><h3>Other blocs</h3><table class="list"><tr><th>Bloc</th><th>Members</th><th></th></tr>`;
+      for (const b of others) {
+        const why = canJoin(g, c, b.type);
+        h += `<tr><td><span class="swatch" style="background:rgb(${b.color.join(',')})"></span> ${BLOC_TYPES[b.type].icon} ${esc(b.name)}<div class="small muted">${BLOC_TYPES[b.type].name}, led by ${esc(g.countries[b.leader].name)}</div></td><td class="small">${b.members.map(m => esc(g.countries[m].name)).join(', ')}</td>
+          <td><button class="small" data-act="bloc" data-a="apply" data-bloc="${b.id}" ${why || c.pc < 15 ? 'disabled' : ''} title="${esc(why || 'Members vote on our application. 15 PC')}">Apply</button></td></tr>`;
+      }
+      h += '</table></div>';
+    }
+    h += `<div class="card"><h3>Found a bloc</h3><p class="small muted">Choose a founding partner; they decide based on relations, shared politics, and what the bloc offers them.</p>`;
+    const partners = g.countries.filter(o => o.alive && o.id !== c.id && o.overlord == null).sort((x, y) => relation(g, c.id, y.id) - relation(g, c.id, x.id));
+    for (const k of BLOC_KEYS) {
+      const T = BLOC_TYPES[k], why = canJoin(g, c, k);
+      h += `<div class="person" style="align-items:center"><div class="pinfo"><b>${T.icon} ${T.name}</b><div class="small muted">${T.desc}</div>${why ? `<div class="small bad">${why}</div>` : ''}</div>
+        <div class="pact">${why ? '' : `<select id="found-partner-${k}">${partners.filter(o => !canJoin(g, o, k)).map(o => `<option value="${o.id}">${esc(o.name)} (rel ${Math.round(relation(g, c.id, o.id))})</option>`).join('')}</select>`}
+        <button class="small" data-act="bloc" data-a="found" data-type="${k}" ${why || c.pc < T.foundPc ? 'disabled' : ''}>Found (${T.foundPc} PC)</button></div></div>`;
     }
     return h + '</div>';
   },

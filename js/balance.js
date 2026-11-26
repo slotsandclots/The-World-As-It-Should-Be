@@ -104,7 +104,8 @@ function tickBalance(game) {
     const neighbors = getNeighbors(game, x.id);
     // Neighbors join first; at high infamy, every nation that distrusts the aggressor joins too.
     const wide = x.infamy >= 55;
-    const members = alive.filter(o => o.id !== x.id && o.overlord !== x.id && !o.allies.includes(x.id) && !atWarWith(game, o.id, x.id) && o.id !== game.player
+    const xPact = militaryBloc(game, x.id);
+    const members = alive.filter(o => o.id !== x.id && o.overlord !== x.id && !o.allies.includes(x.id) && !(xPact && xPact.members.includes(o.id)) && !atWarWith(game, o.id, x.id) && o.id !== game.player
       && relation(game, o.id, x.id) < 10 && (wide || neighbors.includes(o.id) || o.allies.some(a => neighbors.includes(a))));
     if (members.length < 2 || !members.some(o => neighbors.includes(o.id))) continue;
     const total = members.reduce((s, o) => s + strength(o), 0);
