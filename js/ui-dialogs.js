@@ -41,7 +41,7 @@ Object.assign(UI, {
       <div class="form-row"><label>Provinces</label><input type="range" id="pt-prov" min="0" max="3" value="0" style="flex:1"><b id="pt-prov-v" style="width:20px">0</b></div>
       <label class="small"><input type="checkbox" id="pt-rep"> Reparations: 3% of their GDP a year for five years</label><br>
       ${canRegime ? `<label class="small"><input type="checkbox" id="pt-reg"> Impose our system: make them a ${GOVS[c.gov].name}</label>` : ''}
-      <p style="margin-top:12px">Chance they accept: <b id="pt-chance"></b></p><p class="small muted">Sending an offer costs 10 PC.</p>`;
+      <p style="margin-top:12px">Chance they accept: <b id="pt-chance"></b></p><p class="small muted">Sending an offer costs 10 PC. If they refuse, they won't hear new terms for six months. Infamy: +${INFAMY.peaceProvince} per province, +${INFAMY.reparations} for reparations, +${INFAMY.regime} for imposing our system (current: ${Math.round(c.infamy || 0)}).</p>`;
     const terms = () => ({ provinces: +$('#pt-prov').value, reparations: $('#pt-rep').checked, regime: !!($('#pt-reg') && $('#pt-reg').checked) });
     this.openModal({
       title: `Negotiate Peace with ${esc(enemy.name)}`, body, dismiss: true, row: true,
@@ -256,7 +256,8 @@ Object.assign(UI, {
       body: `<p>Our strength: <b>${strength(c).toFixed(0)}</b> · theirs: <b>${strength(t).toFixed(0)}</b> (defenders get +30%).</p>
         ${theirAllies.length ? `<p class="warn">Their allies may join: ${theirAllies.map(a => esc(a.name) + ' (' + strength(a).toFixed(0) + ')').join(', ')}.</p>` : '<p class="small muted">They have no allies.</p>'}
         ${pen ? `<p class="bad small">Our public dislikes wars of aggression: approval ${pen}.</p>` : ''}
-        <p class="small muted">Capture their capital once a third of their land is gone, or take 60% of it, and they must capitulate.</p>`,
+        <p class="small muted">Capture their capital once a third of their land is gone, or take 60% of it, and they must capitulate.</p>
+        ${(t.infamy || 0) < INFAMY.coalitionAt ? `<p class="warn small">A war of aggression adds ${Math.round(INFAMY.war * (g.player === c.id ? difficulty(g).playerInfamy : 1))} infamy (now ${Math.round(c.infamy || 0)}; coalitions become possible at ${INFAMY.coalitionAt}). Every province taken adds more.</p>` : `<p class="small good">${esc(t.name)} is infamous: no one will blame us for attacking it.</p>`}`,
       row: true,
       buttons: [
         { label: 'Cancel' },
@@ -299,10 +300,11 @@ Object.assign(UI, {
       <div class="form-row"><label>World</label><select id="setup-model" style="flex:1">${WORLD_MODEL_ORDER.map(k => `<option value="${k}">${WORLD_MODELS[k].name}</option>`).join('')}</select></div>
       <p class="small muted" id="setup-model-desc" style="margin:-4px 0 6px 140px">${WORLD_MODELS.continents.desc}</p>
       <div class="form-row"><label>Nations</label><input type="range" id="setup-n" min="4" max="40" value="14" style="flex:1"><b id="setup-n-v" style="width:24px">14</b></div>
+      <div class="form-row"><label>Difficulty</label><select id="setup-diff" style="flex:1">${DIFFICULTY_ORDER.map(k => `<option value="${k}" ${k === 'normal' ? 'selected' : ''} title="${esc(DIFFICULTY[k].desc)}">${DIFFICULTY[k].name}: ${esc(DIFFICULTY[k].desc)}</option>`).join('')}</select></div>
       <div class="form-row"><label>Map size</label><select id="setup-size"><option value="small">Small</option><option value="medium" selected>Medium</option><option value="large">Large</option></select></div>`;
     const buttons = [{ label: '▶ Play the campaign: The First Republic', cls: 'gold', title: 'A story campaign that teaches you the game', fn: () => { App.startCampaign(); } }, {
       label: 'Generate world', cls: 'primary', fn: () => {
-        App.newWorld($('#setup-seed').value || 'world', { model: $('#setup-model').value, size: $('#setup-size').value, countries: +$('#setup-n').value });
+        App.newWorld($('#setup-seed').value || 'world', { model: $('#setup-model').value, size: $('#setup-size').value, countries: +$('#setup-n').value, difficulty: $('#setup-diff').value });
       },
     }];
     if (hasSave) buttons.push({ label: 'Load saved game', fn: () => { App.load(); } });
@@ -329,7 +331,7 @@ Object.assign(UI, {
     App.setSpeed(0);
     this.openModal({
       title: 'Menu', dismiss: true,
-      body: g ? `<p class="small muted">World: <b>${esc(WORLD_MODELS[g.world.model].name)}</b> · seed <b>${esc(g.seed)}</b> · ${gameDate(g)}</p>` : '',
+      body: g ? `<p class="small muted">World: <b>${esc(WORLD_MODELS[g.world.model].name)}</b> · ${difficulty(g).name} · seed <b>${esc(g.seed)}</b> · ${gameDate(g)}</p>` : '',
       buttons: [
         { label: 'Save game', disabled: !playing, fn: () => { App.save(); } },
         { label: 'Load saved game', fn: () => { App.load(); } },
@@ -356,6 +358,8 @@ Object.assign(UI, {
       <p class="small">Each nation has a market where prices follow supply and demand, and shortages and surpluses are traded on the world market. Pops buy basic needs first, then everyday goods, then luxuries. Their standard of living against what their class expects drives approval, unrest and which way they vote, and the poor radicalize. Capitalists invest profits in whatever pays best; the state builds from its investment fund. Watch the <b>Market</b> and <b>Pops</b> tabs, and build in the <b>Economy</b> tab.</p>
       <h4>Budget</h4>
       <p class="small">Set taxes, tariffs and spending in the Economy tab. Spending flows back into the economy as wages and purchases. Deficits build debt; above 150% of GDP the state defaults. Education raises literacy and productivity; infrastructure makes every building more productive; welfare supports the poor; police suppress unrest at the cost of freedom.</p>
+      <h4>Conquest and its costs</h4>
+      <p class="small">Wars of aggression, conquered provinces, reparations and imposed regimes raise <b>infamy</b>. It fades over time, faster at peace. Infamy sours relations with everyone, drives threatened neighbors into arms races and toward each other, and above ${INFAMY.coalitionAt} can trigger a <b>coalition</b> war against you. Conquered land is <b>occupied</b> for five years (half output, unrest, revolts back to its former owner) and <b>non-core</b> for twenty: it pays less tax, supplies fewer soldiers, lowers legitimacy, and every non-core province weighs on stability. On Hard and Brutal, AI nations are also stronger and warier of you.</p>
       <h4>War & diplomacy</h4>
       <p class="small">Click any nation to improve relations, trade, ally, fund rebels or declare war. You can only invade nations that share a border or a narrow strait. Battles capture provinces; take the enemy capital after a third of their land is gone, or take 60%, and they capitulate. Lose all your provinces and the game is over.</p>
       <h4>Political capital (★ PC)</h4>

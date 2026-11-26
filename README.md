@@ -88,6 +88,13 @@ Characters are managed from the Leader tab: appoint and dismiss ministers, honor
 - Relations follow ideological distance and leaders' diplomatic skill.
 - Diplomatic actions: trade deals, defensive alliances (allies get called in), funding rebels to topple rival regimes, wars of conquest.
 - Provinces change hands at the front. Take an enemy's capital (or most of its land) and it capitulates.
+- **Conquest has costs:**
+  - **Infamy:** wars of aggression and taking land raise infamy, which sours relations with everyone.
+  - **Arms races:** threatened neighbors arm up and draw together.
+  - **Coalitions:** high infamy can unite them in a coalition war against you.
+  - **Occupation:** conquered land is occupied for five years (half output, unrest, possible revolts back to its old owner).
+  - **Integration:** it then stays non-core for twenty years, with less tax, fewer soldiers, lower legitimacy and an overextension penalty to stability.
+- **Difficulty:** Easy, Normal, Hard or Brutal. Higher levels make AI nations stronger, warier of you and quicker to fund insurgents.
 - **Peace terms:** demand provinces, reparations or a change of regime. Each costs war score; a winning enemy will demand terms from you.
 
 **Events.** Strikes, scandals, plotting colonels, student protests, booms, disasters, border incidents, opposition firebrands and more, each with choices.
@@ -106,6 +113,7 @@ The game saves to your browser's local storage (Menu → Save game).
 | `js/earth-data.js` | Earth's land mask at 0.5° resolution (run-length encoded) |
 | `js/mapgen.js` | World models (heightmaps) → land/sea → provinces → nations |
 | `js/economy.js` | Pops, goods, buildings, markets, world trade, investment |
+| `js/balance.js` | Infamy, coalitions, occupation, core land, arms races, difficulty |
 | `js/sim.js` | The monthly simulation: politics, elections, regime change, war, peace, diplomacy, actions, save/load |
 | `js/characters.js` | Leaders, cabinets, generals, opposition, heirs; loyalty and succession |
 | `js/portrait.js` | Procedural SVG portraits |

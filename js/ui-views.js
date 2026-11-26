@@ -38,6 +38,8 @@ Object.assign(UI, {
       <div class="kv"><span>Army</span><span>${fmtPop(c.army)}</span></div>
       <div class="kv"><span>Strength</span><span>${strength(c).toFixed(0)}</span></div>
       <div class="kv"><span>Political capital</span><span>${Math.floor(c.pc)} (+${(gv.pcGain * (0.6 + c.stability / 120)).toFixed(1)}/mo)</span></div>
+      <div class="kv" title="Wars of aggression and conquest raise infamy; it fades over time. Above ${INFAMY.coalitionAt}, coalitions may form against you."><span>Infamy</span><span class="${(c.infamy || 0) >= INFAMY.coalitionAt ? 'bad' : (c.infamy || 0) > 15 ? 'warn' : ''}">${Math.round(c.infamy || 0)}</span></div>
+      <div class="kv" title="Conquered land that has not yet been integrated (20 years): pays less tax, supplies fewer soldiers, and breeds unrest."><span>Non-core land</span><span class="${(c.nonCoreShare || 0) > 0.2 ? 'warn' : ''}">${c.nonCoreCount || 0} prov · ${pct(c.nonCoreShare || 0)} of pop</span></div>
       <div class="kv"><span>Living standard</span><span style="color:${statColor(c.econ.avgSol * 1.4)}">${c.econ.avgSol.toFixed(0)}</span></div>
       <div class="kv"><span>Unemployment</span><span class="${c.econ.unemployment > 0.08 ? 'bad' : ''}">${pct(c.econ.unemployment, 1)}</span></div>
       <div class="kv"><span>In power</span><span>${Math.floor((g.playerMonths || 0) / 12)}y ${(g.playerMonths || 0) % 12}m</span></div>
@@ -334,9 +336,11 @@ Object.assign(UI, {
       <div class="kv"><span>Strength</span><span>${strength(c).toFixed(0)}</span></div>
       <div class="kv"><span>World rank</span><span>#${all.indexOf(c) + 1} of ${all.length}</span></div>
       <div class="kv"><span>War exhaustion</span><span class="${c.warExhaustion > 40 ? 'bad' : ''}">${Math.round(c.warExhaustion)}</span></div>
+      <div class="kv"><span>Infamy</span><span class="${(c.infamy || 0) >= INFAMY.coalitionAt ? 'bad' : ''}">${Math.round(c.infamy || 0)} / ${INFAMY.coalitionAt}</span></div>
+      <div class="kv"><span>Occupied land</span><span>${pct(occupiedShare(g, c))} of pop</span></div>
       <div class="kv"><span>Allies</span><span>${c.allies.length}</span></div>
     </div>
-    <div class="card">${bar('Military loyalty', c.factions.military)}<p class="small muted">Strength depends on army size (set by military spending and population), wealth, stability and the loyalty of the officers. Defenders fight with a 30% bonus.</p>
+    <div class="card">${bar('Military loyalty', c.factions.military)}<p class="small muted">Conquest has a price: every war of aggression and every province taken adds <b>infamy</b>, which sours relations and, above ${INFAMY.coalitionAt}, can unite your neighbors in a coalition against you. Conquered land is <b>occupied</b> for five years (half output, unrest, possible revolts) and stays <b>non-core</b> for twenty (less tax and fewer soldiers, more unrest).</p><p class="small muted">Strength depends on army size (set by military spending and population), wealth, stability and the loyalty of the officers. Defenders fight with a 30% bonus.</p>
       <button data-act="tab" data-tab="economy">Adjust military spending →</button></div>`;
     const wars = warsOf(g, c.id);
     h += `<h4>Wars</h4>`;
@@ -396,6 +400,7 @@ Object.assign(UI, {
       <div class="kv"><span>Strength</span><span>${strength(t).toFixed(0)}</span></div>
       <div class="kv"><span>vs. ours</span><span class="${ratio >= 1 ? 'good' : 'bad'}">${ratio >= 1 ? 'We are ' + ratio.toFixed(1) + '× stronger' : 'They are ' + (1 / ratio).toFixed(1) + '× stronger'}</span></div>
       <div class="kv"><span>Allies</span><span>${t.allies.length ? t.allies.map(id => esc(g.countries[id].name)).join(', ') : 'none'}</span></div>
+      <div class="kv"><span>Infamy</span><span class="${(t.infamy || 0) >= INFAMY.coalitionAt ? 'bad' : ''}">${Math.round(t.infamy || 0)}</span></div>
       <div class="kv"><span>Provinces</span><span>${t.provinceCount}</span></div>
     </div>
     <div class="card small">Their public is ${ideologyText(t.ideo)}.</div>`;

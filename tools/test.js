@@ -94,6 +94,22 @@ test('peace terms transfer provinces and set up reparations', () => {
   assert(r.reps === 1, 'no reparations scheduled');
 });
 
+test('conquest raises infamy, occupies land and integrates it over 20 years', () => {
+  const r = run(`(() => { const g = createGame('inf', { size: 'small' }); setPlayer(g, 0); g.truces = {};
+    const n = getNeighbors(g, 0)[0]; declareWar(g, 0, n);
+    const t = pickFrontProvince(g, [0], [n]); const p = g.world.provinces[t[0]];
+    transferProvince(g, p.id, 0); refreshCores(g);
+    const out = { infamy: g.countries[0].infamy, occ: occupationFactor(g, p), nonCore: g.countries[0].nonCoreCount };
+    endWar(g, g.wars[0], 'peace');
+    for (let i = 0; i < 245 && p.owner === 0; i++) { tick(g); g.pending.length = 0; }
+    out.integrated = p.owner !== 0 || p.core === 0;
+    return out; })()`);
+  assert(r.infamy >= 5, 'declaring war added no infamy');
+  assert(r.occ > 0.9, 'conquered province not occupied');
+  assert(r.nonCore >= 1, 'conquered province counted as core');
+  assert(r.integrated, 'province never integrated or revolted');
+});
+
 test('the campaign can be completed', () => {
   const r = run(`(() => {
     const g = startCampaign(); const c = g.countries[g.player]; const cs = g.campaign;

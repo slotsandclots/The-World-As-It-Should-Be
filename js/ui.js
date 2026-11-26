@@ -339,7 +339,9 @@ const UI = {
       const r = relation(g, me.id, c.id);
       rel = `<br>Relations: <span class="${r < 0 ? 'bad' : 'good'}">${Math.round(r)}</span>${atWarWith(g, me.id, c.id) ? ' <span class="bad">· AT WAR</span>' : ''}`;
     }
-    tip.innerHTML = `<b>${esc(pr.name)}</b>${pr.id === c.capital ? ' <span class="warn">★ capital</span>' : ''} <span class="muted">· ${fmtPop(pr.pop)}</span><br>
+    const occ = occupationFactor(g, pr);
+    const coreNote = occ > 0 ? ` <span class="bad">· occupied (${Math.round(occ * 60)} mo left)</span>` : pr.core !== undefined && pr.core !== pr.owner ? ' <span class="warn">· non-core</span>' : '';
+    tip.innerHTML = `<b>${esc(pr.name)}</b>${pr.id === c.capital ? ' <span class="warn">★ capital</span>' : ''} <span class="muted">· ${fmtPop(pr.pop)}</span>${coreNote}<br>
       ${swatch(c)} ${esc(formalName(c))}<br><span class="muted">${GOVS[c.gov].name} · ${esc(leaderLine(c))}</span><br>
       Stability <b style="color:${statColor(c.stability)}">${Math.round(c.stability)}</b> · Approval ${Math.round(c.approval)}${rel}
       <br><span class="muted">Living standard ${provinceSol(pr).toFixed(0)} · literacy ${pct(pr.lit)} · peasants ${pct(pr.pops.peasants / Math.max(1, pr.pop))}</span>

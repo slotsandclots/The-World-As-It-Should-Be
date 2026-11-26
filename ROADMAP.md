@@ -19,6 +19,7 @@ The milestones below are ordered that way.
 - Event engine with chains and story flags
 - Tutorial campaign "The First Republic"
 - Map zoom and pan, test suites, CI
+- Checks on runaway conquest (infamy, coalitions, occupation, core land, arms races) and four difficulty levels
 
 ---
 

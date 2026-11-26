@@ -148,7 +148,7 @@ function newCountryEcon(c) {
 
 function productivity(game, c) {
   const p = c.policy;
-  let prod = c.econ.tech * (0.85 + p.infrastructure * 0.05);
+  let prod = c.econ.tech * (0.85 + p.infrastructure * 0.05) * (c.id === game.player ? 1 : 1 + difficulty(game).aiProd);
   if (c.stability < 35) prod *= 1 - (35 - c.stability) * 0.006;
   if (isAtWar(game, c.id)) prod *= 0.96;
   return Math.max(0.05, prod);
@@ -335,7 +335,7 @@ function tickEconomy(game, warmup) {
       let jw = 0, jf = 0;
       for (const t in def.jobs) { const tt = (!ownersAllowed(c) && (t === 'capitalists' || t === 'landowners')) ? 'officials' : t; jw += def.jobs[t]; jf += def.jobs[t] * fill[tt]; }
       b.staff = jw ? jf / jw : 1;
-      const scale = b.level * b.active * b.staff * E.prod * techProd(c, b.t);
+      const scale = b.level * b.active * b.staff * E.prod * techProd(c, b.t) * (1 - 0.5 * occupationFactor(game, p));
       let inF = 1;
       for (const g in def.in) {
         const f = E.fulfill[g];
