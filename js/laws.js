@@ -148,6 +148,7 @@ function interestClout(c) {
     t.clergy += (P.clergy || 0) * 20 + (P.peasants || 0) * 0.15;
     t.intelligentsia += (P.clerks || 0) * 1.5 + (P.officials || 0) * 1.5;
   }
+  if (c.igLeaders) for (const k in t) if (c.igLeaders[k]) t[k] *= 0.8 + c.igLeaders[k].skills.cha / 25;
   const s = Object.values(t).reduce((a, b) => a + b, 0) || 1;
   for (const k in t) t[k] /= s;
   return t;
@@ -212,6 +213,7 @@ function enactLaw(game, c, cat, opt) {
 
 function tickLaws(game, c) {
   ensureLaws(c);
+  tickIGLeaders(game, c);
   const R = c.reform;
   if (R) {
     R.months++;
@@ -289,4 +291,68 @@ function petitionTarget(c) {
     if (d && (!best || c.factions[f] < c.factions[best.f])) best = { f, cat: d.cat, opt: d.opt };
   }
   return best;
+}
+
+// ------------------------------------------------------------------ interest-group leaders
+// Each group is led by a character. Moderates keep their group close to the
+// government; radicals agitate, and a radical leading an angry group can call
+// its people into the streets. c.igLeaders = { faction: character }
+
+function ensureIGLeaders(game, c) {
+  c.igLeaders = c.igLeaders || {};
+  for (const f of FACTION_KEYS) if (!c.igLeaders[f]) c.igLeaders[f] = makeIGLeader(game, c, f);
+  return c.igLeaders;
+}
+
+function makeIGLeader(game, c, f) {
+  const ch = makeCharacter(game, c, { role: 'igLeader', faction: f });
+  ch.ig = f;
+  ch.stance = game.rng.chance(c.factions[f] < 40 ? 0.5 : 0.25) ? 'radical' : 'moderate';
+  return ch;
+}
+
+function tickIGLeaders(game, c) {
+  const L = ensureIGLeaders(game, c), rng = game.rng;
+  for (const f of FACTION_KEYS) {
+    const ch = L[f];
+    const loy = c.factions[f];
+    if (ch.stance === 'radical') {
+      if (loy < 50) c.factions[f] = clamp(loy - 0.12 * (ch.skills.cha / 5), 0, 100);
+      if (loy < 25 && rng.chance(0.012)) {
+        adjust(c, { unrest: 6, stability: -2 });
+        logNews(game, `${ch.name} leads the ${FACTIONS[f].name.toLowerCase()} into the streets of ${c.name}.`, 'crisis', [c.id]);
+        if (isPlayer(game, c)) notify(game, `${FACTIONS[f].name} Take to the Streets`, `${ch.name}, the radical leader of the ${FACTIONS[f].name.toLowerCase()}, has called mass demonstrations. Unrest +6.`, ch.id);
+      }
+      if (loy > 60 && rng.chance(0.02)) ch.stance = 'moderate';
+    } else {
+      c.factions[f] = clamp(loy + (50 - loy) * 0.004 * (ch.skills.cha / 5), 0, 100);
+      if (loy < 30 && rng.chance(0.015)) ch.stance = 'radical';
+    }
+    // Leaders retire or are pushed aside now and then.
+    if (rng.chance(1 / 200) || ch.age > 78) L[f] = makeIGLeader(game, c, f);
+  }
+}
+
+const IG_ACTIONS = {
+  meet: { name: 'Meet with them', pc: 8, desc: '+6 loyalty; a radical may soften.' },
+  coopt: { name: 'Co-opt', pc: 15, desc: 'Bring the leader into the fold: they turn moderate. −2 approval.' },
+  discredit: { name: 'Discredit', pc: 12, desc: 'Smear the leader until the group replaces them. −6 loyalty, −2 legitimacy.' },
+};
+
+function igAction(game, f, action) {
+  const c = game.countries[game.player], A = IG_ACTIONS[action];
+  const ch = ensureIGLeaders(game, c)[f];
+  if (!A || !ch) return { ok: false, msg: 'Unknown action.' };
+  if (c.pc < A.pc) return { ok: false, msg: `Needs ${A.pc} political capital.` };
+  c.pc -= A.pc;
+  if (action === 'meet') {
+    c.factions[f] = clamp(c.factions[f] + 6, 0, 100);
+    if (ch.stance === 'radical' && game.rng.chance(0.3)) { ch.stance = 'moderate'; return { ok: true, msg: `${ch.name} leaves the meeting a changed voice: a moderate now.` }; }
+    return { ok: true, msg: `${ch.name} appreciates being heard.` };
+  }
+  if (action === 'coopt') { ch.stance = 'moderate'; adjust(c, { approval: -2 }); c.factions[f] = clamp(c.factions[f] + 3, 0, 100); return { ok: true, msg: `${ch.name} accepts a seat on a government council and tones it down.` }; }
+  c.igLeaders[f] = makeIGLeader(game, c, f);
+  adjust(c, { legitimacy: -2 });
+  c.factions[f] = clamp(c.factions[f] - 6, 0, 100);
+  return { ok: true, msg: `${ch.name} is disgraced. The ${FACTIONS[f].name.toLowerCase()} choose ${c.igLeaders[f].name} (${c.igLeaders[f].stance}) instead.` };
 }

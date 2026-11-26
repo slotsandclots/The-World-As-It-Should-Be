@@ -261,6 +261,7 @@ function allCharacters(c) {
   if (c.heir) out.push(c.heir);
   if (c.monarch) out.push(c.monarch);
   if (c.movements) for (const k in c.movements) if (c.movements[k].leader) out.push(c.movements[k].leader);
+  if (c.igLeaders) for (const k in c.igLeaders) out.push(c.igLeaders[k]);
   return out;
 }
 
@@ -453,6 +454,7 @@ function roleTitle(c, ch) {
   if (ch.role === 'heir') return ch.female ? 'Crown Princess' : 'Crown Prince';
   if (ch.role === 'monarch') return ch.female ? 'Queen' : 'King';
   if (ch.role === 'dissident') return 'Dissident';
+  if (ch.role === 'igLeader') return `Leader of the ${FACTIONS[ch.ig] ? FACTIONS[ch.ig].name : 'group'} (${ch.stance})`;
   if (ch.role === 'movement') return `Leader of the ${MOVEMENTS[ch.movement] ? MOVEMENTS[ch.movement].name : 'movement'}`;
   if (ch.role === 'opposition') { const p = c.parties.find(x => x.id === ch.party); return p ? `Leader of the ${p.name}` : 'Opposition leader'; }
   return '';

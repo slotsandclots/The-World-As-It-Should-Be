@@ -459,6 +459,7 @@ const UI = {
       case 'sort': this.worldSort = ds.k; this.renderTab(); return;
       case 'lawpick': this.lawPick = this.lawPick && this.lawPick.cat === ds.cat && !ds.opt ? null : { cat: ds.cat, opt: ds.opt }; if (this.tab !== 'politics') this.tab = 'politics'; this.renderTab(); return;
       case 'propose': { const r = proposeLaw(g, this.player(), ds.cat, ds.opt); this.track('law:' + ds.cat, r.ok); this.toast(r.msg, r.ok ? 'good' : 'bad'); if (r.ok) this.lawPick = null; App.afterAction(); return; }
+      case 'ig': { const r = igAction(g, ds.f, ds.a); this.track('ig:' + ds.a, r.ok); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }
       case 'lawact': { const r = lawAction(g, ds.a); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }
       case 'ledger': this.ledger = Object.assign(this.ledger || {}, { [ds.k]: ds.v }); this.renderTab(); return;
       case 'newsmine': this.newsMine = !this.newsMine; this.renderTab(); return;

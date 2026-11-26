@@ -264,9 +264,12 @@ Object.assign(UI, {
       const F = FACTIONS[f];
       const star = gv.base[f] ? '★ ' : '';
       const dem = interestDemand(c, f);
-      h += `<div class="faction"><span class="icon">${F.icon}</span><div title="${esc(F.desc)}">${bar(`${star}${F.name} <span class="ftag">clout ${pct(clout[f])}</span>`, c.factions[f])}
+      const ld = c.igLeaders && c.igLeaders[f];
+      h += `<div class="person"><div title="${ld ? esc(ld.name) : ''}">${ld ? portraitSVG(ld, { size: 46, gov: c.gov }) : `<span class="icon">${F.icon}</span>`}</div><div class="pinfo" title="${esc(F.desc)}">${bar(`${F.icon} ${star}${F.name} <span class="ftag">clout ${pct(clout[f])}</span>`, c.factions[f])}
+        ${ld ? `<div class="small">${esc(ld.name)}, ${ld.age} · <span class="${ld.stance === 'radical' ? 'bad' : 'good'}">${ld.stance}</span>${ld.traits.map(t => ` <span class="trait" title="${esc(TRAITS[t].desc || '')}">${TRAITS[t].name}</span>`).join('')}</div>` : ''}
         ${dem ? `<div class="small muted">Wants: <a href="#" data-act="lawpick" data-cat="${dem.cat}" data-opt="${dem.opt}">${esc(LAW_CATS[dem.cat].opts[dem.opt].name)}</a></div>` : ''}</div>
-        <button data-act="appease" data-f="${f}" ${costOk(c, APPEASE_COST) ? 'disabled' : ''} title="Make concessions to the ${F.name}">Appease</button></div>`;
+        <div class="pact"><button data-act="appease" data-f="${f}" ${costOk(c, APPEASE_COST) ? 'disabled' : ''} title="Make concessions to the ${F.name}">Appease</button>
+        ${ld ? Object.entries(IG_ACTIONS).map(([k, A]) => `<button data-act="ig" data-f="${f}" data-a="${k}" ${c.pc < A.pc ? 'disabled' : ''} title="${esc(A.desc)}">${A.name} (${A.pc})</button>`).join('') : ''}</div></div>`;
     }
     h += '</div>';
 

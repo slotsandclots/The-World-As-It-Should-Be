@@ -352,6 +352,58 @@ const EVENTS = [
       { label: 'Refuse', fx: {}, run: (game, c) => { const t = petitionTarget(c); if (t) { c.factions[t.f] = clamp(c.factions[t.f] - 10, 0, 100); c.unrest = clamp(c.unrest + 4, 0, 100); } } },
     ],
   },
+  // ---- Constitutional crises
+  {
+    id: 'termLimit', title: 'The Question of a Third Term', weight: 3,
+    cond: (game, c) => GOVS[c.gov].elections === 'free' && c.leader.role === 'leader' && game.month - (c.leader.since || 0) >= 96 && !getFlag(game, 'term:' + c.leader.id),
+    speaker: (game, c) => c.cabinet.chief || null,
+    text: (game, c) => `${c.leader.name} has led the nation for ${Math.floor((game.month - (c.leader.since || 0)) / 12)} years, and the constitution allows no more. Loyalists are drafting an amendment; the courts and the press are watching.`,
+    options: [
+      { label: 'Respect the limit: step aside for a successor', fx: { legitimacy: 8, intelligentsia: 6 }, run: (game, c) => { const old = c.leader.name; c.leader = makeLeader(game, c); setFlag(game, 'term:' + c.leader.id); return `${old} retires to applause. ${c.leader.name} takes over.`; } },
+      { label: 'Amend the constitution', cond: (game, c) => c.pc >= 20, fx: { pc: -20, legitimacy: -12, intelligentsia: -15 }, run: (game, c) => { setFlag(game, 'term:' + c.leader.id); scheduleEvent(game, 'impeachment', 8, { why: 'term' }); return 'The amendment passes, narrowly. The opposition vows to fight on.'; } },
+      { label: 'Suspend the limit under emergency powers', fx: { legitimacy: -20, freedom: -10, military: 5 }, run: (game, c) => { setFlag(game, 'term:' + c.leader.id); c.emergency = true; scheduleEvent(game, 'exception', 10, {}); return 'A state of emergency is declared. Elections are postponed.'; } },
+    ],
+  },
+  {
+    id: 'impeachment', title: 'Impeachment Proceedings', weight: 1.5,
+    cond: (game, c) => GOVS[c.gov].elections === 'free' && c.approval < 30 && c.legitimacy < 55,
+    speaker: (game, c) => { const p = c.parties.find(x => x.id !== c.rulingParty && x.leader); return p ? p.leader : null; },
+    text: (game, c, ctx) => `${ctx.why === 'term' ? 'Outraged by the term-limit amendment, the' : 'With the government\'s approval collapsing, the'} opposition has moved to impeach ${c.leader.name}. Parliament will vote within weeks.`,
+    options: [
+      { label: 'Fight the vote in parliament', fx: {}, run: (game, c) => {
+        const seats = c.lastElection && !c.lastElection.sham ? seatsOf(c.lastElection) : {};
+        const mine = (seats[c.rulingParty] || 0) + ((c.coalition && c.coalition.partners) || []).reduce((t, p) => t + (seats[p.id] || 0), 0);
+        const chance = clamp(mine / 200 + 0.15 + (c.approval - 30) / 100, 0.1, 0.9);
+        if (game.rng.chance(chance)) { adjust(c, { legitimacy: -5 }); return `The motion fails: ${c.leader.name} survives, bruised.`; }
+        const old = c.leader.name; c.leader = makeLeader(game, c); adjust(c, { stability: -8, legitimacy: 5 });
+        return `Impeached. ${old} is removed from office; ${c.leader.name} takes over.`;
+      } },
+      { label: 'Resign with dignity', fx: { stability: 4, approval: 6 }, run: (game, c) => { const old = c.leader.name; c.leader = makeLeader(game, c); return `${old} resigns. ${c.leader.name} forms a new government.`; } },
+      { label: 'Dissolve parliament and call elections', fx: { legitimacy: -10, stability: -4 }, run: (game, c) => { c.nextElection = Math.min(c.nextElection, game.month + 3); return 'Parliament is dissolved. The country votes in three months.'; } },
+    ],
+  },
+  {
+    id: 'succession', title: 'A Disputed Succession', weight: 2,
+    cond: (game, c) => c.gov === 'absMonarchy' && c.leader.age >= 66 && c.heir && (c.generals || []).length > 0 && !getFlag(game, 'succ:' + c.leader.id),
+    speaker: (game, c) => c.heir,
+    text: (game, c) => { const gen = (c.generals || []).slice().sort((a, b) => b.ambition - a.ambition)[0]; return `${c.leader.name} is ${c.leader.age} and failing. The court whispers that ${c.heir.name}, aged ${c.heir.age}, is not ready, and ${gen.name} lets it be known that the army would prefer a firmer hand.`; },
+    options: [
+      { label: 'Confirm the heir before the court', fx: { legitimacy: 6, military: -6, clergy: 4 }, run: (game, c) => { setFlag(game, 'succ:' + c.leader.id); c.heir.loyalty = clamp(c.heir.loyalty + 15, 0, 100); } },
+      { label: 'Name the general as successor', fx: { military: 12, legitimacy: -10, clergy: -8 }, run: (game, c) => { setFlag(game, 'succ:' + c.leader.id); const gen = c.generals.slice().sort((a, b) => b.ambition - a.ambition)[0]; c.generals = c.generals.filter(x => x !== gen); gen.role = 'heir'; c.heir = gen; return `${gen.name} is proclaimed heir. The old dynasty's partisans seethe.`; } },
+      { label: 'Grant a constitution to secure the throne', fx: { intelligentsia: 12, legitimacy: 4, pc: -10 }, run: (game, c) => { setFlag(game, 'succ:' + c.leader.id); changeGovernment(game, c, 'constMonarchy', 'reform', { keepLeader: true }); return `The ${formalName(c)} is proclaimed: the crown is safe, its power shared.`; } },
+    ],
+  },
+  {
+    id: 'exception', title: 'The State of Exception', weight: 2,
+    cond: (game, c) => c.emergency && GOVS[c.gov].elections === 'free',
+    speaker: (game, c) => c.cabinet.interior || null,
+    text: () => 'The emergency was meant to last weeks. It has lasted months. Judges are refusing to sign decrees, and generals ask whether the constitution still binds them.',
+    options: [
+      { label: 'Lift the emergency and restore the constitution', fx: { legitimacy: 8, intelligentsia: 8, unrest: 4 }, run: (game, c) => { c.emergency = false; } },
+      { label: 'Extend it another year', fx: { legitimacy: -6, freedom: -5 }, run: (game, c) => { scheduleEvent(game, 'exception', 12, {}); } },
+      { label: 'Suspend the constitution for good', fx: { military: 8, intelligentsia: -20 }, run: (game, c) => { c.emergency = false; changeGovernment(game, c, c.ideo.econ < -0.3 ? 'communist' : c.ideo.econ > 0.3 ? 'fascist' : 'junta', 'coup', { keepLeader: true }); return `The republic is over. The ${formalName(c)} takes its place.`; } },
+    ],
+  },
   {
     id: 'summit', title: 'An Invitation to a Summit', weight: 0.9,
     cond: (game, c) => game.countries.some(o => o.alive && o.id !== c.id && relation(game, c.id, o.id) > 0 && !atWarWith(game, c.id, o.id)),

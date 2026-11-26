@@ -239,6 +239,27 @@ test('laws: presets are neutral, bills pass or fail, AI reforms', () => {
   console.log('    bill took', r.months, 'months; AI nations with reformed laws:', r.changed, '; e.g.', [...new Set(r.labels)].slice(0, 6).join(', '));
 });
 
+test('interest-group leaders act and constitutional crises fire', () => {
+  const r = run(`(() => { const g = createGame('ig1', { size: 'small', countries: 8 }); setPlayer(g, 0); const c = g.countries[0];
+    for (let i = 0; i < 3; i++) { tick(g); g.pending.length = 0; }
+    const L = c.igLeaders, all = FACTION_KEYS.every(f => L[f] && L[f].role === 'igLeader');
+    c.pc = 100; const f = 'workers', before = L[f].id;
+    const m = igAction(g, f, 'meet').ok, d = igAction(g, f, 'discredit').ok, replaced = c.igLeaders[f].id !== before;
+    const s = serializeGame(g), h = deserializeGame(s), kept = h.countries[0].igLeaders.workers.name === c.igLeaders.workers.name;
+    // Force a term-limit crisis in a democracy.
+    if (GOVS[c.gov].elections !== 'free') changeGovernment(g, c, 'democracy', 'reform', { keepLeader: true });
+    c.leader.since = g.month - 120;
+    const ev = eventById('termLimit'), ok = ev.cond(g, c);
+    presentEvent(g, c, ev, {}); const item = g.pending.pop(); resolveEvent(g, item, 0);
+    const newLeader = c.leader.since === g.month || g.month - c.leader.since < 2;
+    return { all, m, d, replaced, kept, ok, newLeader, bad: __sane(g) }; })()`);
+  assert(r.all, 'every group should have a leader');
+  assert(r.m && r.d && r.replaced, 'leader actions failed');
+  assert(r.kept, 'leaders lost on save/load');
+  assert(r.ok && r.newLeader, 'term-limit crisis did not work');
+  assert(r.bad.length === 0, r.bad.join('; '));
+});
+
 test('the campaign can be completed', () => {
   const r = run(`(() => {
     const g = startCampaign(); const c = g.countries[g.player]; const cs = g.campaign;

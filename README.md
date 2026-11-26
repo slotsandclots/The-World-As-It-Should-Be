@@ -112,7 +112,7 @@ Characters are managed from the Leader tab: appoint and dismiss ministers, honor
 
 The game saves to your browser's local storage (Menu → Save game).
 
-**Laws and interest groups.** Nine law categories, from press freedom to the economic system. Bills take months, need votes in parliament (or the power base's backing), and stir up the interest groups they hurt. Each group's clout comes from the classes behind it, and each wants something changed. Drift far enough from tradition and your regime gets a new name: a Guided Democracy, a Plebiscitary Junta.
+**Laws and interest groups.** Nine law categories, from press freedom to the economic system. Bills take months, need votes in parliament (or the power base's backing), and stir up the interest groups they hurt. Each group's clout comes from the classes behind it, and each wants something changed. Drift far enough from tradition and your regime gets a new name: a Guided Democracy, a Plebiscitary Junta. Every group has a leader, moderate or radical, whom you can court, co-opt or discredit. Constitutional crises (a third term, impeachment, a disputed succession, an emergency that never ends) can remake the state.
 
 **Seeing why.** Hover approval, stability, unrest, political capital or the treasury for a breakdown of what drives it. The Ledger tab charts your nation over time, compares you with your rivals, and tracks world market prices.
 
