@@ -146,6 +146,10 @@ The browser smoke test (`tools/browser-test.js`) plays in headless Chromium and 
 
 For balancing, `node tools/simtest.js <seed> <years>` reports politics and war, and `node tools/econtest.js <seed> <years>` reports prices, living standards and jobs.
 
+## Roadmap
+
+See [ROADMAP.md](ROADMAP.md) for what's planned next.
+
 ## Credits
 
 The Earth model's coastlines come from [Natural Earth](https://www.naturalearthdata.com/) 1:50m land data (public domain), via the [world-atlas](https://github.com/topojson/world-atlas) package (ISC). The polygons are rasterized into a 0.5° land mask in `js/earth-data.js`. Mountain ranges are hand-placed approximations.
