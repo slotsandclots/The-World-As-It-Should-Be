@@ -935,6 +935,7 @@ function playerMonthly(game) {
     c.flags.warned = true;
     notify(game, 'The Nation Is in Crisis', `Stability has fallen to ${Math.round(c.stability)}. Every month there is a real chance of a coup, a revolution or the government collapsing. Shore up your power base, crack down, or win back the public, and do it fast.`);
   } else if (c.stability > CRISIS_LEVEL + 7) c.flags.warned = false;
+  runScheduledEvents(game, c);
   if (!game.pending.some(p => p.type !== 'toast') && game.rng.chance(0.15)) maybeEvent(game, c);
 }
 
@@ -1301,6 +1302,7 @@ function serializeGame(game) {
     })),
     worldMarket: game.worldMarket,
     lastEvents: game.lastEvents, stats: game.stats, playerMonths: game.playerMonths || 0, nextCharId: game.nextCharId,
+    flags: game.flags || {}, scheduled: game.scheduled || [], campaign: game.campaign || null,
   });
 }
 
@@ -1320,6 +1322,7 @@ function deserializeGame(str) {
     countries: d.countries, wars: d.wars, log: d.log, player: d.player, nextWarId: d.nextWarId, truces: d.truces,
     pending: [], over: false, neighborCache: {}, mapDirty: true, lastEvents: d.lastEvents || [], stats: d.stats,
     playerMonths: d.playerMonths, worldMarket: d.worldMarket, nextCharId: d.nextCharId || 1,
+    flags: d.flags || {}, scheduled: d.scheduled || [], campaign: d.campaign || null,
   };
   game.rng.setState(d.rng);
   refreshAll(game);

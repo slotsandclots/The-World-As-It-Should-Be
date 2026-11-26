@@ -840,12 +840,12 @@ const UI = {
         this.openModal({ title: esc(it.title), body: this.withPortrait(it.charId, `<p>${esc(it.text)}</p>`), buttons: [{ label: 'Continue', cls: 'primary' }] });
         break;
       case 'event': {
-        const ev = EVENTS.find(e => e.id === it.id);
+        const ev = eventById(it.id);
         this.openModal({
-          title: esc(ev.title), body: `<p>${esc(it.text)}</p>`,
-          buttons: ev.options.map((o, i) => ({
+          title: esc(ev.title), body: this.withPortrait(it.charId, `<p>${esc(it.text)}</p>`),
+          buttons: eventOptions(g, c, it).map(({ o, i }) => ({
             label: `<div class="lbl">${esc(o.label)}</div><div>${describeEffects(o.fx)}</div>`, cls: 'opt',
-            disabled: (o.fx.pc && c.pc < -o.fx.pc),
+            disabled: !!(o.fx && o.fx.pc && c.pc < -o.fx.pc),
             fn: () => { const extra = resolveEvent(g, it, i); if (extra) this.toast(`${ev.title}: ${extra}`, 'info'); },
           })),
         });
