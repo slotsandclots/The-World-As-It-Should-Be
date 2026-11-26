@@ -86,7 +86,7 @@ function describeEffects(fx) {
   }).join('');
 }
 
-const TABS = [['overview', 'Nation'], ['politics', 'Politics'], ['economy', 'Economy'], ['market', 'Market'], ['pops', 'Pops'], ['military', 'Military'], ['diplomacy', 'Diplomacy'], ['world', 'World'], ['news', 'News']];
+const TABS = [['overview', 'Nation'], ['leader', 'Leader'], ['politics', 'Politics'], ['economy', 'Economy'], ['market', 'Market'], ['pops', 'Pops'], ['military', 'Military'], ['diplomacy', 'Diplomacy'], ['world', 'World'], ['news', 'News']];
 const SAVE_KEY = 'twaisb-save-v1';
 
 const UI = {
@@ -208,7 +208,7 @@ const UI = {
     else {
       const c = this.player();
       if (!c) { body.innerHTML = '<p class="muted">No nation selected.</p>'; return; }
-      const views = { overview: this.viewOverview, politics: this.viewPolitics, economy: this.viewEconomy, market: this.viewMarket, pops: this.viewPops, military: this.viewMilitary, diplomacy: this.viewDiplomacy, world: this.viewWorld, news: this.viewNews };
+      const views = { overview: this.viewOverview, leader: this.viewLeader, politics: this.viewPolitics, economy: this.viewEconomy, market: this.viewMarket, pops: this.viewPops, military: this.viewMilitary, diplomacy: this.viewDiplomacy, world: this.viewWorld, news: this.viewNews };
       body.innerHTML = views[this.tab].call(this, c, g);
     }
     body.scrollTop = st;
@@ -217,11 +217,10 @@ const UI = {
 
   nationHeader(c) {
     const g = App.game;
-    const T = TRAITS[c.leader.trait];
     const party = GOVS[c.gov].party === 'multi' ? `<div class="small muted">Governing party: ${esc(rulingPartyObj(c).name)}</div>` : '';
-    return `<div class="nation-head">${swatch(c)}<div><div class="formal">${esc(formalName(c))}</div>
+    return `<div class="nation-head"><div class="nh-portrait">${portraitSVG(c.leader, { size: 52, gov: c.gov })}<span class="swatch nh-flag" style="background:${c.color}"></span></div><div><div class="formal">${esc(formalName(c))}</div>
       <div style="margin:4px 0">${govBadge(c.gov)} <span class="small muted">since ${gameDate(g, Math.max(0, g.month - c.monthsInRegime))}</span></div>
-      <div class="small">${esc(leaderLine(c))}, ${c.leader.age} <span class="muted" title="${esc(T.desc)}">· ${T.name}</span></div>${party}</div></div>`;
+      <div class="small">${esc(leaderLine(c))}, ${c.leader.age}</div><div>${this.traitChips(c.leader)}</div>${party}</div></div>`;
   },
 
   viewOverview(c, g) {
@@ -266,6 +265,116 @@ const UI = {
       h += `<div class="card"><h3>Active effects</h3><div class="mods">${c.mods.filter(m => FX_LABELS[m.key] || m.key === 'growth').map(m => `${esc(m.label)}: ${m.key === 'growth' ? fmtSigned(m.v * 1200) + '% growth' : fmtSigned(m.v, 0) + ' ' + FX_LABELS[m.key]} (${m.months} mo)`).join('<br>') || 'Propaganda campaign running'}</div></div>`;
     }
     return h;
+  },
+
+  traitChips(ch) {
+    return (ch.traits || []).map(t => `<span class="trait" title="${esc(TRAITS[t].desc)}">${TRAITS[t].name}</span>`).join('');
+  },
+
+  skillBars(ch, highlight) {
+    return SKILL_KEYS.map(k => `<div class="skill${k === highlight ? ' hl' : ''}"><span>${SKILLS[k]}</span><div class="pips">${'<i class="on"></i>'.repeat(ch.skills[k])}${'<i></i>'.repeat(10 - ch.skills[k])}</div><b>${ch.skills[k]}</b></div>`).join('');
+  },
+
+  factionTag(ch) {
+    return ch.faction && FACTIONS[ch.faction] ? `<span class="ftag" title="${esc(FACTIONS[ch.faction].desc)}">${FACTIONS[ch.faction].icon} ${FACTIONS[ch.faction].name}</span>` : '';
+  },
+
+  viewLeader(c, g) {
+    const L = c.leader;
+    const T = traitFx(L);
+    const fx = [];
+    const d = k => L.skills[k] - 5;
+    if (d('cha')) fx.push(`${fmtSigned(d('cha') * 0.8)} approval (charisma)`);
+    if (d('admin')) fx.push(`${fmtSigned(-d('admin') * 1.5)} corruption (administration)`);
+    if (d('diplo')) fx.push(`${fmtSigned(d('diplo') * 1.2)} relations (diplomacy)`);
+    if (d('mil')) fx.push(`${fmtSigned(d('mil'))}% army strength (military)`);
+    for (const k of ['approval', 'stability', 'corruption', 'pc']) if (T[k]) fx.push(`${fmtSigned(T[k])} ${k === 'pc' ? 'PC/month' : k} (traits)`);
+    let h = `<div class="card leader-card"><div class="lc-portrait">${portraitSVG(L, { size: 108, gov: c.gov })}</div><div>
+      <div class="small muted">${esc(leaderTitle(c))} of the ${esc(formalName(c))}</div>
+      <div class="formal">${esc(L.name)}</div>
+      <div class="small">Age ${L.age} · in office since ${gameDate(g, Math.min(L.since, g.month))} ${this.factionTag(L)}</div>
+      <div style="margin:6px 0">${this.traitChips(L)}</div>
+      ${bar('Health', L.health)}</div></div>
+      <div class="card"><h3>Skills</h3>${this.skillBars(L)}
+      <p class="small muted" style="margin-top:8px">${fx.join(' · ') || 'An unremarkable administrator.'}</p>
+      <p class="small">Personal politics: <b>${ideologyText(L.ideo)}</b>.</p></div>`;
+    if (c.heir) h += this.personRow(c, c.heir, `<div class="small muted">Next in line to the throne. If the ${c.leader.female ? 'Queen' : 'King'} dies, ${c.heir.female ? 'she' : 'he'} takes the crown.</div>`);
+    if (c.monarch) h += this.personRow(c, c.monarch, `<div class="small muted">The crowned head of state reigns above politics and lends the government legitimacy.</div>`);
+
+    h += `<div class="card"><h3>Cabinet</h3><p class="small muted">Each minister's key skill drives their department. Ministers bring their faction's goodwill (+4 loyalty) while they're loyal; disloyal ones (below 25) work at half effort. Appointing costs ${APPOINT_PC} PC.</p>`;
+    for (const post of POST_KEYS) {
+      const P = CABINET_POSTS[post], ch = c.cabinet[post];
+      const eff = P.text(effectiveSkill(ch, post) - 5);
+      if (!ch) {
+        h += `<div class="person vacant"><div class="pp empty">?</div><div class="pinfo"><div class="ptitle">${P.name}</div><div class="bad small">Vacant: ${eff}</div><div class="small muted">${P.desc}</div></div>
+          <div class="pact"><button class="primary small" data-act="appoint" data-post="${post}">Appoint…</button></div></div>`;
+        continue;
+      }
+      h += `<div class="person"><div class="pp">${portraitSVG(ch, { size: 54, gov: c.gov })}</div><div class="pinfo">
+        <div class="ptitle">${P.name}</div><div><b>${esc(ch.name)}</b>, ${ch.age} ${this.factionTag(ch)}</div>
+        <div class="small">${SKILLS[P.skill]} <b>${ch.skills[P.skill]}</b> · <span class="${effectiveSkill(ch, post) >= 5 ? 'good' : 'bad'}">${eff}</span></div>
+        <div>${this.traitChips(ch)}</div>${bar('Loyalty', ch.loyalty, { tip: 'Below 25, ministers sabotage their department and may plot or leak.' })}</div>
+        <div class="pact"><button class="small" data-act="appoint" data-post="${post}">Replace…</button><button class="small" data-act="dismiss" data-post="${post}">Dismiss</button>
+        <button class="small" data-act="char" data-a="honor" data-id="${ch.id}" title="${esc(CHAR_ACTIONS.honor.desc)}" ${c.pc < CHAR_ACTIONS.honor.pc ? 'disabled' : ''}>Honor</button></div></div>`;
+    }
+    h += '</div>';
+
+    h += `<div class="card"><h3>High command</h3><p class="small muted">The best general's skill sets the army's leadership. A disloyal, ambitious general is a coup waiting to happen.</p>`;
+    for (const ch of c.generals) {
+      const danger = ch.loyalty < 25 ? `<div class="small bad">⚠ Disloyal${ch.ambition > 45 ? ' and ambitious: may attempt a coup' : ''}</div>` : '';
+      h += `<div class="person"><div class="pp">${portraitSVG(ch, { size: 54, gov: c.gov })}</div><div class="pinfo">
+        <div class="ptitle">General</div><div><b>${esc(ch.name)}</b>, ${ch.age}</div><div class="small">Military <b>${ch.skills.mil}</b> · ambition ${Math.round(ch.ambition)}</div>
+        <div>${this.traitChips(ch)}</div>${bar('Loyalty', ch.loyalty)}${danger}</div>
+        <div class="pact">${['honor', 'retire', 'arrest'].map(a => `<button class="small" data-act="char" data-a="${a}" data-id="${ch.id}" title="${esc(CHAR_ACTIONS[a].desc)} (${CHAR_ACTIONS[a].pc} PC)" ${c.pc < CHAR_ACTIONS[a].pc ? 'disabled' : ''}>${CHAR_ACTIONS[a].name}</button>`).join('')}</div></div>`;
+    }
+    h += '</div>';
+
+    const opp = c.parties.filter(p => p.leader).map(p => p.leader).concat(c.dissidents || []);
+    h += `<div class="card"><h3>${GOVS[c.gov].party === 'multi' ? 'Opposition' : 'Dissidents'}</h3>`;
+    if (!opp.length) h += '<p class="small muted">No organized opposition.</p>';
+    for (const ch of opp) {
+      const acts = ch.role === 'dissident' ? ['arrest', 'coopt'] : ['smear', 'coopt'];
+      const party = c.parties.find(p => p.id === ch.party);
+      h += `<div class="person"><div class="pp">${portraitSVG(ch, { size: 54, gov: c.gov })}</div><div class="pinfo">
+        <div class="ptitle">${esc(roleTitle(c, ch))}</div><div>${party ? `<span class="swatch" style="background:${party.color};width:10px;height:10px"></span> ` : ''}<b>${esc(ch.name)}</b>, ${ch.age}</div>
+        <div class="small">Charisma <b>${ch.skills.cha}</b> · ${ideologyText(ch.ideo)}</div><div>${this.traitChips(ch)}</div>
+        ${ch.role === 'dissident' ? bar('Following', ch.popularity, { invert: true, tip: 'A popular dissident fuels unrest and may lead a revolution.' }) : ''}</div>
+        <div class="pact">${acts.map(a => `<button class="small" data-act="char" data-a="${a}" data-id="${ch.id}" title="${esc(CHAR_ACTIONS[a].desc)} (${CHAR_ACTIONS[a].pc} PC)" ${c.pc < CHAR_ACTIONS[a].pc ? 'disabled' : ''}>${CHAR_ACTIONS[a].name}</button>`).join('')}</div></div>`;
+    }
+    return h + '</div>';
+  },
+
+  personRow(c, ch, extra) {
+    return `<div class="card person"><div class="pp">${portraitSVG(ch, { size: 54, gov: c.gov })}</div><div class="pinfo">
+      <div class="ptitle">${esc(roleTitle(c, ch))}</div><div><b>${esc(ch.name)}</b>, ${ch.age}</div><div>${this.traitChips(ch)}</div>${extra || ''}</div></div>`;
+  },
+
+  showAppointModal(post) {
+    const g = App.game, c = this.player();
+    const P = CABINET_POSTS[post];
+    const list = candidatesFor(g, c, post);
+    const cur = c.cabinet[post];
+    this.openModal({
+      title: `Appoint ${P.name}`, wide: true, dismiss: true,
+      body: `<p class="small">${P.desc} The key skill is <b>${SKILLS[P.skill]}</b>.${cur ? ` Replacing ${esc(cur.name)} will upset the ${FACTIONS[cur.faction] ? FACTIONS[cur.faction].name.toLowerCase() : 'public'} (−4).` : ''} New candidates come forward every year.</p>`,
+      buttons: list.map(ch => ({
+        cls: 'cand',
+        label: `<div class="pp">${portraitSVG(ch, { size: 64, gov: c.gov })}</div><div class="pinfo"><div><b>${esc(ch.name)}</b>, ${ch.age} ${this.factionTag(ch)}</div>
+          <div>${this.traitChips(ch)}</div>${this.skillBars(ch, P.skill)}
+          <div class="small">Loyalty ${Math.round(ch.loyalty)} · <span class="${ch.skills[P.skill] >= 5 ? 'good' : 'bad'}">${P.text(ch.skills[P.skill] - 5)}</span></div></div>`,
+        disabled: c.pc < APPOINT_PC,
+        fn: () => { const r = appointMinister(g, post, ch.id); this.toast(r.msg, r.ok ? 'good' : 'bad'); },
+      })).concat([{ label: 'Cancel' }]),
+    });
+  },
+
+  withPortrait(charId, html) {
+    const g = App.game;
+    if (!charId || !g) return html;
+    let ch = null, owner = null;
+    for (const c of g.countries) { const x = c.alive && findCharacter(c, charId); if (x) { ch = x; owner = c; break; } }
+    if (!ch) return html;
+    return `<div class="speaker"><div>${portraitSVG(ch, { size: 84, gov: owner.gov })}<div class="small muted" style="text-align:center;max-width:90px">${esc(ch.name)}<br>${esc(roleTitle(owner, ch))}</div></div><div>${html}</div></div>`;
   },
 
   costText(c, a) {
@@ -613,6 +722,9 @@ const UI = {
       case 'dom': { const r = performDomestic(g, ds.id); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }
       case 'appease': { const r = appeaseFaction(g, ds.f); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }
       case 'regime': this.showRegimeModal(); return;
+      case 'appoint': this.showAppointModal(ds.post); return;
+      case 'dismiss': { const r = dismissMinister(g, ds.post); this.toast(r.msg, r.ok ? 'info' : 'bad'); App.afterAction(); return; }
+      case 'char': { const r = characterAction(g, ds.a, +ds.id); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }
       case 'build': { const r = orderBuilding(g, ds.t); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }
       case 'autoinvest': { const c = this.player(); c.econ.autoInvest = !c.econ.autoInvest; this.renderTab(); return; }
       case 'diplo': {
@@ -725,7 +837,7 @@ const UI = {
     const done = msg => { if (msg) this.toast(msg, 'info'); };
     switch (it.type) {
       case 'notice':
-        this.openModal({ title: esc(it.title), body: `<p>${esc(it.text)}</p>`, buttons: [{ label: 'Continue', cls: 'primary' }] });
+        this.openModal({ title: esc(it.title), body: this.withPortrait(it.charId, `<p>${esc(it.text)}</p>`), buttons: [{ label: 'Continue', cls: 'primary' }] });
         break;
       case 'event': {
         const ev = EVENTS.find(e => e.id === it.id);

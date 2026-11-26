@@ -181,3 +181,32 @@ table.list tr.me td { background: #2b2a1a; }
   .tb-controls { margin-left: 0; }
   #toast-root { left: 8px; right: 8px; bottom: auto; top: 8px; max-width: none; }
 }
+
+/* ---------- characters */
+.portrait { display: block; border-radius: 8px; flex: none; }
+.leader-card { display: flex; gap: 14px; align-items: flex-start; }
+.leader-card .formal { font-family: Georgia, serif; font-size: 20px; }
+.nh-portrait { position: relative; flex: none; }
+.nh-portrait .nh-flag { position: absolute; right: -4px; bottom: -4px; width: 18px; height: 12px; }
+.trait { display: inline-block; font-size: 11px; padding: 1px 7px; margin: 2px 4px 0 0; border-radius: 999px; background: #2a3352; border: 1px solid #3a4670; cursor: help; }
+.ftag { font-size: 11px; color: var(--muted); margin-left: 4px; white-space: nowrap; }
+.skill { display: grid; grid-template-columns: 110px 1fr 20px; gap: 8px; align-items: center; font-size: 12px; margin: 3px 0; }
+.skill.hl span { color: var(--accent); font-weight: 600; }
+.pips { display: flex; gap: 2px; }
+.pips i { flex: 1; height: 7px; border-radius: 2px; background: #0d1220; }
+.pips i.on { background: var(--accent2); }
+.skill.hl .pips i.on { background: var(--accent); }
+.person { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; border-top: 1px solid #222b42; }
+.card > .person:first-of-type { border-top: none; }
+.card.person { border-top: 1px solid var(--line); padding: 10px 12px; }
+.pinfo { flex: 1; min-width: 0; font-size: 13px; }
+.pinfo .stat { margin: 4px 0 0; }
+.ptitle { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.pact { display: flex; flex-direction: column; gap: 4px; }
+.pact button { font-size: 11.5px; padding: 3px 8px; white-space: nowrap; }
+.pp.empty { width: 54px; height: 65px; border-radius: 8px; background: #121828; border: 1px dashed var(--line); display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 22px; }
+.person.vacant .ptitle { color: var(--bad); }
+button.cand { display: flex; gap: 12px; text-align: left; padding: 10px; align-items: flex-start; }
+button.cand .skill { grid-template-columns: 100px 1fr 18px; }
+.speaker { display: flex; gap: 14px; align-items: flex-start; }
+.speaker > div:last-child { flex: 1; }

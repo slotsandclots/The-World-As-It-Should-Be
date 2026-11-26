@@ -32,7 +32,7 @@ function logNews(game, text, kind, ids) {
 
 function isPlayer(game, c) { return c.id === game.player; }
 
-function notify(game, title, text) { game.pending.push({ type: 'notice', title, text }); }
+function notify(game, title, text, extra) { game.pending.push(Object.assign({ type: 'notice', title, text }, extra || {})); }
 function toastPlayer(game, text, kind) { game.pending.push({ type: 'toast', text, kind: kind || 'info' }); }
 
 function addMod(c, key, v, months, label) {
@@ -140,11 +140,11 @@ function createGame(seed, opts) {
     seed: String(seed), opts, world, rng: makeRng(String(seed) + '|sim'),
     month: 0, startYear: 1950, countries: [], wars: [], log: [], player: -1,
     nextWarId: 1, truces: {}, pending: [], over: false, neighborCache: {}, mapDirty: true,
-    lastEvents: [], stats: { regimeChanges: 0, wars: 0 },
+    lastEvents: [], stats: { regimeChanges: 0, wars: 0 }, nextCharId: 1,
   };
   world.countrySeeds.forEach((cs, i) => game.countries.push(initCountry(game, cs, i)));
   refreshAll(game);
-  for (const c of game.countries) c.army = armyTarget(c) * game.rng.range(0.85, 1.1);
+  for (const c of game.countries) { c.army = armyTarget(c) * game.rng.range(0.85, 1.1); initCharacters(game, c); }
   initEconomy(game);
   refreshAll(game);
   for (const c of game.countries) {
@@ -193,18 +193,6 @@ function initRelations(game) {
   }
 }
 
-function makeLeader(game, c, opts) {
-  opts = opts || {};
-  const rng = game.rng;
-  const female = rng.chance(0.35);
-  const first = makeFirstName(rng, female);
-  const last = opts.surname || makeSurname(rng);
-  const age = opts.young ? rng.int(18, 45) : rng.int(40, 66);
-  let name = first + ' ' + last;
-  if (opts.regnal) name = `${first} ${romanNumeral(opts.regnal)} ${last}`;
-  return { name, first, last, female, age, trait: rng.pick(Object.keys(TRAITS)), since: game.month };
-}
-
 function singlePartyName(c) {
   const g = GOVS[c.gov];
   if (c.gov === 'communist') return `Communist Party of ${c.name}`;
@@ -239,14 +227,16 @@ function armyTarget(c) {
 function strength(c) {
   const arms = c.econ ? c.econ.armsRatio : 1;
   const tech = c.econ ? c.econ.tech : c.tech;
-  return c.army / 1000 * (0.6 + 0.4 * Math.sqrt(tech)) * (0.55 + 0.45 * Math.min(1.2, arms)) * (0.7 + 0.3 * c.stability / 100) * (0.75 + 0.5 * c.factions.military / 100);
+  const gen = c.generals ? bestGeneral(c) : null;
+  const command = (1 + (gen ? (gen.skills.mil - 5) * 0.03 : 0)) * (1 + (c.leader && c.leader.skills ? (c.leader.skills.mil - 5) * 0.01 : 0)) * (1 + (c.cabinet ? cabinetFx(c).strength : 0));
+  return command * c.army / 1000 * (0.6 + 0.4 * Math.sqrt(tech)) * (0.55 + 0.45 * Math.min(1.2, arms)) * (0.7 + 0.3 * c.stability / 100) * (0.75 + 0.5 * c.factions.military / 100);
 }
 
 function projectBudget(c) {
   const p = c.policy;
   const E = c.econ;
   const taxBase = E ? E.taxBase : c.gdp / 12;
-  const taxes = taxBase * p.tax * (1 - c.corruption / 250);
+  const taxes = taxBase * p.tax * (1 - c.corruption / 250) * (1 + (c.cabinet ? cabinetFx(c).taxEff : 0));
   const tariffs = E ? E.tariffRev : 0;
   const stateProfit = E ? E.stateProfit : 0;
   const revenue = taxes + tariffs + stateProfit;
@@ -258,15 +248,17 @@ function projectBudget(c) {
 
 function tickCountry(game, c) {
   const g = GOVS[c.gov], p = c.policy, rng = game.rng;
-  const T = TRAITS[c.leader.trait] || {};
+  const T = traitFx(c.leader);
   const M = sumMods(c);
+  const L = c.leader.skills;
+  const CF = cabinetFx(c);
   const atWar = isAtWar(game, c.id);
   const debtRatio = Math.max(0, -c.treasury) / Math.max(1e-6, c.gdp);
 
   // --- Economy. Production, markets and pops run in tickEconomy (economy.js);
   // here technology advances and growth is measured.
   const E = c.econ;
-  let techG = 0.0007 + (p.education - 4) * 0.00012 + c.trade.length * 0.00005 + Math.max(0, 1.5 - E.tech) * 0.0002
+  let techG = 0.0007 + (L.admin - 5) * 0.00004 + (p.education - 4) * 0.00012 + c.trade.length * 0.00005 + Math.max(0, 1.5 - E.tech) * 0.0002
     - c.corruption * 0.000006 + g.growth * 0.6 + (T.growth || 0) + (M.growth || 0) + rng.normal() * 0.0004;
   if (debtRatio > 0.8) techG -= (debtRatio - 0.8) * 0.002;
   E.tech = Math.max(0.1, E.tech * (1 + techG));
@@ -297,7 +289,7 @@ function tickCountry(game, c) {
   // --- Freedom & corruption
   const freeT = clamp(g.freedom - p.police * 4 + (c.emergency ? -25 : 0) + (M.freedom || 0), 0, 100);
   c.freedom += (freeT - c.freedom) * 0.08;
-  const corrT = clamp(g.corruption + (T.corruption || 0) + (50 - c.freedom) * 0.15 + (M.corruption || 0), 0, 100);
+  const corrT = clamp(g.corruption + (T.corruption || 0) - (L.admin - 5) * 1.5 + CF.corruption + (50 - c.freedom) * 0.15 + (M.corruption || 0), 0, 100);
   c.corruption += (corrT - c.corruption) * 0.02;
 
   // --- Factions
@@ -310,13 +302,13 @@ function tickCountry(game, c) {
     intelligentsia: 28 + c.freedom * 0.35 + (p.education - 4) * 3 - p.police * 2.5 - (c.emergency ? 15 : 0) + (E.strataSol.middle - 65) * 0.2,
   };
   for (const f of FACTION_KEYS) {
-    const target = clamp(ft[f] + (T[f] || 0) + (M[f] || 0), 0, 100);
+    const target = clamp(ft[f] + (T[f] || 0) + (M[f] || 0) + (CF.factions[f] || 0) + (f === 'military' ? CF.military : 0), 0, 100);
     c.factions[f] += (target - c.factions[f]) * 0.07;
   }
 
   // --- Unrest
   const mismatch = ideoDist(c.ideo, g);
-  let unrestT = Math.max(0, 55 - c.approval) * 1.4 + mismatch * 14 + c.warExhaustion * 0.2 + Math.max(0, -growthA) * 2 + E.unemployment * 40 + Math.max(0, 30 - E.strataSol.lower) * 0.5 + (M.unrest || 0);
+  let unrestT = Math.max(0, 55 - c.approval) * 1.4 + mismatch * 14 + c.warExhaustion * 0.2 + Math.max(0, -growthA) * 2 + E.unemployment * 40 + Math.max(0, 30 - E.strataSol.lower) * 0.5 + CF.unrest + dissidentPressure(c) + (M.unrest || 0);
   const repress = clamp(p.police / 5 * g.repression * 0.5, 0, 0.75);
   unrestT *= 1 - repress;
   c.unrest += (clamp(unrestT, 0, 100) - c.unrest) * 0.12;
@@ -325,7 +317,7 @@ function tickCountry(game, c) {
   const apT = 50 + clamp(growthA * 2, -15, 10) + (p.welfare - 8) * 0.6 + (p.education - 4) * 0.5 + (p.infrastructure - 3) * 0.4
     - (p.tax - 0.25) * 60 - c.corruption * 0.12 - c.warExhaustion * 0.25 - mismatch * 8
     + (T.approval || 0) + (M.approval || 0) - Math.max(0, debtRatio - 0.6) * 15
-    + E.contentment * 0.5 - E.unemployment * 50;
+    + E.contentment * 0.5 - E.unemployment * 50 + (L.cha - 5) * 0.8 + CF.approval;
   c.approval = clamp(c.approval + (clamp(apT, 0, 100) - c.approval) * 0.1 + rng.normal() * 0.6, 0, 100);
 
   // --- Legitimacy
@@ -338,7 +330,7 @@ function tickCountry(game, c) {
   const aw = g.approvalWeight;
   const baseLoy = weightedLoyalty(c, g.base);
   const stT = 8 + 0.38 * (aw * c.approval + (1 - aw) * baseLoy) + 0.25 * c.legitimacy + 0.2 * avgLoyalty(c)
-    - 0.4 * c.unrest + p.police * 1.2 * g.repression - c.warExhaustion * 0.1 + (T.stability || 0) + (M.stability || 0);
+    - 0.4 * c.unrest + p.police * 1.2 * g.repression - c.warExhaustion * 0.1 + (T.stability || 0) + CF.stability + (M.stability || 0);
   c.stability = clamp(c.stability + (clamp(stT, 0, 100) - c.stability) * 0.08 + rng.normal() * 1.1, 0, 100);
 
   // --- Military
@@ -347,11 +339,15 @@ function tickCountry(game, c) {
   if (!atWar) c.warExhaustion = Math.max(0, c.warExhaustion - 2);
 
   // --- Political capital & bookkeeping
-  c.pc = clamp(c.pc + g.pcGain * (0.6 + c.stability / 120) + (T.pc || 0), 0, 100);
+  c.pc = clamp(c.pc + pcIncome(c), 0, 100);
   for (const m of c.mods) m.months--;
   c.mods = c.mods.filter(m => m.months > 0);
   for (const pt of c.parties) pt.boost *= 0.93;
   c.monthsInRegime++;
+}
+
+function pcIncome(c) {
+  return GOVS[c.gov].pcGain * (0.6 + c.stability / 120) + (traitFx(c.leader).pc || 0) + (c.cabinet ? cabinetFx(c).pc : 0);
 }
 
 function sovereignDefault(game, c) {
@@ -369,6 +365,8 @@ function computePolls(c) {
     const d2 = (p.econ - c.ideo.econ) ** 2 + (p.auth - c.ideo.auth) ** 2;
     let s = Math.exp(-d2 / 0.3) + 0.04;
     if (p.id === c.rulingParty) s *= clamp(0.4 + c.approval / 60, 0.5, 1.8);
+    const face = p.id === c.rulingParty ? c.leader : p.leader;
+    if (face && face.skills) s *= 1 + (face.skills.cha - 5) * 0.04;
     s *= 1 + p.boost;
     return Math.max(0.001, s);
   });
@@ -447,8 +445,16 @@ function runElection(game, c) {
 }
 
 function setRulingParty(game, c, pid) {
+  const oldParty = rulingPartyObj(c), oldLeader = c.leader;
   c.rulingParty = pid;
-  c.leader = makeLeader(game, c);
+  const np = rulingPartyObj(c);
+  // The winning party's leader takes office; the loser goes into opposition.
+  c.leader = np.leader || makeLeader(game, c);
+  c.leader.role = 'leader';
+  np.leader = null;
+  if (oldParty && oldParty.id !== pid) { oldLeader.role = 'opposition'; oldLeader.party = oldParty.id; oldParty.leader = oldLeader.age < 75 ? oldLeader : null; }
+  c.cabinet = {};
+  initCharacters(game, c, { generals: true, heir: true, dissidents: true });
   c.legitimacy = Math.max(c.legitimacy, 70);
   if (!isPlayer(game, c)) {
     const pt = rulingPartyObj(c), p = c.policy;
@@ -475,8 +481,19 @@ function changeGovernment(game, c, newGov, how, opts) {
     c.rulingParty = null;
   }
   c.rulingParty = g.party === 'single' ? 'state' : (c.rulingParty && c.parties.some(p => p.id === c.rulingParty) ? c.rulingParty : topPollParty(c));
-  if (!opts.keepLeader) c.leader = makeLeader(game, c);
+  if (opts.leader) { c.leader = opts.leader; c.leader.role = 'leader'; }
+  else if (!opts.keepLeader) {
+    // Revolutions are led by dissidents where there are any.
+    const dis = how === 'revolution' && (c.dissidents || []).length ? c.dissidents.slice().sort((a, b) => b.popularity - a.popularity)[0] : null;
+    if (dis) { c.dissidents = c.dissidents.filter(d => d !== dis); dis.role = 'leader'; c.leader = dis; }
+    else c.leader = makeLeader(game, c);
+  }
   if (newGov === 'absMonarchy') c.dynasty = c.leader.last;
+  if (!opts.keepLeader) c.cabinet = {};
+  for (const gen of c.generals || []) gen.loyalty = clamp(gen.loyalty + (g.base.military ? 15 : -5), 0, 100);
+  if (newGov !== 'absMonarchy') c.heir = null;
+  if (newGov !== 'constMonarchy') c.monarch = null;
+  initCharacters(game, c, { cabinet: !!opts.keepLeader, generals: true, dissidents: g.party === 'single' && GOVS[old].party === 'single' });
   c.emergency = false;
   c.flags.fraud = false;
   c.nextElection = g.elections ? game.month + (how === 'reform' ? 6 : 12) : null;
@@ -537,27 +554,6 @@ function checkCrisis(game, c) {
   }
   const r = pickRevolution(game, c);
   changeGovernment(game, c, r.gov, r.how);
-}
-
-function leaderDies(game, c) {
-  const old = c.leader;
-  const title = leaderTitle(c);
-  let note;
-  if (c.gov === 'absMonarchy') {
-    c.leader = makeLeader(game, c, { young: true, surname: c.dynasty || old.last });
-    adjust(c, { stability: -6 });
-    note = `The crown passes to ${c.leader.name}.`;
-  } else if (GOVS[c.gov].elections === 'free') {
-    c.leader = makeLeader(game, c);
-    adjust(c, { stability: -3 });
-    note = `${c.leader.name} takes over as ${leaderTitle(c)}.`;
-  } else {
-    c.leader = makeLeader(game, c);
-    adjust(c, { stability: -15, pc: -20 });
-    note = `A succession struggle ends with ${c.leader.name} in charge.`;
-  }
-  logNews(game, `${title} ${old.name} of ${c.name} has died at age ${old.age}. ${note}`, 'gov', [c.id]);
-  if (isPlayer(game, c)) notify(game, `${title} ${old.name} Has Died`, `Our leader has died at the age of ${old.age}. ${note}`);
 }
 
 // ------------------------------------------------------------------ war
@@ -793,6 +789,12 @@ function offerPeace(game, warId) {
 
 function relationTarget(game, a, b) {
   let t = 30 - 38 * ideoDist(GOVS[a.gov], GOVS[b.gov]);
+  // Personal diplomacy: skilled leaders and foreign ministers make friends.
+  for (const x of [a, b]) {
+    if (!x.leader || !x.leader.skills) continue;
+    t += (x.leader.skills.diplo - 5) * 1.2 + (traitFx(x.leader).relations || 0) * 0.5;
+    if (x.cabinet) t += cabinetFx(x).relations * 0.5;
+  }
   if (getNeighbors(game, a.id).includes(b.id)) t -= 10;
   if (a.allies.includes(b.id)) t += 25;
   if (a.trade.includes(b.id)) t += 10;
@@ -851,7 +853,7 @@ function tickDiplomacy(game) {
       const theirs = strength(target) + target.allies.reduce((s, x) => s + (game.countries[x].alive ? strength(game.countries[x]) * 0.5 : 0), 0);
       const ratio = strength(c) / (theirs + 0.001);
       if (ratio < 1.4) continue;
-      const p = g.aggression * 0.012 * Math.min(2, ratio - 1) * (-rel / 50);
+      const p = g.aggression * leaderAggression(c) * 0.012 * Math.min(2, ratio - 1) * (-rel / 50);
       if (rng.chance(p)) { declareWar(game, c.id, n); break; }
     }
   }
@@ -901,10 +903,7 @@ function tickPolitics(game, c) {
     if (c.emergency) c.nextElection = Math.max(c.nextElection, game.month + 1);
     else if (game.month >= c.nextElection) runElection(game, c);
   }
-  if (game.month % 12 === 0) c.leader.age++;
-  const age = c.leader.age;
-  const pd = 0.0003 + (age > 55 ? Math.pow(age - 55, 2) * 0.00004 : 0);
-  if (game.rng.chance(pd)) leaderDies(game, c);
+  tickCharacters(game, c);
   if (!isPlayer(game, c)) { aiPolicy(game, c); aiShock(game, c); }
   checkCrisis(game, c);
 }
@@ -1288,7 +1287,7 @@ function resolveDiploOffer(game, item, accept) {
 
 // ------------------------------------------------------------------ save / load
 
-const SAVE_VERSION = 2;
+const SAVE_VERSION = 3;
 
 function serializeGame(game) {
   return JSON.stringify({
@@ -1301,7 +1300,7 @@ function serializeGame(game) {
       b: p.buildings.map(b => ({ t: b.t, level: b.level, active: b.active, idle: b.idle, va: b.va })),
     })),
     worldMarket: game.worldMarket,
-    lastEvents: game.lastEvents, stats: game.stats, playerMonths: game.playerMonths || 0,
+    lastEvents: game.lastEvents, stats: game.stats, playerMonths: game.playerMonths || 0, nextCharId: game.nextCharId,
   });
 }
 
@@ -1320,7 +1319,7 @@ function deserializeGame(str) {
     seed: d.seed, opts: d.opts, world, rng: makeRng(d.seed + '|sim'), month: d.month, startYear: d.startYear,
     countries: d.countries, wars: d.wars, log: d.log, player: d.player, nextWarId: d.nextWarId, truces: d.truces,
     pending: [], over: false, neighborCache: {}, mapDirty: true, lastEvents: d.lastEvents || [], stats: d.stats,
-    playerMonths: d.playerMonths, worldMarket: d.worldMarket,
+    playerMonths: d.playerMonths, worldMarket: d.worldMarket, nextCharId: d.nextCharId || 1,
   };
   game.rng.setState(d.rng);
   refreshAll(game);

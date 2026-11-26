@@ -129,18 +129,30 @@ const PARTY_TEMPLATES = [
   { key: 'roy', name: 'Royalist Party', econ: 0.4, auth: 0.65, color: '#ffb300' },
 ];
 
+// Character traits. Numeric fields apply when the character leads the nation
+// (approval, faction loyalty, growth, ...). `skill` adjusts their skills,
+// `loyalty` how loyal they are as a subordinate, `aggression` how warlike a
+// foreign leader is. `ministerFx` is what the trait does to a cabinet post.
 const TRAITS = {
-  charismatic: { name: 'Charismatic', desc: '+5 approval', approval: 5 },
-  cunning: { name: 'Cunning', desc: '+0.5 political capital per month', pc: 0.5 },
-  militarist: { name: 'Militarist', desc: '+10 military loyalty', military: 10 },
-  reformer: { name: 'Reformer', desc: '+10 intelligentsia loyalty', intelligentsia: 10 },
+  charismatic: { name: 'Charismatic', desc: '+5 approval; skilled at rallying crowds', approval: 5, skill: { cha: 2 } },
+  cunning: { name: 'Cunning', desc: '+0.5 political capital per month', pc: 0.5, skill: { diplo: 1 } },
+  militarist: { name: 'Militarist', desc: '+10 military loyalty; more warlike', military: 10, skill: { mil: 2 }, aggression: 1.6 },
+  reformer: { name: 'Reformer', desc: '+10 intelligentsia loyalty', intelligentsia: 10, skill: { admin: 1 } },
   pious: { name: 'Pious', desc: '+10 clergy loyalty', clergy: 10 },
-  populist: { name: 'Populist', desc: '+8 worker loyalty, +2 approval', workers: 8, approval: 2 },
-  technocrat: { name: 'Technocrat', desc: '+0.5% annual growth, +5 business loyalty', growth: 0.0004, business: 5 },
-  corrupt: { name: 'Corrupt', desc: '+8 corruption', corruption: 8 },
-  paranoid: { name: 'Paranoid', desc: '+5 stability, -8 intelligentsia loyalty', stability: 5, intelligentsia: -8 },
-  incompetent: { name: 'Incompetent', desc: '-0.6% annual growth, -3 approval', growth: -0.0005, approval: -3 },
+  populist: { name: 'Populist', desc: '+8 worker loyalty, +2 approval', workers: 8, approval: 2, skill: { cha: 1 } },
+  technocrat: { name: 'Technocrat', desc: '+0.5% annual growth, +5 business loyalty', growth: 0.0004, business: 5, skill: { admin: 2 } },
+  corrupt: { name: 'Corrupt', desc: '+8 corruption', corruption: 8, ministerFx: { corruption: 3 } },
+  honest: { name: 'Honest', desc: '−6 corruption; respected by reformers', corruption: -6, intelligentsia: 3, ministerFx: { corruption: -2 }, conflicts: ['corrupt'] },
+  paranoid: { name: 'Paranoid', desc: '+5 stability, −8 intelligentsia loyalty', stability: 5, intelligentsia: -8, loyalty: -5 },
+  incompetent: { name: 'Incompetent', desc: '−0.6% annual growth, −3 approval; poor at everything', growth: -0.0005, approval: -3, skill: { admin: -2, diplo: -2, mil: -2, cha: -1 }, conflicts: ['technocrat'] },
+  diplomat: { name: 'Diplomat', desc: 'Better relations with every nation', skill: { diplo: 3 }, relations: 6, aggression: 0.6 },
+  ambitious: { name: 'Ambitious', desc: '+0.3 political capital; as a subordinate, eyes the top job', pc: 0.3, loyalty: -15, ambition: 25 },
+  loyal: { name: 'Loyal', desc: 'As a subordinate, stands by the leader', loyalty: 20, ambition: -25, conflicts: ['ambitious'] },
+  cautious: { name: 'Cautious', desc: 'Avoids wars; +3 stability', stability: 3, aggression: 0.4, conflicts: ['militarist'] },
+  warHero: { name: 'War Hero', desc: '+8 military loyalty, +3 approval', military: 8, approval: 3, skill: { mil: 2, cha: 1 } },
+  cruel: { name: 'Cruel', desc: '+4 stability, −4 approval; feared rather than loved', stability: 4, approval: -4, aggression: 1.3 },
 };
+const TRAIT_KEYS = Object.keys(TRAITS);
 
 function defaultPolicy(govId) {
   return Object.assign({}, BASE_POLICY, GOVS[govId].policy || {});
