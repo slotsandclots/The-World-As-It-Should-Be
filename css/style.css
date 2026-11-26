@@ -77,7 +77,7 @@ h4 { font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spa
 }
 
 #panel { width: 420px; flex: none; background: var(--panel); border-left: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; }
-#tabs { display: grid; grid-template-columns: repeat(5, 1fr); border-bottom: 1px solid var(--line); background: #11172540; }
+#tabs { display: grid; grid-template-columns: repeat(6, 1fr); border-bottom: 1px solid var(--line); background: #11172540; }
 #tabs button { flex: 1; border: none; border-radius: 0; background: transparent; padding: 9px 4px; font-size: 12.5px; color: var(--muted); border-bottom: 2px solid transparent; }
 #tabs button.active { color: var(--text); border-bottom-color: var(--accent); background: transparent; }
 #tabs button:hover { background: #1d2540; }
@@ -225,3 +225,9 @@ button.cand .skill { grid-template-columns: 100px 1fr 18px; }
 .pulse { animation: pulse 1.4s ease-in-out infinite; position: relative; z-index: 1; }
 @keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(232,184,74,.0); } 50% { box-shadow: 0 0 0 4px rgba(232,184,74,.75); } }
 @media (max-width: 900px) { #campaign-box { position: static; width: auto; margin: 8px; } }
+
+.tech { display: flex; justify-content: space-between; gap: 10px; align-items: center; padding: 8px 0; border-top: 1px solid #222b42; }
+.card h3 + .tech { border-top: none; }
+.tech.done b { color: var(--good); }
+.tech.locked { opacity: 0.5; }
+.tech.cur { background: #1d2a48; margin: 0 -12px; padding: 8px 12px; }

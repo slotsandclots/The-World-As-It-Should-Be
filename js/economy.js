@@ -335,7 +335,7 @@ function tickEconomy(game, warmup) {
       let jw = 0, jf = 0;
       for (const t in def.jobs) { const tt = (!ownersAllowed(c) && (t === 'capitalists' || t === 'landowners')) ? 'officials' : t; jw += def.jobs[t]; jf += def.jobs[t] * fill[tt]; }
       b.staff = jw ? jf / jw : 1;
-      const scale = b.level * b.active * b.staff * E.prod;
+      const scale = b.level * b.active * b.staff * E.prod * techProd(c, b.t);
       let inF = 1;
       for (const g in def.in) {
         const f = E.fulfill[g];
@@ -348,7 +348,7 @@ function tickEconomy(game, warmup) {
       b.inQ = {};
       for (const g in def.in) { const q = def.in[g] * scale; b.inQ[g] = q; E.D[g] += q; }
     }
-    p.subsist = p.pops.peasants * ECON.SUBSIST * Math.pow(E.tech, 0.3) * (c.stability < 35 ? 0.9 : 1);
+    p.subsist = p.pops.peasants * ECON.SUBSIST * Math.pow(E.tech, 0.3) * (c.stability < 35 ? 0.9 : 1) * (1 + techSum(c, 'subsist'));
     E.S.grain += p.subsist;
   }
 
@@ -510,9 +510,9 @@ function tickEconomy(game, warmup) {
       const war = isAtWar(game, c.id) ? 0.0005 : 0;
       for (const t of POP_KEYS) {
         const fb = p.fb ? (p.fb[t] === undefined ? 1 : p.fb[t]) : 1;
-        p.pops[t] *= 1 + (-0.0016 + 0.0028 * fb - war);
+        p.pops[t] *= 1 + (-0.0016 + 0.0028 * fb - war + techSum(c, 'popGrowth') * fb);
       }
-      const litT = clamp(0.05 + c.policy.education * 0.08 + c.econ.tech * 0.08, 0, 0.98);
+      const litT = clamp(0.05 + c.policy.education * 0.08 + c.econ.tech * 0.08 + techSum(c, 'literacy'), 0, 0.98);
       p.lit += (litT - p.lit) * 0.008;
     }
     p.pop = POP_KEYS.reduce((s, t) => s + p.pops[t], 0);

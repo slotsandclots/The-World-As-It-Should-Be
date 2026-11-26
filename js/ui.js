@@ -86,7 +86,7 @@ function describeEffects(fx) {
   }).join('');
 }
 
-const TABS = [['overview', 'Nation'], ['leader', 'Leader'], ['politics', 'Politics'], ['economy', 'Economy'], ['market', 'Market'], ['pops', 'Pops'], ['military', 'Military'], ['diplomacy', 'Diplomacy'], ['world', 'World'], ['news', 'News']];
+const TABS = [['overview', 'Nation'], ['leader', 'Leader'], ['politics', 'Politics'], ['economy', 'Economy'], ['market', 'Market'], ['pops', 'Pops'], ['research', 'Research'], ['military', 'Military'], ['diplomacy', 'Diplomacy'], ['world', 'World'], ['news', 'News']];
 const SAVE_KEY = 'twaisb-save-v1';
 
 const UI = {
@@ -209,7 +209,7 @@ const UI = {
     else {
       const c = this.player();
       if (!c) { body.innerHTML = '<p class="muted">No nation selected.</p>'; return; }
-      const views = { overview: this.viewOverview, leader: this.viewLeader, politics: this.viewPolitics, economy: this.viewEconomy, market: this.viewMarket, pops: this.viewPops, military: this.viewMilitary, diplomacy: this.viewDiplomacy, world: this.viewWorld, news: this.viewNews };
+      const views = { overview: this.viewOverview, leader: this.viewLeader, politics: this.viewPolitics, economy: this.viewEconomy, market: this.viewMarket, pops: this.viewPops, research: this.viewResearch, military: this.viewMilitary, diplomacy: this.viewDiplomacy, world: this.viewWorld, news: this.viewNews };
       body.innerHTML = views[this.tab].call(this, c, g);
     }
     body.scrollTop = st;
@@ -429,6 +429,7 @@ const UI = {
       h += `<div class="card"><h3>Ruling body</h3><p class="small">${esc(c.parties[0].name)} holds all power. No opposition is permitted.</p></div>`;
     }
     h += `<div class="card"><h3>Political compass</h3>${compassSVG(c)}<p class="small muted" style="text-align:center">● public · ■ regime${gv.party === 'multi' ? ' · small dots: parties' : ''}</p></div>`;
+    h += this.movementsHtml(c);
     h += `<div class="card"><h3>Domestic actions</h3><p class="small muted">You have <b>${Math.floor(c.pc)}</b> political capital.</p><div class="actions">`;
     for (const { a, reason } of domesticActionList(g, c)) h += this.actionBtn(c, 'dom', a, reason);
     h += '</div></div>';
@@ -596,7 +597,8 @@ const UI = {
         <div class="kv"><span>Provinces taken</span><span><span class="good">${w['gains' + mine.toUpperCase()]}</span> vs <span class="bad">${w['gains' + theirs.toUpperCase()]}</span></span></div>
         <div class="kv"><span>Strength</span><span>${sU.toFixed(0)} vs ${sT.toFixed(0)}</span></div>
         <div class="kv"><span>Exhaustion</span><span>${Math.round(w['ex' + mine.toUpperCase()])} vs ${Math.round(w['ex' + theirs.toUpperCase()])}</span></div>
-        <button data-act="diplo" data-id="peace" data-target="${w[theirs][0]}" ${c.pc < 10 ? 'disabled' : ''}>Offer peace (10 PC)</button></div>`;
+        <div class="kv"><span>War score</span><span class="${warScore(g, w, c.id) >= 0 ? 'good' : 'bad'}">${fmtSigned(warScore(g, w, c.id), 0)}</span></div>
+        <button data-act="peace" data-war="${w.id}" ${c.pc < 10 ? 'disabled' : ''}>Negotiate peace…</button></div>`;
     }
     const ns = getNeighbors(g, c.id).map(id => g.countries[id]);
     h += `<h4>Neighbors</h4><table class="list"><tr><th>Nation</th><th>Gov</th><th>Strength</th><th>Rel.</th></tr>`;
@@ -727,12 +729,16 @@ const UI = {
       case 'appease': { const r = appeaseFaction(g, ds.f); this.track('appease:' + ds.f, r.ok); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }
       case 'regime': this.showRegimeModal(); return;
       case 'appoint': this.showAppointModal(ds.post); return;
+      case 'move': { const r = movementAction(g, ds.k, ds.a); this.track('move:' + ds.a, r.ok); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }
+      case 'research': { const r = setResearch(g, ds.id); this.track('research:' + ds.id, r.ok); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }
+      case 'peace': this.showPeaceModal(+ds.war); return;
       case 'dismiss': { const r = dismissMinister(g, ds.post); this.toast(r.msg, r.ok ? 'info' : 'bad'); App.afterAction(); return; }
       case 'char': { const r = characterAction(g, ds.a, +ds.id); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }
       case 'build': { const r = orderBuilding(g, ds.t); this.track('build:' + ds.t, r.ok); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }
       case 'autoinvest': { const c = this.player(); c.econ.autoInvest = !c.econ.autoInvest; this.renderTab(); return; }
       case 'diplo': {
         if (ds.id === 'war') { this.confirmWar(+ds.target); return; }
+        if (ds.id === 'peace') { const w = warBetween(g, g.player, +ds.target); if (w) this.showPeaceModal(w.id); return; }
         const r = performDiplo(g, ds.id, +ds.target);
         this.track('diplo:' + ds.id, r.ok);
         this.toast(r.msg, r.ok ? 'good' : 'bad');
@@ -779,6 +785,75 @@ const UI = {
     const owner = g.world.provinces[p].owner;
     if (!this.choosing) this.tab = owner === g.player ? 'overview' : 'diplomacy';
     this.select(owner === g.player && !this.choosing ? null : owner);
+  },
+
+  movementsHtml(c) {
+    const M = ensureMovements(c);
+    const active = MOVEMENT_KEYS.filter(k => M[k].support >= 2).sort((a, b) => M[b].support - M[a].support);
+    let h = `<div class="card"><h3>Political movements</h3><p class="small muted">Movements grow out of the pops when a class has a grievance. Each makes a demand, and grows more radical while it goes unmet. Radical mass movements fuel unrest and can try to seize power.</p>`;
+    if (!active.length) return h + '<p class="small muted">No significant movements.</p></div>';
+    for (const k of active) {
+      const def = MOVEMENTS[k], m = M[k], met = def.demand.met(c);
+      h += `<div class="person">${m.leader ? `<div class="pp">${portraitSVG(m.leader, { size: 48, gov: c.gov })}</div>` : `<div class="pp empty" style="width:48px;height:58px">${def.icon}</div>`}<div class="pinfo">
+        <div><b>${def.icon} ${def.name}</b> <span class="small muted">${pct(m.support / 100)} of the population${def.gov ? ' · wants a ' + GOVS[def.gov].name : ''}</span></div>
+        <div class="small">${m.leader ? 'Led by ' + esc(m.leader.name) + ' · ' : ''}Demand: <span class="${met ? 'good' : 'warn'}">${esc(demandText(c, k))}${met ? ' ✓' : ''}</span></div>
+        ${bar('Radicalism', m.radicalism, { invert: true, tip: 'Above 72, a movement with over 22% support may rise up.' })}</div>
+        <div class="pact">${Object.entries(MOVEMENT_ACTIONS).map(([a, A]) => `<button class="small" data-act="move" data-k="${k}" data-a="${a}" ${c.pc < A.pc || (a === 'enact' && met) || (a === 'coopt' && !m.leader) ? 'disabled' : ''} title="${A.pc} PC">${A.name}</button>`).join('')}</div></div>`;
+    }
+    return h + '</div>';
+  },
+
+  viewResearch(c, g) {
+    const R = ensureResearch(c);
+    const rate = researchRate(c);
+    const cur = R.current ? TECHS[R.current] : null;
+    let h = `<div class="card"><h3>Research</h3>
+      ${cur ? `<div class="kv"><span>Researching <b>${cur.name}</b></span><span>${Math.floor(R.progress)} / ${cur.cost}</span></div>${bar('', R.progress / cur.cost * 100, { text: `~${Math.ceil((cur.cost - R.progress) / rate)} months`, color: 'var(--accent2)' })}`
+        : '<div class="alert warn">No research project selected. Pick one below; our scientists are idle.</div>'}
+      <p class="small muted">${rate.toFixed(1)} research points per month, from education spending, literacy (${pct(c.econ.literacy)}) and the size of the economy. Switching projects loses half the progress. ${R.done.length} of ${TECH_KEYS.length} technologies discovered.</p></div>`;
+    for (const cat of TECH_CATS) {
+      h += `<div class="card"><h3>${cat}</h3>`;
+      for (const id of TECH_KEYS.filter(k => TECHS[k].cat === cat)) {
+        const T = TECHS[id], done = R.done.includes(id), avail = techAvailable(c, id);
+        const reqs = T.req.filter(r => !R.done.includes(r)).map(r => TECHS[r].name);
+        h += `<div class="tech ${done ? 'done' : avail ? 'avail' : 'locked'}${R.current === id ? ' cur' : ''}"><div><b>${done ? '✓ ' : ''}${T.name}</b> <span class="small muted">${T.cost} pts</span><div class="small">${T.desc}</div>
+          ${reqs.length ? `<div class="small muted">Requires ${reqs.join(', ')}</div>` : ''}</div>
+          ${avail ? `<button class="small ${R.current === id ? 'active' : ''}" data-act="research" data-id="${id}" ${R.current === id ? 'disabled' : ''}>${R.current === id ? 'In progress' : 'Research'}</button>` : ''}</div>`;
+      }
+      h += '</div>';
+    }
+    return h;
+  },
+
+  showPeaceModal(warId) {
+    const g = App.game, c = this.player();
+    const war = g.wars.find(w => w.id === warId);
+    if (!war) return;
+    const enemy = g.countries[(war.a.includes(c.id) ? war.b : war.a)[0]];
+    const score = warScore(g, war, c.id);
+    const canRegime = enemy.gov !== c.gov;
+    const body = `<p>War score: <b class="${score >= 0 ? 'good' : 'bad'}">${fmtSigned(score, 0)}</b> (provinces taken and enemy exhaustion). The more you demand, the less likely ${esc(enemy.name)} is to accept.</p>
+      <div class="form-row"><label>Provinces</label><input type="range" id="pt-prov" min="0" max="3" value="0" style="flex:1"><b id="pt-prov-v" style="width:20px">0</b></div>
+      <label class="small"><input type="checkbox" id="pt-rep"> Reparations: 3% of their GDP a year for five years</label><br>
+      ${canRegime ? `<label class="small"><input type="checkbox" id="pt-reg"> Impose our system: make them a ${GOVS[c.gov].name}</label>` : ''}
+      <p style="margin-top:12px">Chance they accept: <b id="pt-chance"></b></p><p class="small muted">Sending an offer costs 10 PC.</p>`;
+    const terms = () => ({ provinces: +$('#pt-prov').value, reparations: $('#pt-rep').checked, regime: !!($('#pt-reg') && $('#pt-reg').checked) });
+    this.openModal({
+      title: `Negotiate Peace with ${esc(enemy.name)}`, body, dismiss: true, row: true,
+      buttons: [{ label: 'Cancel' }, {
+        label: 'Send offer', cls: 'primary', disabled: c.pc < 10, fn: () => {
+          c.pc -= 10;
+          const r = offerPeaceTerms(g, warId, terms());
+          this.track('diplo:peace', r.ok);
+          this.toast(r.msg, r.ok ? 'good' : 'bad');
+        },
+      }],
+      onOpen: el => {
+        const upd = () => { el.querySelector('#pt-prov-v').textContent = el.querySelector('#pt-prov').value; el.querySelector('#pt-chance').textContent = pct(peaceChance(g, war, c.id, terms())); };
+        el.querySelectorAll('input').forEach(i => i.addEventListener('input', upd));
+        upd();
+      },
+    });
   },
 
   // ------------------------------------------------------------ campaign
@@ -996,7 +1071,8 @@ const UI = {
         const war = g.wars.find(w => w.id === it.warId);
         if (!war) { this.processPending(); return; }
         this.openModal({
-          title: 'Peace Offer', body: `<p>${esc(formalName(from))} proposes a white peace to end the ${esc(war.name)}. Both sides would keep what they hold now.</p>`,
+          title: it.terms && peaceTermsCost(it.terms) > 0 ? 'Peace Terms Demanded' : 'Peace Offer',
+          body: this.withPortrait(from.leader.id, it.terms && peaceTermsCost(it.terms) > 0 ? `<p>${esc(formalName(from))} offers to end the ${esc(war.name)}, but on its terms: we must cede <b>${it.terms.provinces} province${it.terms.provinces > 1 ? 's' : ''}</b>${it.terms.reparations ? ' and pay <b>reparations</b> (3% of our GDP a year for five years)' : ''}.</p><p class="small muted">War score: ${fmtSigned(warScore(g, war, c.id), 0)} in their favor.</p>` : `<p>${esc(formalName(from))} proposes a white peace to end the ${esc(war.name)}. Both sides would keep what they hold now.</p>`),
           buttons: [
             { label: 'Accept peace', cls: 'primary', fn: () => done(resolvePeaceOffer(g, it, true)) },
             { label: 'Fight on', fn: () => done(resolvePeaceOffer(g, it, false)) },

@@ -18,6 +18,7 @@ const CAMPAIGN_CAST = {
   lena: { first: 'Lena', last: 'Kovar', female: true, age: 44, traits: ['populist', 'charismatic'], skills: { admin: 5, diplo: 5, mil: 2, cha: 8 } },
   maal: { first: 'Viktor', last: 'Maal', female: false, age: 58, traits: ['militarist', 'cruel'], skills: { admin: 4, diplo: 3, mil: 7, cha: 5 } },
   sol: { first: 'Henrike', last: 'Sol', female: true, age: 50, traits: ['diplomat', 'cautious'], skills: { admin: 6, diplo: 8, mil: 3, cha: 6 } },
+  rusk: { first: 'Pavel', last: 'Rusk', female: false, age: 39, traits: ['populist', 'charismatic'], skills: { admin: 4, diplo: 4, mil: 3, cha: 8 }, faction: 'workers' },
   halden: { first: 'Teodor', last: 'Halden', female: false, age: 52, traits: ['reformer', 'cautious'], skills: { admin: 6, diplo: 6, mil: 3, cha: 6 } },
 };
 
@@ -285,7 +286,7 @@ const CAMPAIGN_STEPS = [
       ['mara', 'Secure the border within ten months: raise relations with Drevany above −20, or sign an alliance with any nation. Our army\'s strength is in the Military tab if it comes to that.'],
     ],
     objective: 'Within 10 months, raise relations with Drevany above −20 or form an alliance.',
-    hint: 'Diplomacy tab → Drevany → "Improve Relations" (repeatable), or Aldmark → "Propose Alliance" (needs relations of 50; improve them first).',
+    hint: 'Diplomacy tab → Drevany → "Improve Relations" (repeatable), or Aldmark → "Propose Alliance" (needs relations of 50; improve them first). If war breaks out, the Military tab shows the war score; "Negotiate peace…" lets you demand provinces or reparations once you are winning.',
     highlight: { tab: 'diplomacy' },
     check: (game, c, ui, cs) => {
       const d = C_NAT(game, 'drevany');
@@ -303,6 +304,38 @@ const CAMPAIGN_STEPS = [
       if (cs.flags.drevanyAttacked && (!d || !d.alive || !atWarWith(game, c.id, d.id))) cs.flags.warOver = true;
     },
     objectiveFn: (game, c, cs) => (cs.flags.drevanyAttacked && !cs.flags.warOver ? 'Drevany has invaded! Survive the war and make peace (Military tab).' : null),
+  },
+  // ---------------------------------------------- Chapter VI
+  {
+    chapter: 'VI. Forces From Below', title: 'Science and Progress',
+    brief: [
+      ['ilse', 'A quieter matter, Mr. President, but it decides where we\'ll be in twenty years. Our universities and laboratories need direction.'],
+      ['ilse', 'Open the Research tab. Each technology gives a specific advantage: more productive factories and farms, a stronger army, less corruption. Research is faster with more education spending and a more literate people.'],
+    ],
+    objective: 'Choose a research project (Research tab).',
+    hint: 'Research tab → click "Research" next to any available technology.',
+    highlight: { tab: 'research', sel: '[data-act="research"]' },
+    check: (game, c) => !!(c.research && c.research.current),
+  },
+  {
+    chapter: 'VI. Forces From Below', title: 'The Dockyard Strike',
+    start: (game, c) => {
+      const M = ensureMovements(c);
+      const m = M.labor;
+      m.support = Math.max(m.support, 18);
+      m.radicalism = Math.max(m.radicalism, 62);
+      m.leader = scriptCharacter(game, c, 'rusk', 'movement', { loyalty: 10 });
+      m.leader.movement = 'labor';
+    },
+    brief: [
+      ['mara', 'The docks have stopped. The railways may be next. A labor movement has grown up under our feet, and its leader is in the newspapers every morning.'],
+      ['rusk', '"We built this Republic with our hands. All we ask is that it doesn\'t let our children go hungry. Welfare for working families, or the docks stay shut."'],
+      ['mara', 'Movements grow out of the pops: when a class lives worse than it expects, it organizes. Each makes a demand and grows more radical while it goes unmet. You\'ll find them in the Politics tab. You can meet the demand, suppress them, or try to bring their leader inside the tent.'],
+    ],
+    objective: 'Respond to the labor movement: meet its demand, suppress it, or co-opt Pavel Rusk.',
+    hint: 'Politics tab → Political movements → Labor Movement → choose an action.',
+    highlight: { tab: 'politics', sel: '[data-act="move"]' },
+    check: (game, c, ui, cs) => Object.keys(cs.actions).some(k => k.startsWith('move:')),
   },
   // ---------------------------------------------- Epilogue
   {
