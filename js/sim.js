@@ -143,6 +143,7 @@ function createGame(seed, opts) {
     lastEvents: [], stats: { regimeChanges: 0, wars: 0 }, nextCharId: 1,
   };
   world.countrySeeds.forEach((cs, i) => game.countries.push(initCountry(game, cs, i)));
+  for (const p of world.provinces) p.core = p.owner; // starting land is core
   refreshAll(game);
   for (const c of game.countries) {
     c.army = armyTarget(c) * game.rng.range(0.85, 1.1);
