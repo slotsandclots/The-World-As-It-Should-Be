@@ -59,7 +59,7 @@ test('save and load round-trip', () => {
     return { same, bad: __sane(h), size: s.length }; })()`);
   assert(r.same, 'reloaded game differs');
   assert(r.bad.length === 0, r.bad.join('; '));
-  assert(r.size < 4e6, 'save is too large for local storage: ' + r.size);
+  assert(r.size < 6e5, 'save is too large for local storage: ' + r.size);
 });
 
 test('every event option resolves without errors', () => {
@@ -200,6 +200,22 @@ test('hung parliaments form coalitions that can collapse', () => {
   if (r.skip) return;
   assert(r.formed, 'no government formed from a hung parliament');
   assert(r.fell, 'an ignored partner never walked out');
+});
+
+test('number breakdowns add up and history is recorded', () => {
+  const r = run(`(() => { const g = createGame('why1', { size: 'small' }); setPlayer(g, 0); for (let i = 0; i < 30; i++) { tick(g); g.pending.length = 0; }
+    const c = g.countries[0], W = c._why;
+    const pcOk = Math.abs(sumParts(pcParts(c)) - pcIncome(c)) < 1e-9;
+    const parts = ['approval', 'stability', 'unrest'].map(k => W && W[k] && W[k].parts.length > 3 && isFinite(W[k].target));
+    const H = c.hist, other = g.countries[1].hist;
+    const s = serializeGame(g);
+    return { pcOk, parts, len: H.gdp.length, unrest: H.unrest.length, otherUnrest: !!other.unrest, prices: Object.keys(g.priceHist).length, years: c.histY.month.length, noCache: !s.includes('"_provs"') && !s.includes('"_why"') }; })()`);
+  assert(r.pcOk, 'political capital parts do not add up');
+  assert(r.parts.every(Boolean), 'missing breakdowns: ' + JSON.stringify(r.parts));
+  assert(r.len === 30 && r.unrest === 30, `history lengths ${r.len}/${r.unrest}`);
+  assert(!r.otherUnrest, 'AI nations should not record player-only series');
+  assert(r.prices >= 10 && r.years === 2, `prices ${r.prices}, years ${r.years}`);
+  assert(r.noCache, 'transient caches leaked into the save');
 });
 
 test('the campaign can be completed', () => {

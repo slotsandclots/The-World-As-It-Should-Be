@@ -112,6 +112,10 @@ Characters are managed from the Leader tab: appoint and dismiss ministers, honor
 
 The game saves to your browser's local storage (Menu → Save game).
 
+**Seeing why.** Hover approval, stability, unrest, political capital or the treasury for a breakdown of what drives it. The Ledger tab charts your nation over time, compares you with your rivals, and tracks world market prices.
+
+**Saves.** As many save slots as you like, plus an autosave every January. The title screen offers to continue your latest game.
+
 ## Code layout
 
 | File | Purpose |
@@ -130,13 +134,15 @@ The game saves to your browser's local storage (Menu → Save game).
 | `js/sim.js` | The monthly simulation: politics, elections, regime change, war, peace, diplomacy, actions, save/load |
 | `js/characters.js` | Leaders, cabinets, generals, opposition, heirs; loyalty and succession |
 | `js/portrait.js` | Procedural SVG portraits |
+| `js/art.js` | Icons, generated national flags and illustrated event scenes |
 | `js/tech.js` | Technology tree and research |
 | `js/movements.js` | Political movements, demands and uprisings |
 | `js/events.js` | Event engine (chains, flags, scheduled follow-ups) and the events themselves |
 | `js/campaign.js` | The First Republic campaign: setup, story steps, endings |
-| `js/render.js` | Canvas map renderer and label overlay |
+| `js/render.js` | Painted map renderer (relief, smooth borders, ocean depth) and label overlay |
 | `js/ui.js`, `js/ui-views.js`, `js/ui-dialogs.js` | Interface core and map interaction, tab views, dialogs |
-| `js/main.js` | Game clock and wiring |
+| `js/saves.js` | Save slots in IndexedDB, autosave |
+| `js/main.js` | Game clock, world previews and wiring |
 
 ## Tests and tools
 

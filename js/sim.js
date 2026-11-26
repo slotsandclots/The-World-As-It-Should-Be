@@ -316,18 +316,29 @@ function tickCountry(game, c) {
     c.factions[f] += (target - c.factions[f]) * 0.07;
   }
 
-  // --- Unrest
+  // --- Unrest. Each target is a sum of labelled parts, kept in c._why so the
+  // interface can explain every number.
   const mismatch = ideoDist(c.ideo, g);
-  let unrestT = Math.max(0, 55 - c.approval) * 1.4 + mismatch * 14 + c.warExhaustion * 0.2 + Math.max(0, -growthA) * 2 + E.unemployment * 40 + Math.max(0, 30 - E.strataSol.lower) * 0.5 + CF.unrest + dissidentPressure(c) + movementPressure(c) + occupiedShare(game, c) * 45 + (c.nonCoreShare || 0) * 18 + (c.separatistPressure || 0) + (c.sezCount || 0) * 1.5 + (M.unrest || 0);
+  const unParts = [
+    ['Low approval', Math.max(0, 55 - c.approval) * 1.4], ['Public opinion vs. the regime', mismatch * 14], ['War exhaustion', c.warExhaustion * 0.2],
+    ['Recession', Math.max(0, -growthA) * 2], ['Unemployment', E.unemployment * 40], ['Poverty of the lower classes', Math.max(0, 30 - E.strataSol.lower) * 0.5],
+    ['Cabinet', CF.unrest], ['Dissidents', dissidentPressure(c)], ['Political movements', movementPressure(c)], ['Occupied land', occupiedShare(game, c) * 45],
+    ['Unintegrated conquests', (c.nonCoreShare || 0) * 18], ['Separatism', c.separatistPressure || 0], ['Special economic zones', (c.sezCount || 0) * 1.5], ['Temporary effects', M.unrest || 0],
+  ];
+  let unrestT = sumParts(unParts);
   const repress = clamp(p.police / 5 * g.repression * 0.5, 0, 0.75);
+  if (repress > 0) unParts.push([`Repression (−${Math.round(repress * 100)}%)`, -unrestT * repress]);
   unrestT *= 1 - repress;
   c.unrest += (clamp(unrestT, 0, 100) - c.unrest) * 0.12;
 
   // --- Approval
-  const apT = 50 + clamp(growthA * 2, -15, 10) + (p.welfare - 8) * 0.6 + (p.education - 4) * 0.5 + (p.infrastructure - 3) * 0.4
-    - (p.tax - 0.25) * 60 - c.corruption * 0.12 - c.warExhaustion * 0.25 - mismatch * 8
-    + (T.approval || 0) + (M.approval || 0) - Math.max(0, debtRatio - 0.6) * 15
-    + E.contentment * 0.5 - E.unemployment * 50 + (L.cha - 5) * 0.8 + CF.approval + techSum(c, 'approval');
+  const apParts = [
+    ['Baseline', 50], ['Economic growth', clamp(growthA * 2, -15, 10)], ['Welfare spending', (p.welfare - 8) * 0.6], ['Education spending', (p.education - 4) * 0.5],
+    ['Infrastructure spending', (p.infrastructure - 3) * 0.4], ['Taxes', -(p.tax - 0.25) * 60], ['Corruption', -c.corruption * 0.12], ['War exhaustion', -c.warExhaustion * 0.25],
+    ['Public opinion vs. the regime', -mismatch * 8], ['Leader\'s traits', T.approval || 0], ['Temporary effects', M.approval || 0], ['National debt', -Math.max(0, debtRatio - 0.6) * 15],
+    ['Contentment of the people', E.contentment * 0.5], ['Unemployment', -E.unemployment * 50], ['Leader\'s charisma', (L.cha - 5) * 0.8], ['Cabinet', CF.approval], ['Technology', techSum(c, 'approval')],
+  ];
+  const apT = sumParts(apParts);
   c.approval = clamp(c.approval + (clamp(apT, 0, 100) - c.approval) * 0.1 + rng.normal() * 0.6, 0, 100);
 
   // --- Legitimacy
@@ -339,9 +350,14 @@ function tickCountry(game, c) {
   // --- Stability
   const aw = g.approvalWeight;
   const baseLoy = weightedLoyalty(c, g.base);
-  const stT = 8 + 0.38 * (aw * c.approval + (1 - aw) * baseLoy) + 0.25 * c.legitimacy + 0.2 * avgLoyalty(c)
-    - 0.4 * c.unrest + p.police * 1.2 * g.repression - c.warExhaustion * 0.1 + (T.stability || 0) + CF.stability + (M.stability || 0) - Math.min(25, (c.nonCoreCount || 0) * 0.6);
+  const stParts = [
+    ['Baseline', 8], [`Public approval (weight ${Math.round(aw * 100)}%)`, 0.38 * aw * c.approval], [`Loyalty of the power base (weight ${Math.round((1 - aw) * 100)}%)`, 0.38 * (1 - aw) * baseLoy],
+    ['Legitimacy', 0.25 * c.legitimacy], ['Goodwill of all factions', 0.2 * avgLoyalty(c)], ['Unrest', -0.4 * c.unrest], ['Police', p.police * 1.2 * g.repression],
+    ['War exhaustion', -c.warExhaustion * 0.1], ['Leader\'s traits', T.stability || 0], ['Cabinet', CF.stability], ['Temporary effects', M.stability || 0], ['Unintegrated conquests', -Math.min(25, (c.nonCoreCount || 0) * 0.6)],
+  ];
+  const stT = sumParts(stParts);
   c.stability = clamp(c.stability + (clamp(stT, 0, 100) - c.stability) * 0.08 + rng.normal() * 1.1, 0, 100);
+  c._why = { approval: { target: apT, parts: apParts, rate: 0.1 }, stability: { target: stT, parts: stParts, rate: 0.08 }, unrest: { target: unrestT, parts: unParts, rate: 0.12 } };
 
   // --- Military
   c.army += (armyTarget(c) - c.army) * 0.06;
@@ -354,6 +370,19 @@ function tickCountry(game, c) {
   c.mods = c.mods.filter(m => m.months > 0);
   for (const pt of c.parties) pt.boost *= 0.93;
   c.monthsInRegime++;
+}
+
+function sumParts(parts) { let t = 0; for (const x of parts) t += x[1]; return t; }
+
+// Monthly political capital, broken into its parts for the interface.
+function pcParts(c) {
+  const g = GOVS[c.gov];
+  const base = g.pcGain * (0.6 + c.stability / 120);
+  const parts = [[`${g.name} (scaled by stability)`, base]];
+  if (c.federal) parts.push(['Federal system (−10%)', -base * 0.1]);
+  if (c.coalition && c.coalition.minority) parts.push(['Minority government (−25%)', -base * (c.federal ? 0.9 : 1) * 0.25]);
+  parts.push(['Technology', techSum(c, 'pc')], ['Leader\'s traits', traitFx(c.leader).pc || 0], ['Cabinet', c.cabinet ? cabinetFx(c).pc : 0]);
+  return parts;
 }
 
 function pcIncome(c) {
@@ -1064,12 +1093,44 @@ function tick(game) {
   tickDiplomacy(game);
   for (const c of game.countries) if (c.alive) tickPolitics(game, c);
   if (game.player >= 0 && game.countries[game.player].alive) playerMonthly(game);
+  recordHistory(game);
+}
+
+// Monthly series cover the last 20 years; yearly series (each January) cover
+// the whole game. The player's nation records extra detail for the ledger.
+const HIST_MONTHS = 240;
+function recordHistory(game) {
+  const push = (o, k, v) => { (o[k] || (o[k] = [])).push(v); if (o[k].length > HIST_MONTHS) o[k].shift(); };
+  const r1 = v => Math.round(v * 10) / 10;
   for (const c of game.countries) {
     if (!c.alive) continue;
-    c.hist.approval.push(Math.round(c.approval));
-    c.hist.stability.push(Math.round(c.stability));
-    c.hist.gdp.push(Math.round(c.gdp * 10) / 10);
-    for (const k in c.hist) if (c.hist[k].length > 240) c.hist[k].shift();
+    const H = c.hist;
+    push(H, 'approval', Math.round(c.approval));
+    push(H, 'stability', Math.round(c.stability));
+    push(H, 'gdp', r1(c.gdp));
+    push(H, 'pop', Math.round(c.pop / 1e4) / 100);
+    push(H, 'sol', r1(c.econ.avgSol));
+    if (c.id === game.player) {
+      // Keep the player's series aligned with the shared ones.
+      for (const k of ['unrest', 'treasury', 'army', 'unemp', 'pc', 'revenue', 'spend']) if (!H[k]) H[k] = new Array(Math.max(0, H.gdp.length - 1)).fill(null);
+      push(H, 'unrest', Math.round(c.unrest));
+      push(H, 'treasury', Math.round(c.treasury * 100) / 100);
+      push(H, 'army', Math.round(c.army / 1000));
+      push(H, 'unemp', Math.round(c.econ.unemployment * 1000) / 10);
+      push(H, 'pc', Math.floor(c.pc));
+      push(H, 'revenue', c.budget ? Math.round(c.budget.revenue * 1000) / 1000 : 0);
+      push(H, 'spend', c.budget ? Math.round((c.budget.spend + c.budget.interest) * 1000) / 1000 : 0);
+    }
+    if (game.month % 12 === 0) {
+      const Y = c.histY || (c.histY = { month: [], gdp: [], pop: [], sol: [], approval: [], stability: [] });
+      Y.month.push(game.month); Y.gdp.push(r1(c.gdp)); Y.pop.push(Math.round(c.pop / 1e4) / 100); Y.sol.push(r1(c.econ.avgSol));
+      Y.approval.push(Math.round(c.approval)); Y.stability.push(Math.round(c.stability));
+    }
+  }
+  const W = game.worldMarket;
+  if (W && W.prices) {
+    const P = game.priceHist || (game.priceHist = {});
+    for (const k in GOODS) if (W.prices[k] != null) push(P, k, r1(W.prices[k]));
   }
 }
 
@@ -1459,8 +1520,14 @@ function serializeGame(game) {
     worldMarket: game.worldMarket,
     lastEvents: game.lastEvents, stats: game.stats, playerMonths: game.playerMonths || 0, nextCharId: game.nextCharId,
     flags: game.flags || {}, scheduled: game.scheduled || [], campaign: game.campaign || null, reparations: game.reparations || [],
-    blocs: game.blocs || [], nextBlocId: game.nextBlocId || 1,
-  });
+    blocs: game.blocs || [], nextBlocId: game.nextBlocId || 1, priceHist: game.priceHist || {},
+  }, saveReplacer);
+}
+
+// Saves skip transient caches (keys starting with _) and trim float noise.
+function saveReplacer(k, v) {
+  if (k.charCodeAt(0) === 95) return undefined;
+  return typeof v === 'number' && !Number.isInteger(v) && isFinite(v) ? +v.toPrecision(6) : v;
 }
 
 function deserializeGame(str) {
@@ -1484,7 +1551,7 @@ function deserializeGame(str) {
     pending: [], over: false, neighborCache: {}, mapDirty: true, lastEvents: d.lastEvents || [], stats: d.stats,
     playerMonths: d.playerMonths, worldMarket: d.worldMarket, nextCharId: d.nextCharId || 1,
     flags: d.flags || {}, scheduled: d.scheduled || [], campaign: d.campaign || null, reparations: d.reparations || [],
-    blocs: d.blocs || [], nextBlocId: d.nextBlocId || 1,
+    blocs: d.blocs || [], nextBlocId: d.nextBlocId || 1, priceHist: d.priceHist || {},
   };
   game.rng.setState(d.rng);
   refreshAll(game);

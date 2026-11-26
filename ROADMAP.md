@@ -143,15 +143,16 @@ The biggest multiplier for political depth. Governments become combinations of l
 
 ## Quality of life (S each, can be slotted in anywhere)
 
-- **Explain everything:** a tooltip breakdown for every number ("Approval 54 = base 50 + contentment +6 − taxes −4 …"). This is the most-asked-for feature in games like this.
-- **Ledger:** graphs over time for every nation, with comparisons.
+- ✅ **Explain everything (first pass):** hover approval, stability, unrest, political capital, the treasury, infamy and wars for a breakdown of every part. Next: faction loyalty, growth, prices and pop needs.
+- ✅ **Ledger:** graphs over time for your nation, comparisons between nations, and world market price history.
 - **Outliner:** a side list of wars, movements, plots, constructions and upcoming elections.
-- **Province panel:** click a province for its pops, buildings, resources and history.
-- **Saves:** multiple save slots, autosave, and exporting/importing a save file.
+- ✅ **Province panel:** click a province for its pops, buildings and resources.
+- ✅ **Saves:** multiple save slots and a yearly autosave. Still to do: exporting and importing a save file.
 - **Monthly newspaper:** a front page summing up the month in your nation and the world.
 - **Settings:** colorblind-friendly map palettes, hotkeys, UI scale, and a lighter mobile layout.
 - **Sound and music** (optional, toggleable).
-- **Map polish:** rivers, city icons, a prettier ocean and borders, and nation flags generated from colors and symbols.
+- ✅ **Map polish:** a painted map with relief, ocean depth, hand-drawn borders and generated national flags. Still to do: rivers and city icons.
+- ✅ **Visual overhaul:** brass-and-midnight theme, illustrated event scenes, a title screen with a live world preview.
 
 ## Platform (M each)
 
@@ -167,7 +168,7 @@ The biggest multiplier for political depth. Governments become combinations of l
 ## Order
 
 1. **Milestone 1:** empires, blocs, coalitions. It leans on the economy (customs unions, free-trade zones, special economic zones, investment treaties) as much as on politics.
-2. **Quick wins:** number breakdowns, the ledger, the province panel and save slots. A deep economic simulation is only fun if you can see why things happen.
+2. ✅ **Quick wins:** number breakdowns, the ledger, the province panel and save slots, plus a visual overhaul. A deep economic simulation is only fun if you can see why things happen.
 3. **Milestone 2:** laws and interest groups.
 4. **Milestone 3:** society, peoples and culture.
 5. **Milestone 4:** deeper economy.

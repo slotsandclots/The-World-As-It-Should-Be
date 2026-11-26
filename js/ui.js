@@ -22,7 +22,7 @@ function statColor(v, invert) { const x = invert ? 100 - v : v; return `hsl(${cl
 
 function bar(label, v, opts) {
   opts = opts || {};
-  return `<div class="stat" title="${esc(opts.tip || '')}"><div class="stat-top"><span>${label}</span><span>${opts.text !== undefined ? opts.text : Math.round(v)}</span></div>` +
+  return `<div class="stat" ${opts.why ? `data-tip="${opts.why}"` : `title="${esc(opts.tip || '')}"`}><div class="stat-top"><span>${label}</span><span>${opts.text !== undefined ? opts.text : Math.round(v)}</span></div>` +
     `<div class="bar"><i style="width:${clamp(v, 0, 100)}%;background:${opts.color || statColor(v, opts.invert)}"></i></div></div>`;
 }
 
@@ -35,8 +35,53 @@ function spark(values, color) {
   return `<svg class="spark" viewBox="0 0 100 36" preserveAspectRatio="none"><polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.6" vector-effect="non-scaling-stroke"/></svg>`;
 }
 
+// Line chart over game months. series: [{ pts: [[month, value], ...], color, label }]
+function niceStep(span, n) {
+  const raw = span / n, mag = 10 ** Math.floor(Math.log10(raw || 1)), r = raw / mag;
+  return (r < 1.5 ? 1 : r < 3 ? 2 : r < 7 ? 5 : 10) * mag;
+}
+function lineChart(series, opts) {
+  opts = opts || {};
+  const W = 400, H = opts.h || 150, L = opts.mini ? 6 : 40, R = opts.mini ? 6 : 14, T = 10, B = opts.mini ? 6 : 18;
+  const all = [];
+  for (const s of series) for (const p of s.pts) if (p[1] != null && isFinite(p[1])) all.push(p);
+  if (all.length < 2) return `<svg class="chart" viewBox="0 0 ${W} ${H}"><text x="${W / 2}" y="${H / 2}" text-anchor="middle">Not enough history yet: play on.</text></svg>`;
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  for (const [m, v] of all) { x0 = Math.min(x0, m); x1 = Math.max(x1, m); y0 = Math.min(y0, v); y1 = Math.max(y1, v); }
+  if (opts.zero) { y0 = Math.min(0, y0); y1 = Math.max(0, y1); }
+  if (opts.min != null) y0 = Math.min(y0, opts.min);
+  if (opts.max != null) y1 = Math.max(y1, opts.max);
+  if (y1 - y0 < 1e-9) { y1 += 1; y0 -= 1; }
+  const step = niceStep(y1 - y0, 4);
+  y0 = Math.floor(y0 / step) * step; y1 = Math.ceil(y1 / step) * step;
+  if (x1 === x0) x1 = x0 + 1;
+  const X = m => L + (m - x0) / (x1 - x0) * (W - L - R), Y = v => T + (1 - (v - y0) / (y1 - y0)) * (H - T - B);
+  const fmt = opts.fmt || (v => Math.abs(v) >= 1000 ? (v / 1000).toFixed(1) + 'k' : +v.toFixed(2) + '');
+  let g = '';
+  for (let v = y0; v <= y1 + step * 0.01; v += step) g += `<line x1="${L}" x2="${W - R}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}" stroke="#ffffff${Math.abs(v) < step * 0.01 && y0 < 0 ? '30' : '12'}"/>` + (opts.mini ? '' : `<text x="${L - 5}" y="${(Y(v) + 3).toFixed(1)}" text-anchor="end">${fmt(v)}</text>`);
+  const years = (x1 - x0) / 12, ys = years > 60 ? 20 : years > 25 ? 10 : years > 10 ? 5 : years > 4 ? 2 : 1;
+  const sy = App.game.startYear;
+  for (let yr = Math.ceil((sy * 12 + x0) / 12 / ys) * ys; yr * 12 - sy * 12 <= x1; yr += ys) { const x = X(yr * 12 - sy * 12); g += `<line x1="${x.toFixed(1)}" x2="${x.toFixed(1)}" y1="${T}" y2="${H - B}" stroke="#ffffff0a"/>` + (opts.mini ? '' : `<text x="${x.toFixed(1)}" y="${H - 5}" text-anchor="${x > W - 24 ? 'end' : x < L + 14 ? 'start' : 'middle'}">${yr}</text>`); }
+  const id = 'ch' + Math.floor(Math.random() * 1e9);
+  series.forEach((s, si) => {
+    const pts = s.pts.filter(p => p[1] != null && isFinite(p[1]));
+    if (pts.length < 2) return;
+    const d = pts.map((p, i) => `${i ? 'L' : 'M'}${X(p[0]).toFixed(1)} ${Y(p[1]).toFixed(1)}`).join('');
+    if (si === 0 && series.length === 1) {
+      g += `<defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${s.color}" stop-opacity=".35"/><stop offset="1" stop-color="${s.color}" stop-opacity="0"/></linearGradient></defs>`;
+      g += `<path d="${d}L${X(pts[pts.length - 1][0]).toFixed(1)} ${Y(Math.max(y0, Math.min(y1, 0 > y0 ? 0 : y0))).toFixed(1)}L${X(pts[0][0]).toFixed(1)} ${Y(0 > y0 ? 0 : y0).toFixed(1)}z" fill="url(#${id})"/>`;
+    }
+    g += `<path d="${d}" fill="none" stroke="${s.color}" stroke-width="${s.width || 1.8}" stroke-linejoin="round" ${s.dash ? 'stroke-dasharray="4 3"' : ''}/>`;
+    const last = pts[pts.length - 1];
+    g += `<circle cx="${X(last[0]).toFixed(1)}" cy="${Y(last[1]).toFixed(1)}" r="2.6" fill="${s.color}"><title>${esc(s.label || '')}: ${fmt(last[1])}</title></circle>`;
+  });
+  let out = `<svg class="chart" viewBox="0 0 ${W} ${H}">${g}</svg>`;
+  if (series.length > 1 || opts.legend) out += `<div class="chart-legend">${series.map(s => `<span><i style="background:${s.color}"></i>${esc(s.label)}</span>`).join('')}</div>`;
+  return out;
+}
+
 function govBadge(id) { return `<span class="badge" style="background:${GOVS[id].color}">${GOVS[id].short}</span>`; }
-function swatch(c) { return `<span class="swatch" style="background:${c.color}"></span>`; }
+function swatch(c) { return `<span class="flagw" title="${esc(c.name)}">${flagSVG(c, 21, 14)}</span>`; }
 
 function ideologyText(ideo) {
   const e = ideo.econ, a = ideo.auth;
@@ -86,8 +131,82 @@ function describeEffects(fx) {
   }).join('');
 }
 
-const TABS = [['overview', 'Nation'], ['leader', 'Leader'], ['politics', 'Politics'], ['economy', 'Economy'], ['market', 'Market'], ['pops', 'Pops'], ['research', 'Research'], ['military', 'Military'], ['diplomacy', 'Diplomacy'], ['blocs', 'Blocs'], ['world', 'World'], ['news', 'News']];
-const SAVE_KEY = 'twaisb-save-v1';
+const TAB_ICONS = { overview: 'nation' };
+
+// ------------------------------------------------------------------ breakdown tooltips
+
+const TIP_INFO = {
+  approval: 'How the public feels about the government. In democracies it decides elections and most of stability.',
+  stability: `Below ${typeof CRISIS_LEVEL !== 'undefined' ? CRISIS_LEVEL : 30}, coups and revolutions become possible.`,
+  unrest: 'Protests and agitation. Above 55, it can spark revolution on its own.',
+};
+
+function tipRow(label, v, d, unit) {
+  const cls = v > 0.005 ? 'good' : v < -0.005 ? 'bad' : 'muted';
+  return `<div class="tt-row"><span>${esc(label)}</span><span class="${cls}">${fmtSigned(v, d === undefined ? 1 : d)}${unit || ''}</span></div>`;
+}
+function tipParts(parts, invert) {
+  return parts.filter(x => Math.abs(x[1]) >= 0.05).sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
+    .map(([l, v]) => { const r = tipRow(l, v); return invert ? r.replace(/class="(good|bad)"/, (m, k) => `class="${k === 'good' ? 'bad' : 'good'}"`) : r; }).join('');
+}
+
+function tipHtml(key) {
+  const g = App.game, c = UI.player();
+  if (!g || !c) return '';
+  const title = (t, v) => `<div class="tt-title"><span>${t}</span><span>${v}</span></div>`;
+  switch (key) {
+    case 'approval': case 'stability': case 'unrest': {
+      const name = key[0].toUpperCase() + key.slice(1);
+      const W = c._why && c._why[key];
+      let h = title(name, Math.round(c[key]));
+      if (!W) return h + '<div class="tt-note">Advance a month to see what drives this.</div>';
+      const t = clamp(W.target, 0, 100);
+      h += tipParts(W.parts, key === 'unrest');
+      h += `<div class="tt-row tt-sum"><span>Heading toward</span><span>${Math.round(t)} ${t > c[key] + 0.5 ? '▲' : t < c[key] - 0.5 ? '▼' : '●'}</span></div>`;
+      h += `<div class="tt-note">${TIP_INFO[key]} Moves ${Math.round(W.rate * 100)}% of the way to its target each month.</div>`;
+      return h;
+    }
+    case 'pc': {
+      const parts = pcParts(c);
+      return title('Political capital', Math.floor(c.pc)) + tipParts(parts) +
+        `<div class="tt-row tt-sum"><span>Per month</span><span class="good">+${pcIncome(c).toFixed(2)}</span></div><div class="tt-note">Spent on actions, appointments and concessions. Capped at 100.</div>`;
+    }
+    case 'treasury': {
+      const B = c.budget;
+      if (!B) return title('Treasury', fmtMoney(c.treasury));
+      const money = (l, v) => { const cls = v > 0 ? 'good' : v < 0 ? 'bad' : 'muted'; return `<div class="tt-row"><span>${esc(l)}</span><span class="${cls}">${v >= 0 ? '+' : '−'}${fmtMoney(Math.abs(v)).replace('−', '')}</span></div>`; };
+      let h = title('Treasury', fmtMoney(c.treasury)) + '<div class="small muted">Per month</div>';
+      h += money(`Taxes (${pct(c.policy.tax)})`, B.taxes);
+      if (Math.abs(B.tariffs) > 1e-4) h += money('Tariffs', B.tariffs);
+      if (Math.abs(B.stateProfit) > 1e-4) h += money('State enterprises', B.stateProfit);
+      h += money(`Running the state (${ADMIN_COST}% of GDP)`, -c.gdp * ADMIN_COST / 1200);
+      const NAMES = { military: 'Military', welfare: 'Welfare', education: 'Education', police: 'Police', infrastructure: 'Infrastructure', investment: 'State investment' };
+      for (const k of SPEND_KEYS) if (c.policy[k] > 0) h += money(`${NAMES[k]} (${c.policy[k]}% of GDP)`, -c.gdp * c.policy[k] / 1200);
+      if (B.interest > 0) h += money('Interest on debt', -B.interest);
+      h += `<div class="tt-row tt-sum"><span>Balance</span><span class="${B.net >= 0 ? 'good' : 'bad'}">${B.net >= 0 ? '+' : '−'}${fmtMoney(Math.abs(B.net)).replace('−', '')}</span></div>`;
+      const debt = Math.max(0, -c.treasury) / Math.max(1e-6, c.gdp);
+      if (debt > 0) h += `<div class="tt-note">Debt is ${pct(debt)} of GDP. Above 60% it hurts approval; above 150% the state defaults.</div>`;
+      return h;
+    }
+    case 'infamy':
+      return title('Infamy', Math.round(c.infamy || 0)) + `<div class="tt-note">Wars of aggression, conquest and harsh peace terms raise infamy. Above ${INFAMY.coalitionAt}, other nations may form a coalition against you. It fades by about 0.6% a month in peacetime.</div>`;
+    case 'war': {
+      let h = title('At war', '');
+      for (const w of warsOf(g, c.id)) { const sc = warScore(g, w, c.id); h += `<div class="tt-row"><span>${esc(w.name)}</span><span class="${sc >= 0 ? 'good' : 'bad'}">${fmtSigned(sc, 0)}</span></div>`; }
+      return h + '<div class="tt-note">War score: positive means we are winning. See the Military tab.</div>';
+    }
+    case 'emergency': return title('State of emergency', '') + '<div class="tt-note">Freedom is suspended: unrest is easier to contain, but legitimacy suffers every month it lasts.</div>';
+    case 'date': {
+      const gv = GOVS[c.gov];
+      let h = title(gameDate(g), '');
+      h += `<div class="tt-row"><span>In power for</span><span>${Math.floor((g.playerMonths || 0) / 12)}y ${(g.playerMonths || 0) % 12}m</span></div>`;
+      if (gv.elections === 'free') h += `<div class="tt-row"><span>Next election</span><span>${Math.max(0, c.nextElection - g.month)} months</span></div>`;
+      return h + '<div class="tt-note">Space pauses · 1–3 set the speed · N advances a month. The game autosaves every January.</div>';
+    }
+    default: return '';
+  }
+}
+const TABS = [['overview', 'Nation'], ['leader', 'Leader'], ['politics', 'Politics'], ['economy', 'Economy'], ['market', 'Market'], ['pops', 'Pops'], ['research', 'Research'], ['military', 'Military'], ['diplomacy', 'Diplomacy'], ['blocs', 'Blocs'], ['world', 'World'], ['ledger', 'Ledger'], ['news', 'News']];
 
 const UI = {
   tab: 'overview', selected: null, mapMode: 'political', choosing: false, dragging: false,
@@ -97,7 +216,8 @@ const UI = {
   player() { const g = App.game; return g && g.player >= 0 && g.countries[g.player].alive ? g.countries[g.player] : null; },
 
   init() {
-    $('#tabs').innerHTML = TABS.map(([id, label]) => `<button data-tab="${id}">${label}</button>`).join('');
+    injectArtDefs();
+    $('#tabs').innerHTML = TABS.map(([id, label]) => `<button data-tab="${id}" title="${label}">${icon(TAB_ICONS[id] || id, 17)}<span>${label}</span></button>`).join('');
     $('#tabs').addEventListener('click', e => {
       const b = e.target.closest('[data-tab]');
       if (!b || this.choosing) return;
@@ -143,6 +263,7 @@ const UI = {
       this.renderMapModes();
     });
     this.initZoom();
+    this.initTips();
     const legend = document.createElement('div');
     legend.id = 'map-legend';
     $('#map-wrap').appendChild(legend);
@@ -155,6 +276,34 @@ const UI = {
     });
   },
 
+
+  // Hovering anything with data-tip shows a breakdown of that number.
+  initTips() {
+    const tip = document.createElement('div');
+    tip.id = 'tip';
+    document.body.appendChild(tip);
+    let cur = null;
+    const place = e => {
+      const r = tip.getBoundingClientRect();
+      let x = e.clientX + 14, y = e.clientY + 16;
+      if (x + r.width > window.innerWidth - 8) x = e.clientX - r.width - 12;
+      if (y + r.height > window.innerHeight - 8) y = Math.max(8, e.clientY - r.height - 12);
+      tip.style.left = x + 'px'; tip.style.top = y + 'px';
+    };
+    document.addEventListener('mouseover', e => {
+      const el = e.target.closest && e.target.closest('[data-tip]');
+      if (el === cur) return;
+      cur = el;
+      if (!el) { tip.classList.remove('show'); return; }
+      const html = tipHtml(el.dataset.tip);
+      if (!html) { tip.classList.remove('show'); return; }
+      tip.innerHTML = html;
+      tip.classList.add('show');
+      place(e);
+    });
+    document.addEventListener('mousemove', e => { if (cur) place(e); });
+    this.refreshTip = () => { if (cur && cur.isConnected) tip.innerHTML = tipHtml(cur.dataset.tip); else { cur = null; tip.classList.remove('show'); } };
+  },
 
   view: { z: 1, x: 0, y: 0 },
 
@@ -217,6 +366,7 @@ const UI = {
 
   refresh() {
     this.renderTopbar();
+    if (this.refreshTip) this.refreshTip();
     if (!this.dragging) this.renderTab();
     this.renderMapModes();
     this.campaignCheck();
@@ -225,17 +375,19 @@ const UI = {
   renderTopbar() {
     const g = App.game, c = this.player();
     $('#tb-date').textContent = g ? gameDate(g) : '';
-    $('#tb-nation').innerHTML = c ? `${swatch(c)}<span>${esc(c.name)}</span>${govBadge(c.gov)}` : (this.choosing ? '<span class="muted">Choose your nation</span>' : '');
+    $('#tb-nation').innerHTML = c ? `<span class="tb-flag">${flagSVG(c, 42, 28)}</span><div class="tb-name"><b>${esc(c.name)}</b>${govBadge(c.gov)}</div>` : (this.choosing ? '<span class="muted tb-choose">Choose your nation</span>' : '');
     if (c) {
       const atWar = isAtWar(g, c.id);
       const net = c.budget ? c.budget.net : 0;
+      const med = (key, ic, val, label, cls, style) => `<div class="medal ${cls || ''}" data-tip="${key}"><span class="medal-ico">${icon(ic, 16)}</span><span class="medal-txt"><b ${style ? `style="${style}"` : ''}>${val}</b><small>${label}</small></span></div>`;
       $('#tb-stats').innerHTML =
-        `<span class="chip" title="Treasury (monthly balance ${fmtMoney(net)})">💰 <b class="${c.treasury < 0 ? 'bad' : ''}">${fmtMoney(c.treasury)}</b> <span class="${net < 0 ? 'bad' : 'good'}">${net >= 0 ? '▲' : '▼'}</span></span>` +
-        `<span class="chip" title="Political capital: spent on actions">★ <b>${Math.floor(c.pc)}</b> PC</span>` +
-        `<span class="chip" title="Public approval">Approval <b style="color:${statColor(c.approval)}">${Math.round(c.approval)}</b></span>` +
-        `<span class="chip" title="Stability: below ${CRISIS_LEVEL} risks coups and revolutions">Stability <b style="color:${statColor(c.stability)}">${Math.round(c.stability)}</b></span>` +
-        (atWar ? '<span class="chip bad" title="At war">⚔ At war</span>' : '') +
-        (c.emergency ? '<span class="chip warn">State of emergency</span>' : '');
+        med('treasury', 'coin', `${fmtMoney(c.treasury)} <span class="${net < 0 ? 'bad' : 'good'} tb-delta">${net >= 0 ? '▲' : '▼'}${fmtMoney(Math.abs(net))}</span>`, 'Treasury', c.treasury < 0 ? 'neg' : '') +
+        med('pc', 'star', Math.floor(c.pc), 'Political capital') +
+        med('approval', 'approval', Math.round(c.approval), 'Approval', '', `color:${statColor(c.approval)}`) +
+        med('stability', 'stability', Math.round(c.stability), 'Stability', '', `color:${statColor(c.stability)}`) +
+        ((c.infamy || 0) >= 1 ? med('infamy', 'infamy', Math.round(c.infamy), 'Infamy', '', `color:${statColor(100 - (c.infamy || 0) * 2)}`) : '') +
+        (atWar ? med('war', 'military', 'At war', `${warsOf(g, c.id).length} front${warsOf(g, c.id).length > 1 ? 's' : ''}`, 'war') : '') +
+        (c.emergency ? med('emergency', 'alert', 'Emergency', 'Martial law', 'war') : '');
     } else $('#tb-stats').innerHTML = '';
     document.querySelectorAll('[data-speed]').forEach(b => {
       b.classList.toggle('active', +b.dataset.speed === App.speed);
@@ -274,7 +426,7 @@ const UI = {
     else {
       const c = this.player();
       if (!c) { body.innerHTML = '<p class="muted">No nation selected.</p>'; return; }
-      const views = { overview: this.viewOverview, leader: this.viewLeader, politics: this.viewPolitics, economy: this.viewEconomy, market: this.viewMarket, pops: this.viewPops, research: this.viewResearch, military: this.viewMilitary, diplomacy: this.viewDiplomacy, blocs: this.viewBlocs, world: this.viewWorld, news: this.viewNews };
+      const views = { overview: this.viewOverview, leader: this.viewLeader, politics: this.viewPolitics, economy: this.viewEconomy, market: this.viewMarket, pops: this.viewPops, research: this.viewResearch, military: this.viewMilitary, diplomacy: this.viewDiplomacy, blocs: this.viewBlocs, world: this.viewWorld, ledger: this.viewLedger, news: this.viewNews };
       body.innerHTML = views[this.tab].call(this, c, g);
     }
     body.scrollTop = st;
@@ -305,6 +457,7 @@ const UI = {
       case 'random': { const alive = g.countries.filter(x => x.alive); this.select(alive[Math.floor(Math.random() * alive.length)].id); return; }
       case 'regen': this.showSetup(false); return;
       case 'sort': this.worldSort = ds.k; this.renderTab(); return;
+      case 'ledger': this.ledger = Object.assign(this.ledger || {}, { [ds.k]: ds.v }); this.renderTab(); return;
       case 'newsmine': this.newsMine = !this.newsMine; this.renderTab(); return;
       case 'dom': { const r = performDomestic(g, ds.id); this.track('dom:' + ds.id, r.ok); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }
       case 'appease': { const r = appeaseFaction(g, ds.f); this.track('appease:' + ds.f, r.ok); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }
@@ -397,8 +550,8 @@ const UI = {
 
   openModal(o) {
     const back = document.createElement('div');
-    back.className = 'backdrop';
-    back.innerHTML = `<div class="modal ${o.wide ? 'wide' : ''}"><div class="modal-head"><h2>${o.title}</h2></div><div class="modal-body">${o.body || ''}</div><div class="modal-foot ${o.row ? 'row' : ''}"></div></div>`;
+    back.className = 'backdrop' + (o.backdropCls ? ' ' + o.backdropCls : '');
+    back.innerHTML = `<div class="modal ${o.wide ? 'wide' : ''} ${o.cls || ''}">${o.art ? `<div class="modal-art">${o.art}</div>` : ''}<div class="modal-head">${o.kicker ? `<div class="kicker">${o.kicker}</div>` : ''}<h2>${o.title}</h2></div><div class="modal-body">${o.body || ''}</div><div class="modal-foot ${o.row ? 'row' : ''}"></div></div>`;
     const foot = back.querySelector('.modal-foot');
     for (const b of o.buttons || [{ label: 'Close' }]) {
       const el = document.createElement('button');
@@ -418,6 +571,8 @@ const UI = {
     if (o.onOpen) o.onOpen(back);
     return back;
   },
+
+  closeAllModals() { for (const m of this.modals.slice()) m.remove(); this.modals = []; },
 
   closeModal(el) {
     el.remove();

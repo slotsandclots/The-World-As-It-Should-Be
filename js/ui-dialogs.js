@@ -167,6 +167,7 @@ Object.assign(UI, {
       case 'event': {
         const ev = eventById(it.id);
         this.openModal({
+          art: sceneSVG(sceneForEvent(it.id), it.id + ':' + g.month), kicker: `${esc(c.name)} · ${gameDate(g)}`,
           title: esc(ev.title), body: this.withPortrait(it.charId, `<p>${esc(it.text)}</p>`),
           buttons: eventOptions(g, c, it).map(({ o, i }) => ({
             label: `<div class="lbl">${esc(o.label)}</div><div>${describeEffects(o.fx)}</div>`, cls: 'opt',
@@ -193,16 +194,16 @@ Object.assign(UI, {
           }));
           if (it.canMinority) buttons.push({ cls: 'opt', label: '<div class="lbl">Govern alone as a minority</div><div class="small muted">No demands, but less political capital and the government can fall at any time.</div>', fn: () => { this.toast(resolveCoalitionChoice(g, it, 'minority'), 'info'); } });
           buttons.push({ cls: 'opt', label: '<div class="lbl">Go into opposition</div><div class="small muted">Let the other parties form a government.</div>', fn: () => { this.toast(resolveCoalitionChoice(g, it, 'concede'), 'info'); } });
-          this.openModal({ title: 'A Hung Parliament', body, buttons });
+          this.openModal({ art: sceneSVG('election', 'hung' + g.month), kicker: 'The people have spoken', title: 'A Hung Parliament', body, buttons });
         } else if (it.won) {
           body += `<p class="good">The <b>${esc(winner.name)}</b> wins an outright majority. Legitimacy is renewed.</p>`;
-          this.openModal({ title: 'Election Victory', body, buttons: [{ label: 'Continue', cls: 'primary' }] });
+          this.openModal({ art: sceneSVG('election', 'win' + g.month), kicker: 'The people have spoken', title: 'Election Victory', body, buttons: [{ label: 'Continue', cls: 'primary' }] });
         } else {
           const chance = clamp(c.factions.military / 100 * 0.9 - 0.05, 0.05, 0.9);
           body += `<p>The <b>${esc(winner.name)}</b> has won. Will you accept the people's verdict?</p>
             <p class="small muted">If you concede, you keep guiding the nation under the new government. If you refuse, you need the army behind you (military loyalty ${Math.round(c.factions.military)}).</p>`;
           this.openModal({
-            title: 'Election Defeat', body, buttons: [
+            art: sceneSVG('election', 'loss' + g.month), kicker: 'The people have spoken', title: 'Election Defeat', body, buttons: [
               { label: 'Concede gracefully', cls: 'primary', fn: () => { const r = resolveElectionLoss(g, 'concede'); this.toast(r.msg, 'info'); } },
               { label: `Refuse to step down (${pct(chance)} chance the army backs you)`, cls: 'danger', fn: () => { const r = resolveElectionLoss(g, 'refuse'); this.openModal({ title: r.ok ? 'The Republic Is Dead' : 'Coup Failed', body: `<p>${esc(r.msg)}</p>`, buttons: [{ label: 'Continue', cls: 'primary' }] }); } },
             ],
@@ -214,6 +215,7 @@ Object.assign(UI, {
         if (g.campaign && !g.campaign.ended) setFlag(g, 'cDeposed');
         const how = it.how === 'coup' ? 'a military coup' : 'a revolution';
         this.openModal({
+          art: sceneSVG('revolution', 'dep' + g.month), kicker: it.how === 'coup' ? 'Coup d\'état' : 'Revolution',
           title: 'You Have Been Overthrown',
           body: `<p>The ${esc(it.oldFormal)} has fallen to ${how}. The <b>${esc(formalName(c))}</b> now rules under ${esc(leaderLine(c))}.</p>
             <p>You lasted ${Math.floor((g.playerMonths || 0) / 12)} years and ${(g.playerMonths || 0) % 12} months.</p>
@@ -229,7 +231,7 @@ Object.assign(UI, {
       case 'gameover':
         App.setSpeed(0);
         this.openModal({
-          title: 'Your Nation Has Fallen', body: `<p>${esc(it.reason)}</p>`,
+          art: sceneSVG('war', 'over' + g.month), title: 'Your Nation Has Fallen', body: `<p>${esc(it.reason)}</p>`,
           buttons: [
             { label: 'Choose another nation in this world', cls: 'primary', fn: () => { this.choosing = true; g.player = -1; this.selected = null; } },
             { label: 'Start a new world', fn: () => { this.showSetup(false); } },
@@ -239,6 +241,7 @@ Object.assign(UI, {
       case 'allyCall': {
         const ally = g.countries[it.ally], enemy = g.countries[it.enemy];
         this.openModal({
+          art: sceneSVG('war', 'ally' + g.month), kicker: 'A call to arms',
           title: 'Our Ally Calls for Aid',
           body: `<p>${esc(formalName(enemy))} has attacked our ally, the ${esc(formalName(ally))}. They invoke our alliance and ask us to join the war.</p>
             <p class="small muted">Enemy strength ${strength(enemy).toFixed(0)} · ours ${strength(c).toFixed(0)}. Refusing dissolves the alliance.</p>`,
@@ -254,6 +257,7 @@ Object.assign(UI, {
         const war = g.wars.find(w => w.id === it.warId);
         if (!war) { this.processPending(); return; }
         this.openModal({
+          art: sceneSVG('peace', 'peace' + g.month), kicker: esc(war.name),
           title: it.terms && peaceTermsCost(it.terms) > 0 ? 'Peace Terms Demanded' : 'Peace Offer',
           body: this.withPortrait(from.leader.id, it.terms && peaceTermsCost(it.terms) > 0 ? `<p>${esc(formalName(from))} offers to end the ${esc(war.name)}, but on its terms: we must cede <b>${it.terms.provinces} province${it.terms.provinces > 1 ? 's' : ''}</b>${it.terms.reparations ? ' and pay <b>reparations</b> (3% of our GDP a year for five years)' : ''}.</p><p class="small muted">War score: ${fmtSigned(warScore(g, war, c.id), 0)} in their favor.</p>` : `<p>${esc(formalName(from))} proposes a white peace to end the ${esc(war.name)}. Both sides would keep what they hold now.</p>`),
           buttons: [
@@ -268,6 +272,7 @@ Object.assign(UI, {
         if (!b) { this.processPending(); return; }
         const T = BLOC_TYPES[b.type];
         this.openModal({
+          art: sceneSVG('harbor', 'bloc' + b.id), kicker: 'Diplomacy',
           title: `Invitation: ${esc(b.name)}`,
           body: this.withPortrait(g.countries[b.leader].leader.id, `<p>The ${esc(formalName(g.countries[b.leader]))} invites us to join the <b>${esc(b.name)}</b>, a ${T.name.toLowerCase()} with ${b.members.map(m => esc(g.countries[m].name)).join(', ')}.</p><p class="small muted">${T.desc}</p>`),
           buttons: [
@@ -282,6 +287,7 @@ Object.assign(UI, {
         if (!from.alive) { this.processPending(); return; }
         const what = it.kind === 'alliance' ? 'a defensive alliance' : 'a trade agreement';
         this.openModal({
+          art: sceneSVG('harbor', 'dip' + g.month), kicker: 'Diplomacy',
           title: it.kind === 'alliance' ? 'Alliance Proposal' : 'Trade Proposal',
           body: `<p>The ${esc(formalName(from))} (${GOVS[from.gov].name}) proposes ${what}.</p>${it.kind === 'alliance' ? '<p class="small muted">Allies are called upon when either is attacked.</p>' : '<p class="small muted">Trade boosts growth for both.</p>'}`,
           buttons: [
@@ -339,37 +345,122 @@ Object.assign(UI, {
 
   showSetup(first) {
     App.setSpeed(0);
-    let hasSave = false;
-    try { hasSave = !!localStorage.getItem(SAVE_KEY); } catch (e) { /* storage unavailable */ }
     const seed = Math.random().toString(36).slice(2, 8);
-    const body = `<p class="setup-title">The World As It Should Be</p>
-      <p class="muted">New here? Start with the campaign: it's a short story that teaches you the game.</p>
-      <p class="muted">A political simulator. Generate a world, take the helm of any nation, and steer it through elections, coups, revolutions and wars. Turn it into a democracy, a monarchy, a junta, a communist or fascist state, or a theocracy, and try to survive.</p>
-      <div class="form-row"><label>World seed</label><input type="text" id="setup-seed" value="${seed}"><button id="setup-dice" title="Random seed">🎲</button></div>
-      <div class="form-row"><label>World</label><select id="setup-model" style="flex:1">${WORLD_MODEL_ORDER.map(k => `<option value="${k}">${WORLD_MODELS[k].name}</option>`).join('')}</select></div>
-      <p class="small muted" id="setup-model-desc" style="margin:-4px 0 6px 140px">${WORLD_MODELS.continents.desc}</p>
+    const emblem = `<svg class="setup-emblem" viewBox="0 0 32 32" width="64" height="64" aria-hidden="true"><circle cx="16" cy="16" r="14" fill="none" stroke="currentColor" stroke-width="1.1"/><circle cx="16" cy="16" r="15.5" fill="none" stroke="currentColor" stroke-width=".4"/><path d="M2 16h28M16 2c5 4 6.5 9 6.5 14S21 26 16 30M16 2c-5 4-6.5 9-6.5 14S11 26 16 30" fill="none" stroke="currentColor" stroke-width=".8"/><path d="M16 7l2 4.2 4.6.6-3.3 3.2.8 4.6L16 17.4l-4.1 2.2.8-4.6-3.3-3.2 4.6-.6z" fill="currentColor"/></svg>`;
+    const body = `${emblem}<p class="setup-title">The World<i>As It Should Be</i></p>
+      <p class="setup-tag">Take the helm of any nation. Win elections or rig them, build an empire or a union, and steer your people through coups, crashes and wars.</p>
+      <div id="setup-continue"></div>
+      <button class="gold" id="setup-campaign" style="width:100%;padding:10px;font-family:var(--display);letter-spacing:.06em" title="A story campaign that teaches you the game">▶ Campaign: The First Republic</button>
+      <p class="small muted" style="text-align:center;margin:6px 0 0">New here? The campaign is a short story that teaches you the game.</p>
+      <hr class="setup-rule">
+      <h4 style="margin-top:0">A new world</h4>
+      <div class="form-row"><label>Seed</label><input type="text" id="setup-seed" value="${seed}"><button id="setup-dice" title="Random seed">🎲</button></div>
+      <div class="form-row"><label>World</label><select id="setup-model">${WORLD_MODEL_ORDER.map(k => `<option value="${k}">${WORLD_MODELS[k].name}</option>`).join('')}</select></div>
+      <p class="small muted" id="setup-model-desc" style="margin:-4px 0 6px 122px">${WORLD_MODELS.continents.desc}</p>
       <div class="form-row"><label>Nations</label><input type="range" id="setup-n" min="4" max="40" value="14" style="flex:1"><b id="setup-n-v" style="width:24px">14</b></div>
-      <div class="form-row"><label>Difficulty</label><select id="setup-diff" style="flex:1">${DIFFICULTY_ORDER.map(k => `<option value="${k}" ${k === 'normal' ? 'selected' : ''} title="${esc(DIFFICULTY[k].desc)}">${DIFFICULTY[k].name}: ${esc(DIFFICULTY[k].desc)}</option>`).join('')}</select></div>
-      <div class="form-row"><label>Map size</label><select id="setup-size"><option value="small">Small</option><option value="medium" selected>Medium</option><option value="large">Large</option></select></div>`;
-    const buttons = [{ label: '▶ Play the campaign: The First Republic', cls: 'gold', title: 'A story campaign that teaches you the game', fn: () => { App.startCampaign(); } }, {
+      <div class="form-row"><label>Map size</label><select id="setup-size"><option value="small">Small</option><option value="medium" selected>Medium</option><option value="large">Large</option></select></div>
+      <div class="form-row"><label>Difficulty</label><select id="setup-diff">${DIFFICULTY_ORDER.map(k => `<option value="${k}" ${k === 'normal' ? 'selected' : ''} title="${esc(DIFFICULTY[k].desc)}">${DIFFICULTY[k].name}: ${esc(DIFFICULTY[k].desc)}</option>`).join('')}</select></div>
+      <p class="setup-preview-note" id="setup-note">Charting the world…</p>`;
+    const opts = el => ({ model: el.querySelector('#setup-model').value, size: el.querySelector('#setup-size').value, countries: +el.querySelector('#setup-n').value, difficulty: el.querySelector('#setup-diff').value });
+    let el = null;
+    const buttons = [{
       label: 'Generate world', cls: 'primary', fn: () => {
-        App.newWorld($('#setup-seed').value || 'world', { model: $('#setup-model').value, size: $('#setup-size').value, countries: +$('#setup-n').value, difficulty: $('#setup-diff').value });
+        App.newWorld(el.querySelector('#setup-seed').value || 'world', opts(el));
       },
-    }];
-    if (hasSave) buttons.push({ label: 'Load saved game', fn: () => { App.load(); } });
-    if (!first) buttons.push({ label: 'Cancel' });
-    this.openModal({
-      title: '', body, buttons, row: true,
+    }, { label: 'Load a saved game…', fn: () => { this.showLoadModal(); return true; } }];
+    if (!first) buttons.push({ label: 'Back to my game', fn: () => { App.cancelPreview(); } });
+    let timer = null;
+    const preview = () => {
+      clearTimeout(timer);
+      const note = el.querySelector('#setup-note');
+      note.textContent = 'Charting the world…';
+      timer = setTimeout(() => {
+        if (!el.isConnected) return;
+        const seedV = el.querySelector('#setup-seed').value || 'world';
+        App.showPreview(seedV, opts(el));
+        const n = App.game.countries.length;
+        note.textContent = `Seed “${seedV}” · ${n} nations · you pick yours after generating`;
+      }, 380);
+    };
+    el = this.openModal({
+      title: '', body, buttons, row: true, cls: 'title-card', backdropCls: 'title-screen',
       onOpen: el => {
-        el.querySelector('#setup-n').addEventListener('input', e => { el.querySelector('#setup-n-v').textContent = e.target.value; });
+        el.querySelector('#setup-n').addEventListener('input', e => { el.querySelector('#setup-n-v').textContent = e.target.value; preview(); });
         el.querySelector('#setup-model').addEventListener('change', e => {
           const m = WORLD_MODELS[e.target.value];
           el.querySelector('#setup-model-desc').textContent = m.desc;
           const n = m.countries || 14;
           el.querySelector('#setup-n').value = n;
           el.querySelector('#setup-n-v').textContent = n;
+          preview();
         });
-        el.querySelector('#setup-dice').addEventListener('click', () => { el.querySelector('#setup-seed').value = Math.random().toString(36).slice(2, 8); });
+        el.querySelector('#setup-size').addEventListener('change', preview);
+        el.querySelector('#setup-diff').addEventListener('change', preview);
+        el.querySelector('#setup-seed').addEventListener('input', preview);
+        el.querySelector('#setup-dice').addEventListener('click', () => { el.querySelector('#setup-seed').value = Math.random().toString(36).slice(2, 8); preview(); });
+        el.querySelector('#setup-campaign').addEventListener('click', () => { clearTimeout(timer); this.closeModal(el); App.startCampaign(); });
+        Saves.list().then(list => {
+          const last = list.find(m => m.v === SAVE_VERSION);
+          const box = el.querySelector('#setup-continue');
+          if (!last || !box) return;
+          box.innerHTML = `<button class="primary save-slot" id="setup-cont" style="margin-bottom:8px">${swatch({ name: last.nation, color: last.color, gov: last.gov })}<span><span class="ss-name">Continue: ${esc(last.nation)}</span><div class="ss-meta" style="color:#3b2c10">${esc(last.date)} · ${last.auto ? 'autosave' : esc(last.name)}</div></span><span>▶</span></button>`;
+          box.querySelector('#setup-cont').addEventListener('click', () => { clearTimeout(timer); App.load(last.id); });
+        }).catch(() => {});
+      },
+    });
+    preview();
+  },
+
+  slotHtml(m, opts) {
+    const flag = swatch({ name: m.nation, color: m.color, gov: m.gov });
+    const old = m.v !== SAVE_VERSION;
+    const when = new Date(m.savedAt);
+    return `<div class="ss-row"><button class="save-slot" data-slot="${esc(m.id)}" ${old && !opts.overwrite ? 'disabled title="Saved by an older version of the game"' : ''}>${flag}<span><span class="ss-name">${esc(m.name)}${m.auto ? ' <span class="badge" style="background:#4a5a72">Auto</span>' : ''}${m.campaign ? ' <span class="badge" style="background:#7d6331">Campaign</span>' : ''}</span>
+      <div class="ss-meta">${esc(m.nation)} · ${esc(m.date)} · saved ${when.toLocaleDateString()} ${when.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div></span><span class="muted small">${opts.overwrite ? 'Overwrite' : 'Load'}</span></button>
+      ${opts.del ? `<button class="ss-del danger" data-del="${esc(m.id)}" title="Delete this save">✕</button>` : ''}</div>`;
+  },
+
+  showLoadModal() {
+    const render = el => Saves.list().then(list => {
+      const box = el.querySelector('#slots');
+      box.innerHTML = list.length ? list.map(m => this.slotHtml(m, { del: true })).join('') : '<p class="muted">No saved games yet.</p>';
+    }).catch(() => { el.querySelector('#slots').innerHTML = '<p class="bad">Browser storage is unavailable.</p>'; });
+    this.openModal({
+      title: 'Load a Saved Game', dismiss: true,
+      body: '<div id="slots"><p class="muted">Opening the archives…</p></div><p class="small muted">The game autosaves every January.</p>',
+      buttons: [{ label: 'Close' }],
+      onOpen: el => {
+        render(el);
+        el.addEventListener('click', e => {
+          const d = e.target.closest('[data-del]');
+          if (d) { if (confirm('Delete this saved game?')) Saves.remove(d.dataset.del).then(() => render(el)); return; }
+          const b = e.target.closest('[data-slot]');
+          if (b && !b.disabled) App.load(b.dataset.slot);
+        });
+      },
+    });
+  },
+
+  showSaveModal() {
+    const g = App.game, c = this.player();
+    this.openModal({
+      title: 'Save Game', dismiss: true,
+      body: `<div class="form-row"><label>Name</label><input type="text" id="save-name" value="${esc(c.name)} ${esc(gameDate(g))}"></div>
+        <h4>Or overwrite</h4><div id="slots"><p class="muted">…</p></div>`,
+      buttons: [{ label: 'Save as new', cls: 'primary', fn: () => { App.save(document.getElementById('save-name').value.trim() || c.name); } }, { label: 'Cancel' }],
+      row: true,
+      onOpen: el => {
+        Saves.list().then(list => {
+          const mine = list.filter(m => !m.auto);
+          el.querySelector('#slots').innerHTML = mine.length ? mine.map(m => this.slotHtml(m, { overwrite: true })).join('') : '<p class="muted small">No other saves.</p>';
+        }).catch(() => {});
+        el.addEventListener('click', e => {
+          const b = e.target.closest('[data-slot]');
+          if (!b) return;
+          App.save(el.querySelector('#save-name').value.trim() || c.name, b.dataset.slot);
+          this.closeModal(el);
+        });
+        const inp = el.querySelector('#save-name'); inp.focus(); inp.select();
       },
     });
   },
@@ -380,10 +471,10 @@ Object.assign(UI, {
     App.setSpeed(0);
     this.openModal({
       title: 'Menu', dismiss: true,
-      body: g ? `<p class="small muted">World: <b>${esc(WORLD_MODELS[g.world.model].name)}</b> · ${difficulty(g).name} · seed <b>${esc(g.seed)}</b> · ${gameDate(g)}</p>` : '',
+      body: g ? `<p class="small muted" style="text-align:center">World: <b>${esc(WORLD_MODELS[g.world.model].name)}</b> · ${difficulty(g).name} · seed <b>${esc(g.seed)}</b> · ${gameDate(g)}</p>` : '',
       buttons: [
-        { label: 'Save game', disabled: !playing, fn: () => { App.save(); } },
-        { label: 'Load saved game', fn: () => { App.load(); } },
+        { label: 'Save game…', disabled: !playing, fn: () => { this.showSaveModal(); } },
+        { label: 'Load game…', fn: () => { this.showLoadModal(); } },
         { label: 'New world…', fn: () => { this.showSetup(false); } },
         { label: 'How to play', fn: () => { this.showHelp(); } },
         { label: 'Play the campaign', fn: () => { App.startCampaign(); } },
@@ -429,6 +520,7 @@ Object.assign(UI, {
     const g = App.game;
     const gv = GOVS[c.gov];
     this.openModal({
+      art: sceneSVG(['absMonarchy', 'constMonarchy'].includes(c.gov) ? 'palace' : c.gov === 'theocracy' ? 'temple' : ['junta', 'fascist'].includes(c.gov) ? 'army' : c.gov === 'communist' ? 'factory' : 'parliament', c.name), kicker: gameDate(g),
       title: `You Lead the ${esc(formalName(c))}`,
       body: `<p>${esc(leaderLine(c))} takes office in ${gameDate(g)}. Your nation is a <b>${gv.name}</b>: ${gv.desc}</p>
         <p class="small">The public is <b>${ideologyText(c.ideo)}</b>. ${gv.elections === 'free' ? `The next election is in ${c.nextElection - g.month} months.` : `Your power rests on the ${Object.keys(gv.base).map(f => FACTIONS[f].name).join(' and ')}.`}</p>

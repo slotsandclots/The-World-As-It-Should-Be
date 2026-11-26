@@ -29,6 +29,57 @@ const MAP_MODES = {
   relations: { name: 'Relations', legend: 'Your relations: red = hostile, green = friendly' },
 };
 
+// Smooth value noise in [0,1], used for paper texture and wobbly borders.
+function hash2(x, y, s) {
+  let h = (x * 374761393 + y * 668265263 + s * 2246822519) | 0;
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+}
+function vnoise(x, y, s) {
+  const xi = Math.floor(x), yi = Math.floor(y), fx = x - xi, fy = y - yi;
+  const u = fx * fx * (3 - 2 * fx), v = fy * fy * (3 - 2 * fy);
+  const a = hash2(xi, yi, s), b = hash2(xi + 1, yi, s), c = hash2(xi, yi + 1, s), d = hash2(xi + 1, yi + 1, s);
+  return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
+}
+
+// Chamfer distance (in pixels, capped) from every pixel to the nearest seed pixel.
+function chamferDist(FW, FH, seed, cap, within) {
+  const BIG = 65535, d = new Uint16Array(FW * FH);
+  for (let i = 0; i < d.length; i++) d[i] = seed[i] ? 0 : BIG;
+  const c = cap * 3;
+  for (let y = 0; y < FH; y++) for (let x = 0; x < FW; x++) {
+    const i = y * FW + x;
+    if (!d[i] || (within && !within[i])) continue;
+    let m = d[i];
+    if (x > 0 && d[i - 1] + 3 < m) m = d[i - 1] + 3;
+    if (y > 0) {
+      const j = i - FW;
+      if (d[j] + 3 < m) m = d[j] + 3;
+      if (x > 0 && d[j - 1] + 4 < m) m = d[j - 1] + 4;
+      if (x < FW - 1 && d[j + 1] + 4 < m) m = d[j + 1] + 4;
+    }
+    d[i] = m > c ? BIG : m;
+  }
+  for (let y = FH - 1; y >= 0; y--) for (let x = FW - 1; x >= 0; x--) {
+    const i = y * FW + x;
+    if (!d[i] || (within && !within[i])) continue;
+    let m = d[i];
+    if (x < FW - 1 && d[i + 1] + 3 < m) m = d[i + 1] + 3;
+    if (y < FH - 1) {
+      const j = i + FW;
+      if (d[j] + 3 < m) m = d[j] + 3;
+      if (x < FW - 1 && d[j + 1] + 4 < m) m = d[j + 1] + 4;
+      if (x > 0 && d[j - 1] + 4 < m) m = d[j - 1] + 4;
+    }
+    d[i] = m > c ? BIG : m;
+  }
+  return d; // units of 1/3 px; BIG = beyond cap
+}
+
+// Draws the world as a painted map: smooth coasts and borders, hill shading,
+// ocean depth, paper grain and soft inner glows along national borders. The
+// world is rendered at S pixels per tile; everything that never changes
+// (province shapes, relief, the sea) is computed once per world.
 class MapRenderer {
   constructor(canvas) {
     this.canvas = canvas;
@@ -38,10 +89,108 @@ class MapRenderer {
 
   setWorld(world) {
     this.world = world;
-    this.S = world.W * world.H > 40000 ? 4 : 5;
-    this.canvas.width = world.W * this.S;
-    this.canvas.height = world.H * this.S;
-    this.img = this.ctx.createImageData(this.canvas.width, this.canvas.height);
+    this._sig = null;
+    const { W, H, height, provOf } = world;
+    const N = W * H;
+    const S = this.S = clamp(Math.floor(Math.sqrt(2.6e6 / N)), 4, 10);
+    const FW = this.FW = W * S, FH = this.FH = H * S;
+    this.canvas.width = FW;
+    this.canvas.height = FH;
+    this.img = this.ctx.createImageData(FW, FH);
+    const seed = hashString(String(world.seed)) & 0xffff;
+
+    // Tile fields: land height, its gradient, and distance from land at sea.
+    const hl = new Float32Array(N), gx = new Float32Array(N), gy = new Float32Array(N);
+    for (let i = 0; i < N; i++) hl[i] = Math.max(0, height[i]);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const i = y * W + x;
+      gx[i] = (hl[y * W + Math.min(W - 1, x + 1)] - hl[y * W + Math.max(0, x - 1)]) / 2;
+      gy[i] = (hl[Math.min(H - 1, y + 1) * W + x] - hl[Math.max(0, y - 1) * W + x]) / 2;
+    }
+    const seaD = new Float32Array(N).fill(99);
+    const q = [];
+    for (let i = 0; i < N; i++) if (provOf[i] >= 0) { seaD[i] = 0; q.push(i); }
+    for (let k = 0; k < q.length; k++) {
+      const t = q[k], x = t % W, y = (t / W) | 0;
+      for (const n of [x > 0 ? t - 1 : -1, x < W - 1 ? t + 1 : -1, y > 0 ? t - W : -1, y < H - 1 ? t + W : -1]) {
+        if (n >= 0 && seaD[n] > seaD[t] + 1) { seaD[n] = seaD[t] + 1; q.push(n); }
+      }
+    }
+
+    const pix = this.pix = new Int32Array(FW * FH);
+    const shade = this.shade = new Float32Array(FW * FH);
+    const hgt = this.hgt = new Float32Array(FW * FH);
+    const sea = this.sea = new Uint8ClampedArray(FW * FH * 3);
+    const terr = this.terr = new Uint8ClampedArray(FW * FH * 3);
+    const lab = [0, 0, 0, 0], wt = [0, 0, 0, 0];
+    const L = [-0.62, -0.62, 0.48];
+    for (let py = 0; py < FH; py++) {
+      for (let px = 0; px < FW; px++) {
+        const i = py * FW + px;
+        // Domain-warped sample position gives borders and coasts a hand-drawn wobble.
+        const nx = px / S, ny = py / S;
+        const u = nx - 0.5 + (vnoise(nx * 1.3, ny * 1.3, seed) - 0.5) * 0.55;
+        const v = ny - 0.5 + (vnoise(nx * 1.3 + 31.7, ny * 1.3 + 17.3, seed) - 0.5) * 0.55;
+        let x0 = Math.floor(u), y0 = Math.floor(v);
+        const fu = u - x0, fv = v - y0;
+        const xa = clamp(x0, 0, W - 1), xb = clamp(x0 + 1, 0, W - 1), ya = clamp(y0, 0, H - 1), yb = clamp(y0 + 1, 0, H - 1);
+        const t00 = ya * W + xa, t10 = ya * W + xb, t01 = yb * W + xa, t11 = yb * W + xb;
+        const w00 = (1 - fu) * (1 - fv), w10 = fu * (1 - fv), w01 = (1 - fu) * fv, w11 = fu * fv;
+        // Weighted vote between the four surrounding tiles' provinces.
+        let n = 0;
+        const add = (l, w) => { for (let k = 0; k < n; k++) if (lab[k] === l) { wt[k] += w; return; } lab[n] = l; wt[n] = w; n++; };
+        add(provOf[t00], w00); add(provOf[t10], w10); add(provOf[t01], w01); add(provOf[t11], w11);
+        let best = 0;
+        for (let k = 1; k < n; k++) if (wt[k] > wt[best]) best = k;
+        const p = lab[best];
+        pix[i] = p;
+        const h = hl[t00] * w00 + hl[t10] * w10 + hl[t01] * w01 + hl[t11] * w11;
+        const grain = vnoise(px * 0.35, py * 0.35, seed + 7) * 0.6 + vnoise(px * 0.08, py * 0.08, seed + 9) * 0.4;
+        if (p >= 0) {
+          const ggx = (gx[t00] * w00 + gx[t10] * w10 + gx[t01] * w01 + gx[t11] * w11) * 9;
+          const ggy = (gy[t00] * w00 + gy[t10] * w10 + gy[t01] * w01 + gy[t11] * w11) * 9;
+          const len = Math.sqrt(ggx * ggx + ggy * ggy + 1);
+          const dot = (-ggx * L[0] - ggy * L[1] + L[2]) / len;
+          let s = 0.6 + 0.42 * dot / L[2] + h * 0.1;
+          // Mountains get a craggy texture.
+          if (h > 0.55) s += (vnoise(px * 0.5, py * 0.5, seed + 3) - 0.5) * (h - 0.55) * 0.9;
+          shade[i] = s * (0.86 + grain * 0.12);
+          hgt[i] = h;
+          const tc = terrainRgb(h);
+          terr[i * 3] = tc[0]; terr[i * 3 + 1] = tc[1]; terr[i * 3 + 2] = tc[2];
+        } else {
+          const d = seaD[t00] * w00 + seaD[t10] * w10 + seaD[t01] * w01 + seaD[t11] * w11;
+          const depth = clamp(d / 9, 0, 1) ** 0.6;
+          let r = 52 + (13 - 52) * depth, g = 96 + (31 - 96) * depth, b = 118 + (58 - 118) * depth;
+          const wave = 0.9 + grain * 0.18;
+          // Vignette towards the edge of the world.
+          const ex = Math.min(px, FW - 1 - px) / FW, ey = Math.min(py, FH - 1 - py) / FH;
+          const vig = clamp(Math.min(ex, ey) * 9, 0.55, 1);
+          r *= wave * vig; g *= wave * vig; b *= wave * vig;
+          // Faint graticule, like an old chart.
+          const gs = S * 24;
+          if (px % gs === 0 || py % gs === 0) { r += 14; g += 18; b += 22; }
+          sea[i * 3] = r; sea[i * 3 + 1] = g; sea[i * 3 + 2] = b;
+        }
+      }
+    }
+    // Coastlines: a dark edge on land and a pale rim in the shallows.
+    const land = new Uint8Array(FW * FH), seaMask = new Uint8Array(FW * FH);
+    for (let i = 0; i < pix.length; i++) { land[i] = pix[i] >= 0 ? 1 : 0; seaMask[i] = 1 - land[i]; }
+    const cd = chamferDist(FW, FH, land, 10, seaMask);
+    for (let i = 0; i < pix.length; i++) {
+      if (land[i]) continue;
+      const d = cd[i] / 3;
+      if (d > 10) continue;
+      const k = d < 1.6 ? 0.38 : (1 - d / 10) * 0.16;
+      sea[i * 3] += (150 - sea[i * 3]) * k; sea[i * 3 + 1] += (178 - sea[i * 3 + 1]) * k; sea[i * 3 + 2] += (176 - sea[i * 3 + 2]) * k;
+    }
+    this.coast = new Uint8Array(FW * FH);
+    for (let py = 0; py < FH; py++) for (let px = 0; px < FW; px++) {
+      const i = py * FW + px;
+      if (!land[i]) continue;
+      if ((px > 0 && !land[i - 1]) || (px < FW - 1 && !land[i + 1]) || (py > 0 && !land[i - FW]) || (py < FH - 1 && !land[i + FW])) this.coast[i] = 1;
+    }
   }
 
   countryColor(game, c, mode, player) {
@@ -75,108 +224,81 @@ class MapRenderer {
     const mode = opts.mode || 'political';
     const selected = opts.selected == null ? -1 : opts.selected;
     const player = opts.player == null ? -1 : opts.player;
-    const { W, H, height, provOf, provinces } = this.world;
-    const S = this.S, cw = W * S;
+    const { provinces } = this.world;
+    const { FW, FH, pix, shade, hgt, sea, coast, terr } = this;
     const data = this.img.data;
     const owner = provinces.map(p => p.owner);
-    const ccol = game.countries.map(c => this.countryColor(game, c, mode, player));
+    const PAPER = [232, 222, 196];
+    const ccol = game.countries.map(c => mixRgb(this.countryColor(game, c, mode, player), PAPER, 0.24));
     const pmode = MAP_MODES[mode] && MAP_MODES[mode].province;
-    const pcol = provinces.map(pr => (pmode ? pmode(pr, game) : ccol[pr.owner]));
+    const pcol = provinces.map(pr => (pmode ? mixRgb(pmode(pr, game), PAPER, 0.1) : ccol[pr.owner]));
     const tileMode = !!(MAP_MODES[mode] && MAP_MODES[mode].tile);
-
-    const SEL = [255, 255, 255], PLY = [255, 214, 90], BORDER = [28, 24, 34];
-    for (let y = 0; y < H; y++) {
-      for (let x = 0; x < W; x++) {
-        const t = y * W + x;
-        const p = provOf[t];
-        let base;
-        const nbr = [x > 0 ? t - 1 : -1, x < W - 1 ? t + 1 : -1, y > 0 ? t - W : -1, y < H - 1 ? t + W : -1];
-        // edge types per side: 0 none, 1 province, 2 nation, 3 coast
-        const et = [0, 0, 0, 0], ec = [null, null, null, null];
-        if (p < 0) {
-          const k = 1 + height[t];
-          const kk = k * k;
-          base = [18 + 52 * kk, 38 + 88 * kk, 70 + 95 * kk];
-          for (let s = 0; s < 4; s++) if (nbr[s] >= 0 && provOf[nbr[s]] >= 0) et[s] = 4;
-        } else {
-          const o = owner[p];
-          const col = tileMode ? terrainRgb(height[t]) : pcol[p];
-          const sh = tileMode ? 1 : 1.08 - height[t] * 0.32;
-          const bright = o === selected ? 1.12 : 1;
-          base = [col[0] * sh * bright, col[1] * sh * bright, col[2] * sh * bright];
-          for (let s = 0; s < 4; s++) {
-            const n = nbr[s];
-            if (n < 0) continue;
-            const q = provOf[n];
-            if (q < 0) { et[s] = 3; continue; }
-            const o2 = owner[q];
-            if (o2 !== o) {
-              et[s] = 2;
-              ec[s] = (o === selected || o2 === selected) ? SEL : (o === player || o2 === player) ? PLY : BORDER;
-            } else if (q !== p && (s === 0 || s === 2)) et[s] = 1;
-          }
-        }
-        for (let py = 0; py < S; py++) {
-          for (let px = 0; px < S; px++) {
-            let r = base[0], g = base[1], b = base[2];
-            const side = px === 0 ? 0 : px === S - 1 ? 1 : -1;
-            const vside = py === 0 ? 2 : py === S - 1 ? 3 : -1;
-            let best = 0, bc = null;
-            for (const s of [side, vside]) {
-              if (s < 0 || et[s] === 0) continue;
-              if (et[s] === 2 && best < 3) { best = 3; bc = ec[s]; }
-              else if (et[s] === 3 && best < 2) { best = 2; }
-              else if (et[s] === 4 && best < 1) { best = 1; }
-              else if (et[s] === 1 && best < 1) { best = 1; bc = 'prov'; }
-            }
-            if (best === 3) { r = bc[0]; g = bc[1]; b = bc[2]; }
-            else if (best === 2) { r *= 0.55; g *= 0.55; b *= 0.55; }
-            else if (best === 1 && bc === 'prov') { r *= 0.8; g *= 0.8; b *= 0.8; }
-            else if (best === 1) { r = r * 0.7 + 160 * 0.3; g = g * 0.7 + 200 * 0.3; b = b * 0.7 + 230 * 0.3; }
-            const i = ((y * S + py) * cw + (x * S + px)) * 4;
-            data[i] = r; data[i + 1] = g; data[i + 2] = b; data[i + 3] = 255;
-          }
-        }
-      }
-    }
-    const ctx = this.ctx;
-    ctx.putImageData(this.img, 0, 0);
-    this.drawWarFronts(game, player);
-    if (this.onRender) this.onRender();
-  }
-
-  // Diagonal hatching over provinces of nations at war with the player.
-  drawWarFronts(game, player) {
-    if (player < 0) return;
     const enemies = new Set();
-    for (const w of warsOf(game, player)) for (const id of (w.a.includes(player) ? w.b : w.a)) enemies.add(id);
-    if (!enemies.size) return;
-    const { W, H, provOf, provinces } = this.world;
-    const S = this.S, ctx = this.ctx;
-    ctx.fillStyle = 'rgba(200,20,20,0.35)';
-    for (let y = 0; y < H; y++) {
-      for (let x = 0; x < W; x++) {
-        const p = provOf[y * W + x];
-        if (p < 0 || !enemies.has(provinces[p].owner)) continue;
-        if ((x + y) % 3 === 0) ctx.fillRect(x * S, y * S, S, S);
+    if (player >= 0) for (const w of warsOf(game, player)) for (const id of (w.a.includes(player) ? w.b : w.a)) enemies.add(id);
+
+    // National borders and the soft glow inside them depend only on who owns what.
+    const sig = owner.join(',');
+    if (this._sig !== sig) {
+      this._sig = sig;
+      const own = this._own = new Int32Array(FW * FH);
+      for (let i = 0; i < own.length; i++) own[i] = pix[i] >= 0 ? owner[pix[i]] : -1;
+      const nb = this._nb = new Uint8Array(FW * FH), landM = new Uint8Array(FW * FH);
+      for (let py = 0; py < FH; py++) for (let px = 0; px < FW; px++) {
+        const i = py * FW + px, o = own[i];
+        if (o < 0) continue;
+        landM[i] = 1;
+        if (px < FW - 1 && own[i + 1] >= 0 && own[i + 1] !== o) { nb[i] = 1; nb[i + 1] = 1; }
+        if (py < FH - 1 && own[i + FW] >= 0 && own[i + FW] !== o) { nb[i] = 1; nb[i + FW] = 1; }
+      }
+      this._glowR = Math.max(6, this.S * 1.6);
+      this._gd = chamferDist(FW, FH, nb, this._glowR, landM);
+    }
+    const own = this._own, nb = this._nb, gd = this._gd, glowR = this._glowR;
+
+    const SEL = [255, 250, 235], PLY = [255, 206, 84], BORDER = [34, 26, 30];
+    for (let py = 0; py < FH; py++) {
+      for (let px = 0; px < FW; px++) {
+        const i = py * FW + px, o4 = i * 4, p = pix[i];
+        if (p < 0) { data[o4] = sea[i * 3]; data[o4 + 1] = sea[i * 3 + 1]; data[o4 + 2] = sea[i * 3 + 2]; data[o4 + 3] = 255; continue; }
+        const o = own[i];
+        const hh = hgt[i], t3 = i * 3;
+        let r, g, b;
+        if (tileMode) { r = terr[t3]; g = terr[t3 + 1]; b = terr[t3 + 2]; }
+        else {
+          const col = pcol[p];
+          r = col[0]; g = col[1]; b = col[2];
+          // Let the land show through: highlands tint the political color.
+          if (hh > 0.45) { const k = (hh - 0.45) * 0.55; r += (terr[t3] - r) * k; g += (terr[t3 + 1] - g) * k; b += (terr[t3 + 2] - b) * k; }
+        }
+        let s = shade[i];
+        if (o === selected) s *= 1.12;
+        r *= s; g *= s; b *= s;
+        // Inner glow: darker, richer color near the border.
+        const d = gd[i];
+        if (d !== 65535 && !tileMode) {
+          const k = (1 - d / 3 / glowR) ** 2 * 0.42;
+          r *= 1 - k; g *= 1 - k; b *= 1 - k * 0.7;
+        }
+        // Province borders: a faint line.
+        if ((px < FW - 1 && pix[i + 1] !== p && pix[i + 1] >= 0 && own[i + 1] === o) || (py < FH - 1 && pix[i + FW] !== p && pix[i + FW] >= 0 && own[i + FW] === o)) {
+          r *= 0.8; g *= 0.8; b *= 0.8;
+        }
+        if (enemies.has(o) && (px + py) % 9 < 3) { r = r * 0.55 + 200 * 0.45; g *= 0.55; b *= 0.55; }
+        if (nb[i]) {
+          let o2 = -1;
+          if (px > 0 && own[i - 1] >= 0 && own[i - 1] !== o) o2 = own[i - 1];
+          else if (px < FW - 1 && own[i + 1] >= 0 && own[i + 1] !== o) o2 = own[i + 1];
+          else if (py > 0 && own[i - FW] >= 0 && own[i - FW] !== o) o2 = own[i - FW];
+          else if (py < FH - 1 && own[i + FW] >= 0 && own[i + FW] !== o) o2 = own[i + FW];
+          const bc = (o === selected || o2 === selected) ? SEL : (o === player || o2 === player) ? PLY : BORDER;
+          const a = bc === BORDER ? 0.78 : 0.95;
+          r = r * (1 - a) + bc[0] * a; g = g * (1 - a) + bc[1] * a; b = b * (1 - a) + bc[2] * a;
+        } else if (coast[i]) { r *= 0.42; g *= 0.4; b *= 0.4; }
+        data[o4] = r; data[o4 + 1] = g; data[o4 + 2] = b; data[o4 + 3] = 255;
       }
     }
-  }
-
-  drawCapitals(game, player) {
-    const ctx = this.ctx, S = this.S, provs = this.world.provinces;
-    for (const c of game.countries) {
-      if (!c.alive) continue;
-      const cap = provs[c.capital];
-      if (!cap) continue;
-      ctx.beginPath();
-      ctx.arc((cap.lx + 0.5) * S, (cap.ly + 0.5) * S, S * 0.7, 0, Math.PI * 2);
-      ctx.fillStyle = c.id === player ? '#ffd24a' : '#fff';
-      ctx.fill();
-      ctx.lineWidth = 1.5;
-      ctx.strokeStyle = '#222';
-      ctx.stroke();
-    }
+    this.ctx.putImageData(this.img, 0, 0);
+    if (this.onRender) this.onRender();
   }
 
   // Where each nation's name goes, in map tile coordinates, and how big its land is.
@@ -203,10 +325,10 @@ class MapRenderer {
   provinceAt(clientX, clientY) {
     if (!this.world) return -1;
     const rect = this.canvas.getBoundingClientRect();
-    const x = Math.floor((clientX - rect.left) / rect.width * this.world.W);
-    const y = Math.floor((clientY - rect.top) / rect.height * this.world.H);
-    if (x < 0 || y < 0 || x >= this.world.W || y >= this.world.H) return -1;
-    return this.world.provOf[y * this.world.W + x];
+    const x = Math.floor((clientX - rect.left) / rect.width * this.FW);
+    const y = Math.floor((clientY - rect.top) / rect.height * this.FH);
+    if (x < 0 || y < 0 || x >= this.FW || y >= this.FH) return -1;
+    return this.pix[y * this.FW + x];
   }
 }
 
@@ -263,21 +385,26 @@ class LabelLayer {
     }
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     for (const a of this.r.labelAnchors(game)) {
-      const size = clamp(Math.sqrt(a.tiles) * 0.19 * sx, 0, 28);
+      const size = clamp(Math.sqrt(a.tiles) * 0.16 * sx * Math.min(1, 9 / Math.max(5, a.c.name.length)), 0, 26);
       if (size < 8.5 && a.c.id !== selected && a.c.id !== player) continue;
       const fs = Math.max(size, 9);
-      ctx.font = `${a.c.id === selected ? 'bold ' : '600 '}${fs.toFixed(1)}px Georgia, 'Times New Roman', serif`;
+      ctx.font = `${a.c.id === selected ? '700 ' : '600 '}${fs.toFixed(1)}px Cinzel, Georgia, 'Times New Roman', serif`;
+      if ('letterSpacing' in ctx) ctx.letterSpacing = `${(fs * 0.12).toFixed(1)}px`;
       const x = mr.left - wr.left + a.x * sx, y = mr.top - wr.top + a.y * sy;
-      const w = ctx.measureText(a.c.name).width;
+      const name = a.c.name.toUpperCase();
+      const w = ctx.measureText(name).width;
       const box = [x - w / 2 - 2, y - fs / 2 - 1, x + w / 2 + 2, y + fs / 2 + 1];
       if (box[2] < 0 || box[0] > wr.width || box[3] < 0 || box[1] > wr.height) continue;
       if (placed.some(b => box[0] < b[2] && box[2] > b[0] && box[1] < b[3] && box[3] > b[1])) continue;
       placed.push(box);
-      ctx.lineWidth = 3;
-      ctx.strokeStyle = 'rgba(10,10,20,0.8)';
-      ctx.fillStyle = a.c.id === player ? '#ffe08a' : '#f4f1ea';
-      ctx.strokeText(a.c.name, x, y);
-      ctx.fillText(a.c.name, x, y);
+      ctx.lineWidth = Math.max(2.5, fs * 0.22);
+      ctx.lineJoin = 'round';
+      ctx.strokeStyle = 'rgba(12,10,16,0.72)';
+      ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 6;
+      ctx.strokeText(name, x, y);
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = a.c.id === player ? '#ffd877' : a.c.id === selected ? '#ffffff' : 'rgba(246,240,226,0.94)';
+      ctx.fillText(name, x, y);
     }
   }
 }

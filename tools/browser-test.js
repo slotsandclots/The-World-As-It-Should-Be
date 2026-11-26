@@ -34,7 +34,13 @@ const { chromium } = require('playwright');
   await page.mouse.move(500, 400);
   await page.mouse.wheel(0, -500);
   await page.click('#btn-menu'); await page.click('text=Save game');
-  await page.click('#btn-menu'); await page.click('.backdrop button:has-text("Load saved game")');
+  await page.click('.backdrop button:has-text("Save as new")');
+  await page.waitForTimeout(300);
+  await page.click('#btn-menu'); await page.click('.backdrop button:has-text("Load game")');
+  await page.click('.backdrop [data-slot]');
+  await page.waitForFunction(() => !document.querySelector('.backdrop'));
+  const loaded = await page.textContent('#toast-root');
+  if (!/Loaded game/.test(loaded)) errors.push('Loading a save slot failed: ' + loaded);
   await drain();
 
   // Campaign: the first briefing and objective.

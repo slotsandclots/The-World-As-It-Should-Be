@@ -8,8 +8,11 @@ const App = {
 
   newWorld(seed, opts) {
     this.setSpeed(0);
-    this.game = createGame(seed, opts);
-    this.renderer.setWorld(this.game.world);
+    const key = JSON.stringify([seed, opts]);
+    this.game = this.preview && this.preview.key === key ? this.preview.game : createGame(seed, opts);
+    this.preview = null;
+    this.stash = null;
+    if (this.renderer.world !== this.game.world) this.renderer.setWorld(this.game.world);
     UI.resetView();
     UI.choosing = true;
     UI.selected = null;
@@ -18,8 +21,39 @@ const App = {
     UI.refresh();
   },
 
+  // Generate a world behind the title screen so the player can see it first.
+  showPreview(seed, opts) {
+    const key = JSON.stringify([seed, opts]);
+    if (this.preview && this.preview.key === key) return;
+    if (!this.stash && this.game && !this.preview) this.stash = { game: this.game, choosing: UI.choosing };
+    const game = createGame(seed, opts);
+    this.preview = { key, game };
+    this.game = game;
+    this.renderer.setWorld(game.world);
+    UI.resetView();
+    UI.choosing = true;
+    UI.selected = null;
+    this.redraw();
+    UI.refresh();
+  },
+
+  // Put back the game that was running before the title screen opened.
+  cancelPreview() {
+    if (!this.stash) return;
+    this.game = this.stash.game;
+    UI.choosing = this.stash.choosing;
+    this.stash = null;
+    this.preview = null;
+    this.renderer.setWorld(this.game.world);
+    UI.resetView();
+    this.redraw();
+    UI.refresh();
+  },
+
   startCampaign() {
     this.setSpeed(0);
+    this.preview = null;
+    this.stash = null;
     this.game = startCampaign();
     this.renderer.setWorld(this.game.world);
     UI.resetView();
@@ -59,6 +93,7 @@ const App = {
     const g = this.game;
     if (!g || UI.choosing || g.player < 0 || UI.modalOpen() || UI.dragging) return;
     tick(g);
+    if (g.month % 12 === 0 && g.player >= 0 && g.countries[g.player].alive) this.autosave();
     if (g.mapDirty || UI.mapMode !== 'political') this.redraw();
     UI.refresh();
     UI.processPending();
@@ -73,23 +108,34 @@ const App = {
     UI.processPending();
   },
 
-  save() {
+  async save(name, id) {
+    const g = this.game;
+    id = id || 'slot-' + Date.now().toString(36);
     try {
-      localStorage.setItem(SAVE_KEY, serializeGame(this.game));
-      UI.toast(`Game saved (${gameDate(this.game)}).`, 'good');
+      await Saves.put(Saves.metaFor(g, id, name), serializeGame(g));
+      UI.toast(`Game saved: ${name || g.countries[g.player].name}, ${gameDate(g)}.`, 'good');
     } catch (e) {
-      UI.toast('Could not save: browser storage is unavailable.', 'bad');
+      console.error(e);
+      UI.toast('Could not save: browser storage is unavailable or full.', 'bad');
     }
   },
 
-  load() {
+  async autosave() {
+    try { await Saves.put(Saves.metaFor(this.game, AUTOSAVE_ID, 'Autosave'), serializeGame(this.game)); } catch (e) { /* best effort */ }
+  },
+
+  async load(id) {
     let str = null;
-    try { str = localStorage.getItem(SAVE_KEY); } catch (e) { /* storage unavailable */ }
-    if (!str) { UI.toast('No saved game found.', 'bad'); return; }
+    try { str = await Saves.get(id); } catch (e) { /* storage unavailable */ }
+    if (!str) { UI.toast('That saved game could not be found.', 'bad'); return; }
     try {
       this.setSpeed(0);
       this.game = deserializeGame(str);
+      this.preview = null;
+      this.stash = null;
+      UI.closeAllModals();
       this.renderer.setWorld(this.game.world);
+      UI.resetView();
       UI.choosing = this.game.player < 0 || !this.game.countries[this.game.player].alive;
       UI.selected = null;
       UI.tab = 'overview';

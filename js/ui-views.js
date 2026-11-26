@@ -2,10 +2,71 @@
 // Side-panel tab views. Each view returns HTML for the tab body.
 
 Object.assign(UI, {
+  // ------------------------------------------------------------------ ledger
+
+  viewLedger(c, g) {
+    const L = Object.assign({ view: 'nation', range: '20y', metric: 'gdp' }, this.ledger || {});
+    const seg = (k, opts) => `<div class="ledger-tabs">${opts.map(([v, label]) => `<button class="${L[k] === v ? 'active' : ''}" data-act="ledger" data-k="${k}" data-v="${v}">${label}</button>`).join('')}</div>`;
+    const monthly = (arr) => {
+      if (!arr) return [];
+      const pts = arr.map((v, i) => [g.month - (arr.length - 1 - i), v]);
+      return L.range === '5y' ? pts.slice(-60) : pts;
+    };
+    // Long-run (yearly) series where they exist; monthly otherwise.
+    const series = (x, key) => {
+      if (L.range === 'all' && x.histY && x.histY[key] && x.histY[key].length >= 2) return x.histY[key].map((v, i) => [x.histY.month[i], v]);
+      return monthly(x.hist[key]);
+    };
+    let h = `<div class="card"><h3>${icon('ledger', 16)} The Ledger</h3>${seg('view', [['nation', 'Our nation'], ['compare', 'Compare nations'], ['prices', 'World prices']])}${seg('range', [['5y', '5 years'], ['20y', '20 years'], ['all', 'All time']])}</div>`;
+    if (L.view === 'nation') {
+      const chart = (title, s, opts) => `<div class="card"><h4 style="margin-top:0">${title}</h4>${lineChart(s, opts)}</div>`;
+      h += chart('Gross domestic product', [{ pts: series(c, 'gdp'), color: '#d8b66a', label: 'GDP' }], { fmt: v => fmtMoney(v), zero: true });
+      h += chart('Politics', [
+        { pts: series(c, 'approval'), color: '#7fc98f', label: 'Approval' }, { pts: series(c, 'stability'), color: '#e3a64e', label: 'Stability' },
+        { pts: monthly(c.hist.unrest), color: '#e2705f', label: 'Unrest' },
+      ], { min: 0, max: 100, fmt: v => v.toFixed(0) });
+      h += chart('Living standard', [{ pts: series(c, 'sol'), color: '#8fb0dc', label: 'Average standard of living' }], { fmt: v => v.toFixed(0) });
+      h += chart('Population (millions)', [{ pts: series(c, 'pop'), color: '#c9a0dc', label: 'Population' }], { fmt: v => v.toFixed(1) + 'M' });
+      h += chart('Treasury', [{ pts: monthly(c.hist.treasury), color: '#d8b66a', label: 'Treasury' }], { fmt: v => fmtMoney(v), zero: true });
+      h += chart('State budget (per month)', [{ pts: monthly(c.hist.revenue), color: '#7fc98f', label: 'Revenue' }, { pts: monthly(c.hist.spend), color: '#e2705f', label: 'Spending and interest' }], { fmt: v => fmtMoney(v), zero: true });
+      h += chart('Unemployment', [{ pts: monthly(c.hist.unemp), color: '#e2705f', label: 'Unemployment' }], { fmt: v => v.toFixed(1) + '%', zero: true });
+      h += chart('Army (thousands)', [{ pts: monthly(c.hist.army), color: '#a3a3a3', label: 'Soldiers' }], { fmt: v => v.toFixed(0) + 'k', zero: true });
+      h += '<p class="small muted">Some series begin when you take office. Monthly records cover the last 20 years; "All time" uses yearly records where they exist.</p>';
+    } else if (L.view === 'compare') {
+      const M = { gdp: ['GDP', x => x.gdp, v => fmtMoney(v)], gdppc: ['GDP per person', x => x.gdp / Math.max(1, x.pop) * 1e9, v => '$' + Math.round(v)], pop: ['Population', x => x.pop / 1e6, v => v.toFixed(1) + 'M'],
+        sol: ['Living standard', x => x.econ.avgSol, v => v.toFixed(0)], stability: ['Stability', x => x.stability, v => v.toFixed(0)], approval: ['Approval', x => x.approval, v => v.toFixed(0)] };
+      const [mname, cur, fmt] = M[L.metric] || M.gdp;
+      h += `<div class="card">${seg('metric', Object.entries(M).map(([k, v]) => [k, v[0]]))}`;
+      const top = g.countries.filter(x => x.alive).sort((a, b) => cur(b) - cur(a)).slice(0, 7);
+      if (!top.includes(c)) top.push(c);
+      const mk = x => {
+        if (L.metric === 'gdppc') {
+          const gd = series(x, 'gdp'), pp = series(x, 'pop');
+          return gd.map((p, i) => [p[0], pp[i] && pp[i][1] ? p[1] / pp[i][1] * 1000 : null]);
+        }
+        return series(x, L.metric);
+      };
+      h += lineChart(top.map(x => ({ pts: mk(x), color: x.color, label: x.name, width: x === c ? 3 : 1.6 })), { fmt, zero: ['gdp', 'pop'].includes(L.metric) });
+      h += `<table class="list" style="margin-top:10px"><tr><th>Nation</th><th>${mname}</th><th>Rank</th></tr>${top.map((x, i) => `<tr class="click ${x === c ? 'me' : ''}" data-act="select" data-id="${x.id}"><td>${swatch(x)} ${esc(x.name)}</td><td>${fmt(cur(x))}</td><td>${g.countries.filter(y => y.alive && cur(y) > cur(x)).length + 1}</td></tr>`).join('')}</table></div>`;
+    } else {
+      const P = g.priceHist || {};
+      h += '<div class="card"><p class="small muted" style="margin-top:0">World market prices. The dashed line is each good\'s base price.</p><div class="grid2">';
+      for (const k in GOODS) {
+        const arr = P[k] || [];
+        const pts = monthly(arr);
+        const now = g.worldMarket && g.worldMarket.prices[k] || GOODS[k].base;
+        const rel = now / GOODS[k].base - 1;
+        h += `<div><div class="kv" style="border:0"><span>${GOODS[k].name}</span><span class="${rel > 0.15 ? 'bad' : rel < -0.15 ? 'good' : ''}">${now.toFixed(1)} <small>${fmtSigned(rel * 100, 0)}%</small></span></div>${lineChart([{ pts, color: rel > 0.15 ? '#e2705f' : rel < -0.15 ? '#7fc98f' : '#d8b66a', label: GOODS[k].name }, { pts: pts.length ? [[pts[0][0], GOODS[k].base], [pts[pts.length - 1][0], GOODS[k].base]] : [], color: '#ffffff55', label: 'Base', dash: true, width: 1 }], { h: 120, mini: true, fmt: v => v.toFixed(0) }).replace(/<div class="chart-legend">.*<\/div>$/, '')}</div>`;
+      }
+      h += '</div><p class="small muted">Prices rise when goods are scarce and fall when they are plentiful: between a quarter and four times the base price.</p></div>';
+    }
+    return h;
+  },
+
   nationHeader(c) {
     const g = App.game;
     const party = GOVS[c.gov].party === 'multi' ? `<div class="small muted">Governing party: ${esc(rulingPartyObj(c).name)}</div>` : '';
-    return `<div class="nation-head"><div class="nh-portrait">${portraitSVG(c.leader, { size: 52, gov: c.gov })}<span class="swatch nh-flag" style="background:${c.color}"></span></div><div><div class="formal">${esc(formalName(c))}</div>
+    return `<div class="nation-head"><div class="nh-portrait">${portraitSVG(c.leader, { size: 52, gov: c.gov })}<span class="nh-flag">${flagSVG(c, 24, 16)}</span></div><div><div class="formal">${esc(formalName(c))}</div>
       <div style="margin:4px 0">${govBadge(c.gov)} <span class="small muted">since ${gameDate(g, Math.max(0, g.month - c.monthsInRegime))}</span></div>
       <div class="small">${esc(leaderLine(c))}, ${c.leader.age}</div><div>${this.traitChips(c.leader)}</div>${party}</div></div>`;
   },
@@ -21,9 +82,9 @@ Object.assign(UI, {
     if (this.selProv != null && g.world.provinces[this.selProv] && g.world.provinces[this.selProv].owner === c.id) h += this.provinceCard(g.world.provinces[this.selProv], true);
     h += `<div class="card">${this.nationHeader(c)}</div>`;
     h += `<div class="card">
-      ${bar('Stability', c.stability, { tip: `Below ${CRISIS_LEVEL}, coups and revolutions become possible.` })}
-      ${bar('Approval', c.approval, { tip: 'How the public feels about the government.' })}
-      ${bar('Unrest', c.unrest, { invert: true, tip: 'Protests and agitation. Above 55, it can spark revolution on its own.' })}
+      ${bar('Stability', c.stability, { why: 'stability' })}
+      ${bar('Approval', c.approval, { why: 'approval' })}
+      ${bar('Unrest', c.unrest, { invert: true, why: 'unrest' })}
       ${bar('Freedom', c.freedom, { color: '#5b8cff', tip: 'Civil liberties. Intelligentsia value it highly.' })}
       ${bar('Corruption', c.corruption, { invert: true, tip: 'Drains revenue and growth.' })}
       ${bar('Legitimacy', c.legitimacy, { tip: 'The accepted right to rule. Won through elections, tradition or faith.' })}
@@ -35,12 +96,12 @@ Object.assign(UI, {
       <div class="kv"><span>GDP</span><span>${fmtMoney(c.gdp)}</span></div>
       <div class="kv"><span>Per capita</span><span>$${(c.gdpPerCap * 1000).toFixed(0)}</span></div>
       <div class="kv"><span>Growth</span><span class="${c.growthAvg < 0 ? 'bad' : 'good'}">${fmtSigned(c.growthAvg * 1200)}%/yr</span></div>
-      <div class="kv"><span>Treasury</span><span class="${c.treasury < 0 ? 'bad' : ''}">${fmtMoney(c.treasury)}${debt > 0 ? ` (${pct(debt)} debt)` : ''}</span></div>
+      <div class="kv" data-tip="treasury"><span>Treasury</span><span class="${c.treasury < 0 ? 'bad' : ''}">${fmtMoney(c.treasury)}${debt > 0 ? ` (${pct(debt)} debt)` : ''}</span></div>
       <div class="kv"><span>Army</span><span>${fmtPop(c.army)}</span></div>
       <div class="kv"><span>Strength</span><span>${strength(c).toFixed(0)}</span></div>
-      <div class="kv"><span>Political capital</span><span>${Math.floor(c.pc)} (+${(gv.pcGain * (0.6 + c.stability / 120)).toFixed(1)}/mo)</span></div>
+      <div class="kv" data-tip="pc"><span>Political capital</span><span>${Math.floor(c.pc)} (+${pcIncome(c).toFixed(1)}/mo)</span></div>
       ${c.overlord != null ? `<div class="kv"><span>Overlord</span><span class="warn">${esc(g.countries[c.overlord].name)} (${SUBJECT_TYPES[c.subjectType].name})</span></div>` : subjectsOf(g, c.id).length ? `<div class="kv"><span>Subjects</span><span>${subjectsOf(g, c.id).length}</span></div>` : ''}
-      <div class="kv" title="Wars of aggression and conquest raise infamy; it fades over time. Above ${INFAMY.coalitionAt}, coalitions may form against you."><span>Infamy</span><span class="${(c.infamy || 0) >= INFAMY.coalitionAt ? 'bad' : (c.infamy || 0) > 15 ? 'warn' : ''}">${Math.round(c.infamy || 0)}</span></div>
+      <div class="kv" data-tip="infamy"><span>Infamy</span><span class="${(c.infamy || 0) >= INFAMY.coalitionAt ? 'bad' : (c.infamy || 0) > 15 ? 'warn' : ''}">${Math.round(c.infamy || 0)}</span></div>
       <div class="kv" title="Conquered land that has not yet been integrated (20 years): pays less tax, supplies fewer soldiers, and breeds unrest."><span>Non-core land</span><span class="${(c.nonCoreShare || 0) > 0.2 ? 'warn' : ''}">${c.nonCoreCount || 0} prov · ${pct(c.nonCoreShare || 0)} of pop</span></div>
       <div class="kv"><span>Living standard</span><span style="color:${statColor(c.econ.avgSol * 1.4)}">${c.econ.avgSol.toFixed(0)}</span></div>
       <div class="kv"><span>Unemployment</span><span class="${c.econ.unemployment > 0.08 ? 'bad' : ''}">${pct(c.econ.unemployment, 1)}</span></div>

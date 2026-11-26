@@ -5,15 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>The World As It Should Be</title>
   <meta name="description" content="A political simulator: lead any nation on a randomly generated world through elections, coups, revolutions and wars.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&display=swap">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
   <header id="topbar">
-    <div class="brand" title="The World As It Should Be">🜨 <span>The World As It Should Be</span></div>
+    <div class="brand" title="The World As It Should Be"><svg class="brand-mark" viewBox="0 0 32 32" width="26" height="26" aria-hidden="true"><circle cx="16" cy="16" r="14" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M2 16h28M16 2c5 4 6.5 9 6.5 14S21 26 16 30M16 2c-5 4-6.5 9-6.5 14S11 26 16 30" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M16 7l2 4.2 4.6.6-3.3 3.2.8 4.6L16 17.4l-4.1 2.2.8-4.6-3.3-3.2 4.6-.6z" fill="currentColor"/></svg><span>The World<br><i>As It Should Be</i></span></div>
     <div id="tb-nation" class="tb-nation"></div>
     <div id="tb-stats" class="tb-stats"></div>
     <div class="tb-controls">
-      <span id="tb-date" class="tb-date"></span>
+      <span id="tb-date" class="tb-date" data-tip="date"></span>
       <div class="speed" role="group" aria-label="Game speed">
         <button data-speed="0" title="Pause (Space)">❚❚</button>
         <button data-speed="1" title="Normal speed (1)">▶</button>
@@ -62,12 +65,14 @@
   <script src="js/tech.js"></script>
   <script src="js/movements.js"></script>
   <script src="js/portrait.js"></script>
+  <script src="js/art.js"></script>
   <script src="js/events.js"></script>
   <script src="js/campaign.js"></script>
   <script src="js/render.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/ui-views.js"></script>
   <script src="js/ui-dialogs.js"></script>
+  <script src="js/saves.js"></script>
   <script src="js/main.js"></script>
 </body>
 </html>
