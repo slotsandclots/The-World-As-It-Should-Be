@@ -319,6 +319,10 @@ const UI = {
       case 'autoinvest': { const c = this.player(); c.econ.autoInvest = !c.econ.autoInvest; this.renderTab(); return; }
       case 'empire': { const r = performEmpire(g, ds.id, +ds.target); this.track('empire:' + ds.id, r.ok); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }
       case 'release': this.showReleaseModal(+ds.core); return;
+      case 'designate': { const r = setDesignation(g, +ds.prov, ds.key || null); this.track('designate:' + (ds.key || 'none'), r.ok); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }
+      case 'closeprov': this.selProv = null; this.renderTab(); return;
+      case 'separatism': { const r = separatismAction(g, ds.key, ds.a); this.track('separatism:' + ds.a, r.ok); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }
+      case 'federal': { const r = ds.a === 'federate' ? playerFederate(g, +ds.bloc) : federalAction(g, ds.a); this.track('federal:' + ds.a, r.ok); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }
       case 'bloc': {
         let r;
         if (ds.a === 'found') { const sel = document.querySelector(`#found-partner-${ds.type}`); r = playerFoundBloc(g, ds.type, sel ? +sel.value : -1); }
@@ -379,7 +383,8 @@ const UI = {
     const g = App.game;
     if (!g || this.suppressClick) return;
     const p = App.renderer.provinceAt(e.clientX, e.clientY);
-    if (p < 0) { this.select(null); return; }
+    if (p < 0) { this.selProv = null; this.select(null); return; }
+    this.selProv = p;
     const owner = g.world.provinces[p].owner;
     if (!this.choosing) this.tab = owner === g.player ? 'overview' : 'diplomacy';
     this.select(owner === g.player && !this.choosing ? null : owner);

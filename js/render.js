@@ -24,6 +24,7 @@ const MAP_MODES = {
   resources: { name: 'Resources', legend: 'Each province\'s richest resource', province: p => resourceColor(p), key: true },
   sol: { name: 'Living Standard', legend: 'Standard of living by province: red = destitute, green = prosperous', province: p => rampRgb((provinceSol(p) - 15) / 50 * 100) },
   blocs: { name: 'Blocs', legend: '', blocMode: true },
+  admin: { name: 'Administration', legend: 'Gold = special economic zone · teal = autonomous · brown = colonial · orange = non-core · stripes of color = federal states', province: (p, game) => adminColor(p, game) },
   industry: { name: 'Industry', legend: 'Share of each province working in factories: grey = rural, orange = industrial', province: p => mixRgb([75, 78, 92], [240, 130, 40], clamp(provinceIndustry(p) / 0.4, 0, 1)) },
   relations: { name: 'Relations', legend: 'Your relations: red = hostile, green = friendly' },
 };
@@ -80,7 +81,7 @@ class MapRenderer {
     const owner = provinces.map(p => p.owner);
     const ccol = game.countries.map(c => this.countryColor(game, c, mode, player));
     const pmode = MAP_MODES[mode] && MAP_MODES[mode].province;
-    const pcol = provinces.map(pr => (pmode ? pmode(pr) : ccol[pr.owner]));
+    const pcol = provinces.map(pr => (pmode ? pmode(pr, game) : ccol[pr.owner]));
     const tileMode = !!(MAP_MODES[mode] && MAP_MODES[mode].tile);
 
     const SEL = [255, 255, 255], PLY = [255, 214, 90], BORDER = [28, 24, 34];
@@ -279,4 +280,14 @@ class LabelLayer {
       ctx.fillText(a.c.name, x, y);
     }
   }
+}
+
+function adminColor(p, game) {
+  if (p.designation === 'sez') return [235, 190, 60];
+  if (p.designation === 'autonomous') return [60, 190, 175];
+  if (p.designation === 'colonial') return [150, 100, 60];
+  if (p.core !== undefined && p.core !== p.owner) return [220, 130, 60];
+  const c = game && game.countries[p.owner];
+  if (c && c.federal && p.state != null) { const h = (p.state * 137.5) % 360; return hslToRgb(h, 35, 45); }
+  return [90, 94, 108];
 }

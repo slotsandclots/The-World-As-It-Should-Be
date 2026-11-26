@@ -18,6 +18,7 @@ Object.assign(UI, {
     const wars = warsOf(g, c.id);
     if (wars.length) h += `<div class="alert warn">⚔ At war: ${wars.map(w => esc(w.name)).join(', ')}. <a href="#" data-act="tab" data-tab="military" class="warn">Military →</a></div>`;
     if (c.emergency) h += '<div class="alert warn">A state of emergency is in force. Elections are suspended.</div>';
+    if (this.selProv != null && g.world.provinces[this.selProv] && g.world.provinces[this.selProv].owner === c.id) h += this.provinceCard(g.world.provinces[this.selProv], true);
     h += `<div class="card">${this.nationHeader(c)}</div>`;
     h += `<div class="card">
       ${bar('Stability', c.stability, { tip: `Below ${CRISIS_LEVEL}, coups and revolutions become possible.` })}
@@ -188,6 +189,7 @@ Object.assign(UI, {
     }
     h += `<div class="card"><h3>Political compass</h3>${compassSVG(c)}<p class="small muted" style="text-align:center">● public · ■ regime${gv.party === 'multi' ? ' · small dots: parties' : ''}</p></div>`;
     h += this.movementsHtml(c);
+    h += this.regionsHtml(c, g);
     h += `<div class="card"><h3>Domestic actions</h3><p class="small muted">You have <b>${Math.floor(c.pc)}</b> political capital.</p><div class="actions">`;
     for (const { a, reason } of domesticActionList(g, c)) h += this.actionBtn(c, 'dom', a, reason);
     h += '</div></div>';
@@ -394,7 +396,9 @@ Object.assign(UI, {
     if (c.overlord === t.id) status.push('<span class="warn">♜ Our overlord</span>');
     const tSubs = subjectsOf(g, t.id);
     if (tSubs.length) status.push(`<span class="muted">Overlord of ${tSubs.map(x => esc(x.name)).join(', ')}</span>`);
-    let h = `<button data-act="select" data-id="-1" class="small" style="margin-bottom:8px">← All nations</button><div class="card">${this.nationHeader(t)}</div>`;
+    let h = `<button data-act="select" data-id="-1" class="small" style="margin-bottom:8px">← All nations</button>`;
+    if (this.selProv != null && g.world.provinces[this.selProv] && g.world.provinces[this.selProv].owner === t.id) h += this.provinceCard(g.world.provinces[this.selProv], false);
+    h += `<div class="card">${this.nationHeader(t)}</div>`;
     h += `<div class="card">${bar('Relations with us', (rel + 100) / 2, { text: Math.round(rel), color: rel < -30 ? 'var(--bad)' : rel > 30 ? 'var(--good)' : 'var(--warn)' })}
       <div class="small">${status.join(' · ') || '<span class="muted">No agreements</span>'}</div></div>`;
     const ratio = strength(c) / Math.max(0.01, strength(t));
@@ -477,6 +481,7 @@ Object.assign(UI, {
       }
       h += `<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;align-items:center">`;
       if (lead && candidates.length) h += `<select id="invite-${b.id}">${candidates.map(o => `<option value="${o.id}">${esc(o.name)} (rel ${Math.round(relation(g, c.id, o.id))})</option>`).join('')}</select><button class="small" data-act="bloc" data-a="invite" data-bloc="${b.id}" ${c.pc < 10 ? 'disabled' : ''} title="Members vote; then they decide. 10 PC">Invite</button>`;
+      if (b.type === 'confederation' && lead) { const why = federateCheck(g, b); h += `<button class="small gold" data-act="federal" data-a="federate" data-bloc="${b.id}" ${why || c.pc < 50 ? 'disabled' : ''} title="${esc(why || 'Merge every member into one federal state led by us. 50 PC')}">Propose federation</button>`; }
       h += `<button class="small" data-act="bloc" data-a="leave" data-bloc="${b.id}">Leave</button></div></div>`;
     }
     if (others.length) {
@@ -496,6 +501,66 @@ Object.assign(UI, {
         <div class="pact">${why ? '' : `<select id="found-partner-${k}">${partners.filter(o => !canJoin(g, o, k)).map(o => `<option value="${o.id}">${esc(o.name)} (rel ${Math.round(relation(g, c.id, o.id))})</option>`).join('')}</select>`}
         <button class="small" data-act="bloc" data-a="found" data-type="${k}" ${why || c.pc < T.foundPc ? 'disabled' : ''}>Found (${T.foundPc} PC)</button></div></div>`;
     }
+    return h + '</div>';
+  },
+
+  provinceCard(p, own) {
+    const g = App.game, c = g.countries[p.owner];
+    const occ = occupationFactor(g, p);
+    const status = [];
+    if (p.id === c.capital) status.push('<span class="warn">★ capital</span>');
+    if (occ > 0) status.push(`<span class="bad">occupied (${Math.round(occ * OCCUPATION_MONTHS)} months left)</span>`);
+    else if (p.core !== undefined && p.core !== p.owner) status.push(`<span class="warn">non-core: belongs to ${esc(g.countries[p.core].name)}</span>`);
+    if (p.state != null && c.federal) status.push('<span class="muted">federal state</span>');
+    const D = designationOf(p);
+    if (D) status.push(`<span class="good">${D.name}</span>`);
+    const classes = POP_KEYS.filter(t => p.pops[t] >= 1).sort((a, b) => p.pops[b] - p.pops[a]).slice(0, 5)
+      .map(t => `${POP_TYPES[t].name} ${pct(p.pops[t] / Math.max(1, p.pop))} <span class="muted">(SoL ${Math.round(p.sol[t] || 0)})</span>`).join(' · ');
+    let h = `<div class="card prov-card"><div style="display:flex;justify-content:space-between;align-items:baseline"><h3>📍 ${esc(p.name)}</h3><button class="small" data-act="closeprov">✕</button></div>
+      <div class="small">${status.join(' · ') || '<span class="muted">Core province</span>'}</div>
+      <div class="grid2 small" style="margin-top:6px">
+        <div class="kv"><span>Population</span><span>${fmtPop(p.pop)}</span></div>
+        <div class="kv"><span>Living standard</span><span>${provinceSol(p).toFixed(0)}</span></div>
+        <div class="kv"><span>Literacy</span><span>${pct(p.lit)}</span></div>
+        <div class="kv"><span>Factory workforce</span><span>${pct(provinceIndustry(p))}</span></div>
+      </div>
+      <div class="small" style="margin-top:4px">${classes}</div>
+      <div class="small muted" style="margin-top:4px">${p.buildings.length ? p.buildings.slice().sort((a, b) => b.level - a.level).map(b => `${esc(BUILDINGS[b.t].name)} ${b.level}`).join(', ') : 'No buildings'}</div>
+      <div class="small muted">Resources: ${Object.entries(p.res || {}).filter(([, v]) => v > 0).map(([k, v]) => `${RES_INFO[k]} ${v}`).join(', ') || 'none'}</div>`;
+    if (own) {
+      h += `<h4>Administration</h4><div class="actions">`;
+      for (const k of DESIGNATION_KEYS) {
+        const A = DESIGNATIONS[k];
+        let why = null;
+        if (p.designation === k) why = 'Current designation.';
+        else if (A.onlyNonCore && p.core === p.owner) why = 'Only for conquered land.';
+        else if (k === 'sez' && sezCount(g, c) >= A.max) why = `At most ${A.max} SEZs.`;
+        else if (c.pc < A.pc) why = `Needs ${A.pc} PC.`;
+        h += `<button class="action" data-act="designate" data-prov="${p.id}" data-key="${k}" ${why ? 'disabled' : ''} title="${esc(A.desc)}"><span class="name">${A.name}</span><span class="cost">${A.pc} PC</span><span class="small muted">${esc(A.desc)}</span>${why && p.designation !== k ? `<span class="why">${why}</span>` : ''}</button>`;
+      }
+      h += '</div>';
+      if (p.designation) h += `<button class="small" data-act="designate" data-prov="${p.id}" style="margin-top:6px">Return to ordinary administration</button>`;
+    }
+    return h + '</div>';
+  },
+
+  regionsHtml(c, g) {
+    const regions = separatistRegions(g, c);
+    let h = `<div class="card"><h3>Regions and separatism</h3>`;
+    h += `<p class="small muted">Conquered land not yet integrated, and the states of a federation, can grow separatist movements. Above 55% support and 65 radicalism, a region may break away.</p>`;
+    if (!regions.length) h += '<p class="small muted">No separatist regions.</p>';
+    for (const r of regions) {
+      const s = (c.separatists || {})[r.key];
+      if (!s) continue;
+      const pop = r.provs.reduce((a, p) => a + p.pop, 0);
+      h += `<div class="person"><div class="pinfo"><b>${esc(regionName(g, c, r))}</b> <span class="small muted">${r.provs.length} province${r.provs.length > 1 ? 's' : ''} · ${fmtPop(pop)}${r.provs.every(p => p.designation === 'autonomous') ? ' · autonomous' : ''}</span>
+        ${bar('Support for independence', s.support, { invert: true })}${bar('Radicalism', s.radicalism, { invert: true })}</div>
+        <div class="pact">${Object.entries(SEPARATISM_ACTIONS).map(([a, A]) => `<button class="small" data-act="separatism" data-key="${r.key}" data-a="${a}" ${c.pc < A.pc || (a === 'referendum' && r.core == null) ? 'disabled' : ''} title="${esc(A.desc)} (${A.pc} PC)">${A.name}</button>`).join('')}</div></div>`;
+    }
+    const fa = c.federal ? 'centralize' : 'federalize';
+    const FA = FEDERAL_ACTIONS[fa];
+    h += `<h4>${c.federal ? 'Federation' : 'Unitary state'}</h4><p class="small muted">${FA.desc}</p>
+      <button class="small" data-act="federal" data-a="${fa}" ${c.pc < FA.pc || (fa === 'federalize' && c.provinceCount < 6) ? 'disabled' : ''}>${FA.name} (${FA.pc} PC)</button>`;
     return h + '</div>';
   },
 

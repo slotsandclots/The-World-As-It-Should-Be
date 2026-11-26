@@ -73,7 +73,7 @@ function clampPolicy(p) {
   for (const k in POLICY_LIMITS) p[k] = clamp(p[k], POLICY_LIMITS[k].min, POLICY_LIMITS[k].max);
 }
 
-function formalName(c) { return GOVS[c.gov].formal(c.name, c.provinceCount); }
+function formalName(c) { return federalFormal(c, GOVS[c.gov].formal(c.name, c.provinceCount)); }
 
 function leaderTitle(c) {
   if (c.gov === 'absMonarchy') return c.leader.female ? 'Queen' : 'King';
@@ -231,7 +231,7 @@ function makeParties(game, c) {
 
 function armyTarget(c) {
   // Non-core land supplies half as many soldiers.
-  return c.pop * (1 - (c.nonCoreShare || 0) * 0.5) * c.policy.military * 0.004 * GOVS[c.gov].milMult;
+  return c.pop * (1 - (c.nonCoreShare || 0) * 0.5) * (1 - (c.autonomousShare || 0) * 0.5) * c.policy.military * 0.004 * GOVS[c.gov].milMult;
 }
 
 function strength(c) {
@@ -246,7 +246,7 @@ function projectBudget(c) {
   const p = c.policy;
   const E = c.econ;
   const taxBase = E ? E.taxBase : c.gdp / 12;
-  const taxes = taxBase * p.tax * (1 - c.corruption / 250) * (1 - (c.nonCoreShare || 0) * 0.3) * (1 + (c.cabinet ? cabinetFx(c).taxEff : 0) + techSum(c, 'taxEff'));
+  const taxes = taxBase * p.tax * (1 - c.corruption / 250) * (1 - (c.nonCoreShare || 0) * 0.3) * (c.federal ? 0.95 : 1) * (1 + (c.cabinet ? cabinetFx(c).taxEff : 0) + techSum(c, 'taxEff'));
   const tariffs = E ? E.tariffRev : 0;
   const stateProfit = E ? E.stateProfit : 0;
   const revenue = taxes + tariffs + stateProfit;
@@ -306,7 +306,7 @@ function tickCountry(game, c) {
   const growthA = c.growthAvg * 1200; // annualized %
   const ft = {
     military: 32 + p.military * 4.5 + (g.base.military ? 10 : 0) + (atWar ? (c.warMomentum > 0 ? 8 : c.warMomentum < 0 ? -10 : 0) : 0),
-    workers: 48 + techSum(c, 'workers') + (p.welfare - 8) * 1.5 - (p.tax - 0.25) * 40 - g.econ * 12 - Math.max(0, p.police - 3) * 3 + growthA + (E.strataSol.lower - 35) * 0.4 - E.unemployment * 40,
+    workers: 48 + techSum(c, 'workers') - (c.sezCount || 0) * 3 + (p.welfare - 8) * 1.5 - (p.tax - 0.25) * 40 - g.econ * 12 - Math.max(0, p.police - 3) * 3 + growthA + (E.strataSol.lower - 35) * 0.4 - E.unemployment * 40,
     business: 46 + g.econ * 12 - (p.tax - 0.25) * 80 + (p.infrastructure - 3) * 2 - c.corruption * 0.1 + growthA * 2 + (E.strataSol.upper - 75) * 0.3 - p.tariff * 10,
     clergy: 48 + g.clergyBonus - (c.freedom - 50) * 0.12 + c.ideo.auth * 10 + (c.flags.clericalSchools ? 10 : 0),
     intelligentsia: 28 - (c.flags.clericalSchools ? 6 : 0) + c.freedom * 0.35 + (p.education - 4) * 3 - p.police * 2.5 - (c.emergency ? 15 : 0) + (E.strataSol.middle - 65) * 0.2,
@@ -318,7 +318,7 @@ function tickCountry(game, c) {
 
   // --- Unrest
   const mismatch = ideoDist(c.ideo, g);
-  let unrestT = Math.max(0, 55 - c.approval) * 1.4 + mismatch * 14 + c.warExhaustion * 0.2 + Math.max(0, -growthA) * 2 + E.unemployment * 40 + Math.max(0, 30 - E.strataSol.lower) * 0.5 + CF.unrest + dissidentPressure(c) + movementPressure(c) + occupiedShare(game, c) * 45 + (c.nonCoreShare || 0) * 18 + (M.unrest || 0);
+  let unrestT = Math.max(0, 55 - c.approval) * 1.4 + mismatch * 14 + c.warExhaustion * 0.2 + Math.max(0, -growthA) * 2 + E.unemployment * 40 + Math.max(0, 30 - E.strataSol.lower) * 0.5 + CF.unrest + dissidentPressure(c) + movementPressure(c) + occupiedShare(game, c) * 45 + (c.nonCoreShare || 0) * 18 + (c.separatistPressure || 0) + (c.sezCount || 0) * 1.5 + (M.unrest || 0);
   const repress = clamp(p.police / 5 * g.repression * 0.5, 0, 0.75);
   unrestT *= 1 - repress;
   c.unrest += (clamp(unrestT, 0, 100) - c.unrest) * 0.12;
@@ -357,7 +357,7 @@ function tickCountry(game, c) {
 }
 
 function pcIncome(c) {
-  return GOVS[c.gov].pcGain * (0.6 + c.stability / 120) + techSum(c, 'pc') + (traitFx(c.leader).pc || 0) + (c.cabinet ? cabinetFx(c).pc : 0);
+  return GOVS[c.gov].pcGain * (c.federal ? 0.9 : 1) * (0.6 + c.stability / 120) + techSum(c, 'pc') + (traitFx(c.leader).pc || 0) + (c.cabinet ? cabinetFx(c).pc : 0);
 }
 
 function sovereignDefault(game, c) {
@@ -1047,6 +1047,7 @@ function tick(game) {
   tickSubjects(game);
   aiEmpire(game);
   tickBlocs(game);
+  tickFederal(game);
   tickReparations(game);
   tickDiplomacy(game);
   for (const c of game.countries) if (c.alive) tickPolitics(game, c);
@@ -1440,7 +1441,7 @@ function serializeGame(game) {
     owners: game.world.provinces.map(p => p.owner),
     provEcon: game.world.provinces.map(p => ({
       pops: p.pops, inc: p.inc, sol: p.sol, wealth: p.wealth, lit: p.lit, res: p.res,
-      b: p.buildings.map(b => ({ t: b.t, level: b.level, active: b.active, idle: b.idle, va: b.va })), conq: p.conquered || null, core: p.core,
+      b: p.buildings.map(b => ({ t: b.t, level: b.level, active: b.active, idle: b.idle, va: b.va })), conq: p.conquered || null, core: p.core, des: p.designation || null, st: p.state == null ? null : p.state,
     })),
     worldMarket: game.worldMarket,
     lastEvents: game.lastEvents, stats: game.stats, playerMonths: game.playerMonths || 0, nextCharId: game.nextCharId,
@@ -1460,6 +1461,8 @@ function deserializeGame(str) {
     p.buildings = e.b;
     p.conquered = e.conq || null;
     p.core = e.core === undefined ? p.owner : e.core;
+    p.designation = e.des || null;
+    p.state = e.st == null ? null : e.st;
     p.pop = POP_KEYS.reduce((s, t) => s + p.pops[t], 0);
   });
   const game = {

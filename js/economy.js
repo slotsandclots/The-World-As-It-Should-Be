@@ -335,7 +335,7 @@ function tickEconomy(game, warmup) {
       let jw = 0, jf = 0;
       for (const t in def.jobs) { const tt = (!ownersAllowed(c) && (t === 'capitalists' || t === 'landowners')) ? 'officials' : t; jw += def.jobs[t]; jf += def.jobs[t] * fill[tt]; }
       b.staff = jw ? jf / jw : 1;
-      const scale = b.level * b.active * b.staff * E.prod * techProd(c, b.t) * (1 - 0.5 * occupationFactor(game, p));
+      const scale = b.level * b.active * b.staff * E.prod * techProd(c, b.t) * (1 - 0.5 * occupationFactor(game, p)) * provProdFactor(p, def);
       let inF = 1;
       for (const g in def.in) {
         const f = E.fulfill[g];
@@ -452,7 +452,7 @@ function tickEconomy(game, warmup) {
       const N = p.pops[t];
       const plan = p.plan[t];
       const grossT = p.gross[t] + (E.govWagePC[t] || 0) * N;
-      E.taxGross += grossT;
+      E.taxGross += grossT * provTaxFactor(p);
       const net = grossT * (1 - tax) + (E.welfarePC[t] || 0) * N;
       if (N < 1 || !plan) { p.inc[t] = 0; p.sol[t] = 0; continue; }
       const vb = E.vec.basic, ve = E.vec.everyday, vl = E.vec.luxury;
@@ -661,16 +661,17 @@ function buildingProspects(game, c) {
     let prov = null;
     if (def.res) {
       let best = -1;
-      for (const p of provs) { const free = resourceFree(p, def.res); if (free > 0 && p.pops.peasants > best) { best = p.pops.peasants; prov = p; } }
+      // Capital flows to special economic zones first.
+      for (const p of provs) { const free = resourceFree(p, def.res); const w = p.pops.peasants * (p.designation === 'sez' ? 3 : 1); if (free > 0 && w > best) { best = w; prov = p; } }
     } else {
       let best = -1;
-      for (const p of provs) if (p.pops.peasants > best) { best = p.pops.peasants; prov = p; }
+      for (const p of provs) { const w = p.pops.peasants * (p.designation === 'sez' ? 3 : 1); if (w > best) { best = w; prov = p; } }
     }
     let rev = 0, cost = 0;
     for (const g in def.out) rev += def.out[g] * E.pprod[g];
     for (const g in def.in) cost += def.in[g] * P[g];
     const va = (rev - cost) * E.prod;
-    const price = constructionCost(c, t);
+    const price = constructionCost(c, t) * (prov && prov.designation === 'sez' ? DESIGNATIONS.sez.buildCost : 1);
     const g0 = Object.keys(def.out)[0];
     return { t, prov, va, cost: price, roi: va * 12 / price, scarcity: P[g0] / GOODS[g0].base, reason: prov ? null : def.res ? `No free ${RES_INFO[def.res].toLowerCase()}` : 'No province' };
   });

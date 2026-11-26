@@ -153,6 +153,33 @@ test('blocs trade inside a shared market, defend members and apply a common tari
   assert(r.bad.length === 0, r.bad.join('; '));
 });
 
+test('designations, separatism and federation work', () => {
+  const r = run(`(() => { const g = createGame('fed', { size: 'small' });
+    const big = g.countries.slice().sort((x, y) => y.provinceCount - x.provinceCount)[0].id;
+    setPlayer(g, big); g.truces = {};
+    const me = g.countries[big]; me.pc = 100;
+    const home = provincesOf(g, big).find(p => p.id !== me.capital);
+    const sez = setDesignation(g, home.id, 'sez').ok && home.designation === 'sez';
+    const colonyRefused = !setDesignation(g, home.id, 'colonial').ok;
+    // Conquered land grows a separatist movement; a referendum can settle it.
+    const n = getNeighbors(g, big)[0];
+    for (const p of provincesOf(g, n).slice(0, 2)) transferProvince(g, p.id, big);
+    for (let i = 0; i < 24; i++) { tick(g); g.pending.length = 0; }
+    const sep = Object.values(me.separatists || {}).some(s => s.support > 10);
+    // A confederation of like-minded nations federates.
+    const h = createGame('fed2', { size: 'small' }); setPlayer(h, 0); const m = getNeighbors(h, 0)[0];
+    h.countries[m].gov = h.countries[0].gov; setRel(h, 0, m, 90);
+    const b = foundBloc(h, 0, 'confederation'); joinBloc(h, b, m); h.countries[0].pc = 100;
+    const fed = playerFederate(h, b.id).ok && !h.countries[m].alive && h.countries[0].federal;
+    for (let i = 0; i < 6; i++) { tick(h); h.pending.length = 0; }
+    return { sez, colonyRefused, sep, fed, bad: __sane(g).concat(__sane(h)) }; })()`);
+  assert(r.sez, 'could not create a special economic zone');
+  assert(r.colonyRefused, 'core land accepted colonial administration');
+  assert(r.sep, 'no separatism in conquered land');
+  assert(r.fed, 'confederation did not federate');
+  assert(r.bad.length === 0, r.bad.join('; '));
+});
+
 test('the campaign can be completed', () => {
   const r = run(`(() => {
     const g = startCampaign(); const c = g.countries[g.player]; const cs = g.campaign;

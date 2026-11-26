@@ -51,7 +51,11 @@ function refreshCores(game) {
     if (p.core !== p.owner && p.conquered && game.month - p.conquered.month >= INTEGRATION_MONTHS) { p.core = p.owner; p.conquered = null; }
     game.countries[p.owner]._provs.push(p);
   }
-  for (const c of game.countries) { const nc = nonCore(c); c.nonCoreCount = nc.n; c.nonCoreShare = nc.share; }
+  for (const c of game.countries) {
+    const nc = nonCore(c); c.nonCoreCount = nc.n; c.nonCoreShare = nc.share;
+    let auto = 0, sez = 0; for (const p of c._provs) { if (p.designation === 'autonomous') auto += p.pop; if (p.designation === 'sez') sez++; }
+    c.autonomousShare = c.pop > 0 ? auto / c.pop : 0; c.sezCount = sez;
+  }
 }
 
 function occupiedShare(game, c) {
