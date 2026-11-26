@@ -58,7 +58,7 @@ class MapRenderer {
         if (me.allies.includes(c.id)) return [60, 150, 230];
         return rampRgb((relation(game, player, c.id) + 100) / 2);
       }
-      default: return c.rgb;
+      default: return c.overlord != null && game.countries[c.overlord] ? mixRgb(c.rgb, game.countries[c.overlord].rgb, 0.45) : c.rgb;
     }
   }
 

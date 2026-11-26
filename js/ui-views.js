@@ -38,6 +38,7 @@ Object.assign(UI, {
       <div class="kv"><span>Army</span><span>${fmtPop(c.army)}</span></div>
       <div class="kv"><span>Strength</span><span>${strength(c).toFixed(0)}</span></div>
       <div class="kv"><span>Political capital</span><span>${Math.floor(c.pc)} (+${(gv.pcGain * (0.6 + c.stability / 120)).toFixed(1)}/mo)</span></div>
+      ${c.overlord != null ? `<div class="kv"><span>Overlord</span><span class="warn">${esc(g.countries[c.overlord].name)} (${SUBJECT_TYPES[c.subjectType].name})</span></div>` : subjectsOf(g, c.id).length ? `<div class="kv"><span>Subjects</span><span>${subjectsOf(g, c.id).length}</span></div>` : ''}
       <div class="kv" title="Wars of aggression and conquest raise infamy; it fades over time. Above ${INFAMY.coalitionAt}, coalitions may form against you."><span>Infamy</span><span class="${(c.infamy || 0) >= INFAMY.coalitionAt ? 'bad' : (c.infamy || 0) > 15 ? 'warn' : ''}">${Math.round(c.infamy || 0)}</span></div>
       <div class="kv" title="Conquered land that has not yet been integrated (20 years): pays less tax, supplies fewer soldiers, and breeds unrest."><span>Non-core land</span><span class="${(c.nonCoreShare || 0) > 0.2 ? 'warn' : ''}">${c.nonCoreCount || 0} prov · ${pct(c.nonCoreShare || 0)} of pop</span></div>
       <div class="kv"><span>Living standard</span><span style="color:${statColor(c.econ.avgSol * 1.4)}">${c.econ.avgSol.toFixed(0)}</span></div>
@@ -371,11 +372,11 @@ Object.assign(UI, {
   viewDiplomacy(c, g) {
     const t = this.selected != null ? g.countries[this.selected] : null;
     if (!t || t.id === c.id) {
-      let h = '<div class="alert info">Click a nation on the map (or below) to open relations with it.</div><table class="list"><tr><th>Nation</th><th>Gov</th><th>Relations</th><th></th></tr>';
+      let h = this.realmHtml(c, g) + '<div class="alert info">Click a nation on the map (or below) to open relations with it.</div><table class="list"><tr><th>Nation</th><th>Gov</th><th>Relations</th><th></th></tr>';
       const others = g.countries.filter(x => x.alive && x.id !== c.id).sort((a, b) => relation(g, c.id, b.id) - relation(g, c.id, a.id));
       for (const o of others) {
         const rel = relation(g, c.id, o.id);
-        const tag = atWarWith(g, c.id, o.id) ? '⚔ war' : c.allies.includes(o.id) ? '🤝 ally' : c.trade.includes(o.id) ? '⇄ trade' : '';
+        const tag = atWarWith(g, c.id, o.id) ? '⚔ war' : o.overlord === c.id ? '♜ our ' + SUBJECT_TYPES[o.subjectType].name.toLowerCase() : c.overlord === o.id ? '♜ our overlord' : c.allies.includes(o.id) ? '🤝 ally' : c.trade.includes(o.id) ? '⇄ trade' : o.overlord != null ? `<span class="muted">${SUBJECT_TYPES[o.subjectType].name.toLowerCase()} of ${esc(g.countries[o.overlord].name)}</span>` : '';
         h += `<tr class="click" data-act="select" data-id="${o.id}"><td>${swatch(o)} ${esc(o.name)}</td><td>${govBadge(o.gov)}</td><td class="${rel < 0 ? 'bad' : 'good'}">${Math.round(rel)}</td><td class="small">${tag}</td></tr>`;
       }
       return h + '</table>';
@@ -388,6 +389,11 @@ Object.assign(UI, {
     if (c.trade.includes(t.id)) status.push('<span class="good">⇄ Trade agreement</span>');
     if (hasTruce(g, c.id, t.id)) status.push(`<span class="muted">Truce until ${gameDate(g, truceUntil(g, c.id, t.id))}</span>`);
     if (getNeighbors(g, c.id).includes(t.id)) status.push('<span class="muted">Neighbor</span>');
+    if (t.overlord === c.id) status.push(`<span class="good">♜ Our ${SUBJECT_TYPES[t.subjectType].name.toLowerCase()}</span>`);
+    else if (t.overlord != null) status.push(`<span class="warn">${SUBJECT_TYPES[t.subjectType].name} of ${esc(g.countries[t.overlord].name)}</span>`);
+    if (c.overlord === t.id) status.push('<span class="warn">♜ Our overlord</span>');
+    const tSubs = subjectsOf(g, t.id);
+    if (tSubs.length) status.push(`<span class="muted">Overlord of ${tSubs.map(x => esc(x.name)).join(', ')}</span>`);
     let h = `<button data-act="select" data-id="-1" class="small" style="margin-bottom:8px">← All nations</button><div class="card">${this.nationHeader(t)}</div>`;
     h += `<div class="card">${bar('Relations with us', (rel + 100) / 2, { text: Math.round(rel), color: rel < -30 ? 'var(--bad)' : rel > 30 ? 'var(--good)' : 'var(--warn)' })}
       <div class="small">${status.join(' · ') || '<span class="muted">No agreements</span>'}</div></div>`;
@@ -404,9 +410,48 @@ Object.assign(UI, {
       <div class="kv"><span>Provinces</span><span>${t.provinceCount}</span></div>
     </div>
     <div class="card small">Their public is ${ideologyText(t.ideo)}.</div>`;
+    if (t.overlord === c.id) {
+      const T = SUBJECT_TYPES[t.subjectType];
+      h += `<div class="card"><h3>♜ Our ${T.name}</h3><p class="small muted">${T.desc}</p>
+        ${bar('Desire for independence', t.liberty, { invert: true, tip: 'Above 72, a subject may declare independence if it thinks it can win.' })}
+        <div class="kv small"><span>Tribute to us</span><span>${fmtMoney(t.tributePaid || 0)}/mo</span></div>
+        ${t.integration ? `<div class="kv small"><span>Integration</span><span>${Math.max(0, INTEGRATION_TIME - (g.month - t.integration.start))} months left</span></div>` : ''}</div>`;
+    }
     h += `<div class="card"><h3>Actions</h3><div class="actions">`;
     for (const { a, reason } of diploActionList(g, c, t)) h += this.actionBtn(c, 'diplo', a, reason, `data-target="${t.id}"`);
+    for (const { a, reason } of empireActionList(g, c, t)) h += this.actionBtn(c, 'empire', a, reason, `data-target="${t.id}"`);
     return h + '</div></div>';
+  },
+
+  realmHtml(c, g) {
+    let h = '';
+    const O = overlordOf(g, c);
+    if (O) {
+      const T = SUBJECT_TYPES[c.subjectType];
+      h += `<div class="card"><h3>♜ We are a ${T.name.toLowerCase()} of the ${esc(formalName(O))}</h3><p class="small muted">${T.desc}</p>
+        ${bar('Our desire for independence', c.liberty, { color: 'var(--accent2)' })}
+        <div class="kv small"><span>Tribute we pay</span><span class="bad">${fmtMoney(c.tributePaid || 0)}/mo</span></div>
+        ${c.integration ? `<div class="alert bad small">Our overlord is integrating us: ${Math.max(0, INTEGRATION_TIME - (g.month - c.integration.start))} months until we cease to exist. Raise our desire for independence above 75 to stop it, or declare independence.</div>` : ''}
+        <button data-act="select" data-id="${O.id}">Open relations with ${esc(O.name)} →</button></div>`;
+    }
+    const subs = subjectsOf(g, c.id);
+    const groups = releasableGroups(g, c);
+    if (!subs.length && !groups.length) return h;
+    h += `<div class="card"><h3>♜ Our realm</h3>`;
+    if (subs.length) {
+      h += `<table class="list"><tr><th>Subject</th><th>Type</th><th>Liberty</th><th>Tribute</th></tr>`;
+      for (const s of subs) h += `<tr class="click" data-act="select" data-id="${s.id}"><td>${swatch(s)} ${esc(s.name)}${s.integration ? ' <span class="small muted">(integrating)</span>' : ''}</td><td>${SUBJECT_TYPES[s.subjectType].name}</td><td class="${s.liberty > 60 ? 'bad' : s.liberty > 40 ? 'warn' : 'good'}">${Math.round(s.liberty)}</td><td>${fmtMoney(s.tributePaid || 0)}</td></tr>`;
+      h += '</table>';
+    }
+    if (groups.length) {
+      h += `<h4>Land that belongs to others</h4><p class="small muted">Conquered provinces whose people look to another nation. Releasing them lowers our infamy and ends their unrest; fallen nations can be restored, as independents or as our subjects.</p>`;
+      for (const gr of groups) {
+        const N = gr.owner;
+        h += `<div class="kv small" style="align-items:center"><span>${swatch(N)} ${gr.provs.length} province${gr.provs.length > 1 ? 's' : ''} of ${esc(N.name)}${N.alive ? '' : ' <span class="muted">(fallen)</span>'}</span>
+          <span><button class="small" data-act="release" data-core="${N.id}">${N.alive ? 'Return' : 'Restore…'}</button></span></div>`;
+      }
+    }
+    return h + '</div>';
   },
 
   viewWorld(c, g) {

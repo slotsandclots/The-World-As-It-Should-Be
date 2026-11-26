@@ -622,6 +622,16 @@ function declareWar(game, aId, bId, opts) {
     if (!ally.alive || allyId === bId || allyId === game.player || ally.allies.includes(bId)) continue;
     if (game.rng.chance(0.35)) joinWar(game, war, allyId, 'a');
   }
+  // Overlords defend their subjects; subjects fight their overlords' wars.
+  if (B.overlord != null && B.overlord !== aId && !war.independence && !opts.coalition) {
+    const O = game.countries[B.overlord];
+    if (O.alive && !war.a.includes(O.id) && !war.b.includes(O.id)) {
+      if (O.id === game.player) game.pending.push({ type: 'allyCall', warId: war.id, ally: bId, enemy: aId, subject: true });
+      else joinWar(game, war, O.id, 'b');
+    }
+  }
+  for (const s of subjectsOf(game, bId)) if (!war.a.includes(s.id)) joinWar(game, war, s.id, 'b');
+  for (const s of subjectsOf(game, aId)) if (SUBJECT_TYPES[s.subjectType].joinsWars && !war.b.includes(s.id)) joinWar(game, war, s.id, 'a');
   return war;
 }
 
@@ -633,6 +643,9 @@ function joinWar(game, war, id, side) {
   for (const e of enemies) { setRel(game, id, e, -100); removeAlly(game, id, e); removeTrade(game, id, e); }
   const c = game.countries[id];
   logNews(game, `${c.name} joins the ${war.name} on the side of ${game.countries[war[side][0]].name}.`, 'war', [id]);
+  for (const s of subjectsOf(game, id)) {
+    if (SUBJECT_TYPES[s.subjectType].joinsWars && !war.a.includes(s.id) && !war.b.includes(s.id)) joinWar(game, war, s.id, side);
+  }
 }
 
 function sideStrength(game, ids) {
@@ -680,6 +693,8 @@ function transferProvince(game, pid, to) {
 function eliminateCountry(game, id, by) {
   const c = game.countries[id];
   c.alive = false;
+  c.overlord = null; c.subjectType = null; c.integration = null;
+  for (const s of game.countries) if (s.overlord === id) { s.overlord = null; s.subjectType = null; s.integration = null; }
   for (const w of game.wars) { w.a = w.a.filter(x => x !== id); w.b = w.b.filter(x => x !== id); }
   for (const o of game.countries) { o.allies = o.allies.filter(x => x !== id); o.trade = o.trade.filter(x => x !== id); }
   logNews(game, `${formalName(c)} has ceased to exist, annexed by ${game.countries[by].name}.`, 'war', [id, by]);
@@ -709,6 +724,7 @@ function capitulate(game, war, loserId, takerId) {
 function endWar(game, war, reason) {
   const idx = game.wars.indexOf(war);
   if (idx < 0) return;
+  if (war.independence) settleIndependence(game, war);
   game.wars.splice(idx, 1);
   for (const x of war.a) {
     for (const y of war.b) {
@@ -773,7 +789,10 @@ function tickWars(game) {
       const ex = Math.max(war.exA, war.exB);
       if ((ex > 45 && rng.chance(0.06 + (ex - 45) * 0.004)) || months > 120) {
         const sa = warScore(game, war, war.a[0]);
-        if (Math.abs(sa) > 30) applyPeaceTerms(game, sa > 0 ? war.a[0] : war.b[0], sa > 0 ? war.b[0] : war.a[0], { provinces: 1, reparations: Math.abs(sa) > 55 });
+        const W = sa > 0 ? war.a[0] : war.b[0], Lo = sa > 0 ? war.b[0] : war.a[0];
+        const weak = strength(game.countries[Lo]) < strength(game.countries[W]) * 0.4;
+        if (!war.independence && Math.abs(sa) > 55 && weak && rng.chance(0.5)) applyPeaceTerms(game, W, Lo, { subjugate: true });
+        else if (!war.independence && Math.abs(sa) > 30) applyPeaceTerms(game, W, Lo, { provinces: 1, reparations: Math.abs(sa) > 55 });
         endWar(game, war, 'peace');
       }
     } else {
@@ -798,9 +817,9 @@ function warScore(game, war, id) {
   return clamp(gains * 8 + ex * 0.6, -100, 100);
 }
 
-const PEACE_COST = { province: 12, reparations: 15, regime: 40 };
+const PEACE_COST = { province: 12, reparations: 15, regime: 40, subjugate: 45 };
 
-function peaceTermsCost(t) { return (t.provinces || 0) * PEACE_COST.province + (t.reparations ? PEACE_COST.reparations : 0) + (t.regime ? PEACE_COST.regime : 0); }
+function peaceTermsCost(t) { return (t.provinces || 0) * PEACE_COST.province + (t.reparations ? PEACE_COST.reparations : 0) + (t.regime ? PEACE_COST.regime : 0) + (t.subjugate ? PEACE_COST.subjugate : 0); }
 
 function peaceChance(game, war, id, terms) {
   const mine = war.a.includes(id) ? 'a' : 'b';
@@ -830,6 +849,11 @@ function applyPeaceTerms(game, winnerId, loserId, terms) {
     changeGovernment(game, L, W.gov, 'conquest');
     out.push(`a ${GOVS[W.gov].name} imposed`);
     addInfamy(game, winnerId, INFAMY.regime);
+  }
+  if (terms.subjugate && L.alive && L.overlord == null && W.overlord == null) {
+    makeSubject(game, winnerId, loserId, terms.regime ? 'puppet' : 'vassal', 'war');
+    out.push(`they become our ${terms.regime ? 'puppet' : 'vassal'}`);
+    addInfamy(game, winnerId, 8);
   }
   return out.join(', ');
 }
@@ -885,6 +909,7 @@ function relationTarget(game, a, b) {
   }
   if (getNeighbors(game, a.id).includes(b.id)) t -= 10;
   if (a.allies.includes(b.id)) t += 25;
+  if (a.overlord === b.id || b.overlord === a.id) t += 20;
   if (a.trade.includes(b.id)) t += 10;
   if (hasTruce(game, a.id, b.id)) t -= 20;
   // Infamous nations are distrusted by everyone; nations sharing a dangerous neighbor draw together.
@@ -937,11 +962,11 @@ function tickDiplomacy(game) {
   }
   // AI wars of aggression
   for (const c of alive) {
-    if (c.id === game.player || !c.alive || isAtWar(game, c.id) || c.stability < 35 || c.monthsInRegime < 6) continue;
+    if (c.id === game.player || !c.alive || c.overlord != null || isAtWar(game, c.id) || c.stability < 35 || c.monthsInRegime < 6) continue;
     const g = GOVS[c.gov];
     for (const n of getNeighbors(game, c.id)) {
       const rel = relation(game, c.id, n);
-      if (rel > -15 || c.allies.includes(n) || hasTruce(game, c.id, n)) continue;
+      if (rel > -15 || c.allies.includes(n) || hasTruce(game, c.id, n) || game.countries[n].overlord === c.id) continue;
       const target = game.countries[n];
       const theirs = strength(target) + target.allies.reduce((s, x) => s + (game.countries[x].alive ? strength(game.countries[x]) * 0.5 : 0), 0);
       const ratio = strength(c) / (theirs + 0.001);
@@ -1017,6 +1042,8 @@ function tick(game) {
   for (const c of game.countries) if (c.alive) tickCountry(game, c);
   tickWars(game);
   tickBalance(game);
+  tickSubjects(game);
+  aiEmpire(game);
   tickReparations(game);
   tickDiplomacy(game);
   for (const c of game.countries) if (c.alive) tickPolitics(game, c);
@@ -1248,7 +1275,8 @@ const DIPLO_ACTIONS = [
   {
     id: 'war', name: 'Declare War', pc: 20, desc: 'Invade a neighbor. Democracies dislike wars of aggression.',
     check: (game, c, t) => {
-      if (atWarWith(game, c.id, t.id)) return 'hidden';
+      if (atWarWith(game, c.id, t.id) || t.overlord === c.id || c.overlord === t.id) return 'hidden';
+      if (c.overlord != null) return 'Our overlord forbids us to start wars.';
       if (!getNeighbors(game, c.id).includes(t.id)) return 'Must share a border or a narrow strait.';
       if (c.allies.includes(t.id)) return 'They are our ally.';
       if (hasTruce(game, c.id, t.id)) return `Truce in effect until ${gameDate(game, truceUntil(game, c.id, t.id))}.`;
@@ -1357,6 +1385,12 @@ function resolveAllyCall(game, item, accept) {
   const c = game.countries[game.player];
   if (!war) return 'The war is already over.';
   if (accept) { joinWar(game, war, game.player, war.b.includes(item.ally) ? 'b' : 'a'); return `We honor our alliance with ${game.countries[item.ally].name}.`; }
+  if (item.subject) {
+    const S = game.countries[item.ally];
+    S.libertyMod = (S.libertyMod || 0) + 40;
+    for (const x of subjectsOf(game, c.id)) x.libertyMod = (x.libertyMod || 0) + 12;
+    return `We abandon our ${SUBJECT_TYPES[S.subjectType].name.toLowerCase()}, ${S.name}. Every subject of ours takes note.`;
+  }
   removeAlly(game, c.id, item.ally);
   addRel(game, c.id, item.ally, -40);
   return `We abandon ${game.countries[item.ally].name}. The alliance is dissolved.`;

@@ -30,6 +30,27 @@ Object.assign(UI, {
     return `<div class="speaker"><div>${portraitSVG(ch, { size: 84, gov: owner.gov })}<div class="small muted" style="text-align:center;max-width:90px">${esc(ch.name)}<br>${esc(roleTitle(owner, ch))}</div></div><div>${html}</div></div>`;
   },
 
+  showReleaseModal(coreId) {
+    const g = App.game, c = this.player(), N = g.countries[coreId];
+    const gr = releasableGroups(g, c).find(x => x.core === coreId);
+    if (!gr) return;
+    const done = r => { this.toast(r.msg, r.ok ? 'good' : 'bad'); this.track('release', r.ok); };
+    if (N.alive) {
+      this.openModal({ title: `Return Land to ${esc(N.name)}?`, dismiss: true, row: true,
+        body: `<p>Hand ${gr.provs.length} province${gr.provs.length > 1 ? 's' : ''} (${gr.provs.map(p => esc(p.name)).join(', ')}) back to the ${esc(formalName(N))}. Our infamy falls and relations improve.</p>`,
+        buttons: [{ label: 'Cancel' }, { label: 'Return the land', cls: 'primary', fn: () => done(releaseNation(g, c.id, coreId)) }] });
+      return;
+    }
+    this.openModal({ title: `Restore ${esc(N.name)}?`, dismiss: true,
+      body: `<p>Revive the fallen nation of ${esc(N.name)} in ${gr.provs.length} province${gr.provs.length > 1 ? 's' : ''} we hold: ${gr.provs.map(p => esc(p.name)).join(', ')}. It gets a new government and leaders. As our subject it pays tribute and fights in our wars; as an independent nation it will simply remember our generosity.</p>`,
+      buttons: [
+        { label: `Restore as an independent ${GOVS[c.gov].name}`, cls: 'primary', fn: () => done(releaseNation(g, c.id, coreId, { gov: c.gov })) },
+        { label: 'Restore as our protectorate', fn: () => done(releaseNation(g, c.id, coreId, { gov: c.gov, subject: 'protectorate' })) },
+        { label: 'Restore as our puppet', fn: () => done(releaseNation(g, c.id, coreId, { gov: c.gov, subject: 'puppet' })) },
+        { label: 'Cancel' },
+      ] });
+  },
+
   showPeaceModal(warId) {
     const g = App.game, c = this.player();
     const war = g.wars.find(w => w.id === warId);
@@ -40,9 +61,10 @@ Object.assign(UI, {
     const body = `<p>War score: <b class="${score >= 0 ? 'good' : 'bad'}">${fmtSigned(score, 0)}</b> (provinces taken and enemy exhaustion). The more you demand, the less likely ${esc(enemy.name)} is to accept.</p>
       <div class="form-row"><label>Provinces</label><input type="range" id="pt-prov" min="0" max="3" value="0" style="flex:1"><b id="pt-prov-v" style="width:20px">0</b></div>
       <label class="small"><input type="checkbox" id="pt-rep"> Reparations: 3% of their GDP a year for five years</label><br>
-      ${canRegime ? `<label class="small"><input type="checkbox" id="pt-reg"> Impose our system: make them a ${GOVS[c.gov].name}</label>` : ''}
+      ${canRegime ? `<label class="small"><input type="checkbox" id="pt-reg"> Impose our system: make them a ${GOVS[c.gov].name}</label><br>` : ''}
+      ${enemy.overlord == null && c.overlord == null ? `<label class="small"><input type="checkbox" id="pt-sub"> Make them our vassal (our puppet, if we also impose our system)</label>` : ''}
       <p style="margin-top:12px">Chance they accept: <b id="pt-chance"></b></p><p class="small muted">Sending an offer costs 10 PC. If they refuse, they won't hear new terms for six months. Infamy: +${INFAMY.peaceProvince} per province, +${INFAMY.reparations} for reparations, +${INFAMY.regime} for imposing our system (current: ${Math.round(c.infamy || 0)}).</p>`;
-    const terms = () => ({ provinces: +$('#pt-prov').value, reparations: $('#pt-rep').checked, regime: !!($('#pt-reg') && $('#pt-reg').checked) });
+    const terms = () => ({ provinces: +$('#pt-prov').value, reparations: $('#pt-rep').checked, regime: !!($('#pt-reg') && $('#pt-reg').checked), subjugate: !!($('#pt-sub') && $('#pt-sub').checked) });
     this.openModal({
       title: `Negotiate Peace with ${esc(enemy.name)}`, body, dismiss: true, row: true,
       buttons: [{ label: 'Cancel' }, {
@@ -360,6 +382,8 @@ Object.assign(UI, {
       <p class="small">Set taxes, tariffs and spending in the Economy tab. Spending flows back into the economy as wages and purchases. Deficits build debt; above 150% of GDP the state defaults. Education raises literacy and productivity; infrastructure makes every building more productive; welfare supports the poor; police suppress unrest at the cost of freedom.</p>
       <h4>Conquest and its costs</h4>
       <p class="small">Wars of aggression, conquered provinces, reparations and imposed regimes raise <b>infamy</b>. It fades over time, faster at peace. Infamy sours relations with everyone, drives threatened neighbors into arms races and toward each other, and above ${INFAMY.coalitionAt} can trigger a <b>coalition</b> war against you. Conquered land is <b>occupied</b> for five years (half output, unrest, revolts back to its former owner) and <b>non-core</b> for twenty: it pays less tax, supplies fewer soldiers, lowers legitimacy, and every non-core province weighs on stability. On Hard and Brutal, AI nations are also stronger and warier of you.</p>
+      <h4>Empires and subjects</h4>
+      <p class="small">Nations can become subjects of others: <b>protectorates</b> (defended, free foreign policy), <b>vassals</b> (10% tribute, fight their overlord's wars), <b>puppets</b> (15%) and <b>colonies</b> (25%, deep resentment). Make subjects through peace terms, by offering protection to threatened weak nations, or by ultimatum. A subject's desire for independence grows with tribute, ideological distance and its overlord's weakness; above 72 it may fight a war of independence. Overlords can integrate loyal subjects peacefully, annex them outright, or set them free. Conquered land that belongs to others can be returned, and fallen nations restored, from the Diplomacy tab.</p>
       <h4>War & diplomacy</h4>
       <p class="small">Click any nation to improve relations, trade, ally, fund rebels or declare war. You can only invade nations that share a border or a narrow strait. Battles capture provinces; take the enemy capital after a third of their land is gone, or take 60%, and they capitulate. Lose all your provinces and the game is over.</p>
       <h4>Political capital (★ PC)</h4>

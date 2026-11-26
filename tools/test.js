@@ -110,6 +110,28 @@ test('conquest raises infamy, occupies land and integrates it over 20 years', ()
   assert(r.integrated, 'province never integrated or revolted');
 });
 
+test('subjects pay tribute, can win independence, and fallen nations can be restored', () => {
+  const r = run(`(() => { const g = createGame('subj', { size: 'small' }); setPlayer(g, 0); g.truces = {};
+    const me = g.countries[0]; const n = getNeighbors(g, 0)[0]; const S = g.countries[n];
+    makeSubject(g, 0, n, 'vassal', 'war');
+    const t0 = me.treasury; for (let i = 0; i < 6; i++) { tick(g); g.pending.length = 0; }
+    const paid = S.tributePaid > 0;
+    // A subject that wins its war of independence goes free.
+    const w = declareIndependence(g, n, []); w.gainsA = 5; endWar(g, w, 'peace');
+    const freed = S.overlord == null;
+    // Conquer a nation entirely, then restore it.
+    const v = g.countries.find(c => c.alive && c.id !== 0 && getNeighbors(g, 0).includes(c.id));
+    for (const p of provincesOf(g, v.id)) transferProvince(g, p.id, 0);
+    const dead = !v.alive;
+    const res = releaseNation(g, 0, v.id, { gov: me.gov, subject: 'protectorate' });
+    for (let i = 0; i < 12; i++) { tick(g); g.pending.length = 0; }
+    return { paid, freed, dead, restored: res.ok && v.alive && v.overlord === 0 && v.provinceCount > 0, bad: __sane(g) }; })()`);
+  assert(r.paid, 'vassal paid no tribute');
+  assert(r.freed, 'winning independence did not free the subject');
+  assert(r.dead && r.restored, 'conquered nation was not restored as a protectorate');
+  assert(r.bad.length === 0, r.bad.join('; '));
+});
+
 test('the campaign can be completed', () => {
   const r = run(`(() => {
     const g = startCampaign(); const c = g.countries[g.player]; const cs = g.campaign;

@@ -313,6 +313,8 @@ const UI = {
       case 'char': { const r = characterAction(g, ds.a, +ds.id); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }
       case 'build': { const r = orderBuilding(g, ds.t); this.track('build:' + ds.t, r.ok); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }
       case 'autoinvest': { const c = this.player(); c.econ.autoInvest = !c.econ.autoInvest; this.renderTab(); return; }
+      case 'empire': { const r = performEmpire(g, ds.id, +ds.target); this.track('empire:' + ds.id, r.ok); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }
+      case 'release': this.showReleaseModal(+ds.core); return;
       case 'diplo': {
         if (ds.id === 'war') { this.confirmWar(+ds.target); return; }
         if (ds.id === 'peace') { const w = warBetween(g, g.player, +ds.target); if (w) this.showPeaceModal(w.id); return; }
@@ -341,8 +343,9 @@ const UI = {
     }
     const occ = occupationFactor(g, pr);
     const coreNote = occ > 0 ? ` <span class="bad">· occupied (${Math.round(occ * 60)} mo left)</span>` : pr.core !== undefined && pr.core !== pr.owner ? ' <span class="warn">· non-core</span>' : '';
+    const subjNote = c.overlord != null ? `<br><span class="warn">${SUBJECT_TYPES[c.subjectType].name} of ${esc(g.countries[c.overlord].name)}</span>` : '';
     tip.innerHTML = `<b>${esc(pr.name)}</b>${pr.id === c.capital ? ' <span class="warn">★ capital</span>' : ''} <span class="muted">· ${fmtPop(pr.pop)}</span>${coreNote}<br>
-      ${swatch(c)} ${esc(formalName(c))}<br><span class="muted">${GOVS[c.gov].name} · ${esc(leaderLine(c))}</span><br>
+      ${swatch(c)} ${esc(formalName(c))}${subjNote}<br><span class="muted">${GOVS[c.gov].name} · ${esc(leaderLine(c))}</span><br>
       Stability <b style="color:${statColor(c.stability)}">${Math.round(c.stability)}</b> · Approval ${Math.round(c.approval)}${rel}
       <br><span class="muted">Living standard ${provinceSol(pr).toFixed(0)} · literacy ${pct(pr.lit)} · peasants ${pct(pr.pops.peasants / Math.max(1, pr.pop))}</span>
       ${pr.buildings.length ? '<br><span class="muted">' + pr.buildings.slice().sort((a, b) => b.level - a.level).slice(0, 3).map(b => esc(BUILDINGS[b.t].name) + ' ' + b.level).join(', ') + '</span>' : ''}
