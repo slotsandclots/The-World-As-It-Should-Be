@@ -2,6 +2,13 @@
 
 Where the game is going. Sizes are rough: **S** = a session, **M** = a few, **L** = a major milestone.
 
+**Priorities:**
+1. The economic and social simulation comes first.
+2. Politics is just as central.
+3. The military strategy layer is developed after those.
+
+The milestones below are ordered that way.
+
 ## Done
 
 - World generation: seven procedural models, Earth, and Earth with historical regions
@@ -60,26 +67,25 @@ The biggest multiplier for political depth. Governments become combinations of l
 - **Government names follow the laws:** the current seven types become presets, and hybrids appear naturally (an elected monarchy, a one-party technocracy, a guided democracy).
 - **Passing laws:** a law has to get through the legislature (or the power base, in autocracies). Each attempt takes months, can stall, and can provoke a backlash.
 - **Interest groups:** the current factions grow into political actors drawn from the pops. Each has a leader character, approval, demands and clout.
+- **Political arena:** media and press barons, polling broken down by class and region, regional constituencies so elections are fought province by province, referendums, and lobbying by interest groups with money.
+- **Ideologies inside interest groups:** for example, a reformist or a reactionary clergy, and a moderate or radical labor wing. They shift as the pops underneath them change.
 - **Constitutional crises:** term limits, failed impeachments, succession disputes and states of exception, each with its own event chain.
 
-## Milestone 3: Military 2.0 (L)
-
-- **Casus belli and claims:** you need a justification to declare war, which can be fabricated (by spies, or by inventing border incidents). Declaring war without one costs legitimacy and relations.
-- **War goals and occupation:** declare war goals up front. Provinces are occupied during the war and transferred at peace, and a war score built from war goals replaces raw province counts.
-- **Armies and fronts:** armies sit on fronts between nations, led by your generals (using their skill and traits). Mobilization draws soldiers from the pops and hurts the economy.
-- **Navies:** fleets, naval invasions across straits and oceans, blockades that cut trade (plugging into the world market), and convoys.
-- **Supply and attrition:** arms and fuel shortages already weaken armies, so this makes supply lines and front-line attrition explicit too.
-- **War exhaustion politics:** casualty reports, anti-war movements, draft riots.
-
-## Milestone 4: Peoples, culture and religion (L)
+## Milestone 3: Society, peoples and culture (L)
 
 - **Cultures and religions on pops:** majority and minority groups, with discrimination or acceptance laws, assimilation and religious conversion.
 - **Migration:** pops move between provinces and nations toward jobs and safety, and refugees flee wars.
 - **Nationalism:** irredentist claims ("our people across the border"), pan-national unification movements and separatism. These feed 1c and Milestone 3.
-- **Cities and urbanization:** cities on the map that grow with industry, plus urban unrest.
+- **Cities and urbanization:** cities on the map that grow with industry; housing shortages, slums and urban unrest.
+- **Demographics:** age structure, birth rates falling as living standards rise, and pensions and an aging society as an expense and an electorate.
+- **Social mobility:** pops move between classes through education and wealth (a worker's child becomes a clerk), not just through job vacancies. Inequality is measured explicitly (a Gini-style figure) and feeds movements.
+- **Designing the welfare state:** separate policies for healthcare, pensions, unemployment insurance and housing instead of one welfare slider. Each has its own costs, constituencies and effects on living standards.
+- **Education system:** primary, secondary and university levels, which produce literacy, clerks, engineers and an intelligentsia. Research depends on it, and so does political liberalization.
+- **Labor relations:** unions as organizations with membership, strikes, collective bargaining and minimum wages that change how buildings split value between wages and profits.
 
-## Milestone 5: Deeper economy (M–L)
+## Milestone 4: Deeper economy (L)
 
+- **Company and ownership models:** private capitalists, state enterprises, cooperatives and foreign owners. The ownership mix shifts with laws, and nationalization and privatization become political decisions with winners and losers.
 - **Production methods:** each building chooses how to work (e.g. labor-intensive or automated, coal or oil power), changing inputs, jobs and output. Technology unlocks new methods.
 - **Finance:**
   - a central bank with interest rates, inflation and a currency
@@ -89,16 +95,22 @@ The biggest multiplier for political depth. Governments become combinations of l
 - **Infrastructure per province:** roads, rail and ports limit how much a province can trade and produce. This replaces the single infrastructure slider.
 - **Resource depletion, and an energy sector:** an electricity good with power plants that need fuel.
 - **Sanctions, embargoes and trade routes:** shipping between markets, with chokepoints and straits.
+- **Business cycles:** booms, recessions and depressions that emerge from investment, debt and prices instead of being scripted. Governments respond with stimulus or austerity.
+- **Economic statistics:** GDP by sector, inflation, unemployment and trade balance in a ledger, and price history charts per good.
 
-## Milestone 6: Intrigue and dynasties (M)
+## Milestone 5: Military strategy (L)
 
-- **Relationships between characters:** friends, rivals, lovers, mentors. Opinions between characters affect loyalty and plots.
-- **Secrets and schemes:** blackmail, smear campaigns and assassination plots against you or by you. These build on the existing character actions.
-- **Dynasties and family trees:** marriage alliances between royal houses, contested successions, regencies for child monarchs, and education of heirs.
-- **Espionage:** spy networks, stealing technology, sabotage, election interference abroad.
-- **Play as a character:** optionally play a person instead of a state, so losing power doesn't end your game. You could be the opposition leader or an exiled general.
+- **Casus belli and claims:** you need a justification to declare war, which can be fabricated (by spies, or by inventing border incidents). Declaring war without one costs legitimacy and relations.
+- **War goals and occupation:** declare war goals up front. Provinces are occupied during the war and transferred at peace, and a war score built from war goals replaces raw province counts.
+- **Armies and fronts:** armies sit on fronts between nations, led by your generals (using their skill and traits). Mobilization draws soldiers from the pops and hurts the economy.
+- **Navies:** fleets, naval invasions across straits and oceans, blockades that cut trade (plugging into the world market), and convoys.
+- **Supply and attrition:** arms and fuel shortages already weaken armies, so this makes supply lines and front-line attrition explicit too.
+- **War exhaustion politics:** casualty reports, anti-war movements, draft riots.
+- **War economy:** converting factories to arms production, rationing, war bonds and price controls. These link the war to the economic and social model.
+- **Military doctrine and branches:** army, air force and navy budgets; doctrines unlocked by technology; officer corps quality linked to education and the military interest group.
+- **Strategic deterrence and proxy wars** for later eras: arming rebels and backing sides in other nations' civil wars.
 
-## Milestone 7: Eras and scenarios (M each)
+## Milestone 6: Eras and scenarios (M each)
 
 - **Start dates:** 1836, 1914, 1950 (the current one) and 2000. Each has era-appropriate goods, technologies, ideologies and governments.
 - **Era transitions:** industrialization, decolonization, a cold war of blocs, the digital age, and new ideologies (environmentalism, theocratic revival, technocracy).
@@ -110,12 +122,20 @@ The biggest multiplier for political depth. Governments become combinations of l
 - **Journal / national goals:** objectives like "Industrialize", "Unify our people" or "Survive the crisis", with rewards. These make the sandbox feel directed.
 - **A history book:** a generated chronicle of your reign, and a "verdict of history" score at an optional end date.
 
-## Milestone 8: Smarter AI (M, ongoing)
+## Milestone 7: Smarter AI (M, ongoing)
 
 - **Strategic goals per nation** shaped by the leader's personality: expand, industrialize, form a bloc, or seek revenge.
 - **AI that uses every system the player can:** blocs, subjects, laws, research.
 - **Diplomatic memory:** grudges, trust and broken promises.
 - **Difficulty levels.**
+
+## Milestone 8: Intrigue and dynasties (M)
+
+- **Relationships between characters:** friends, rivals, lovers, mentors. Opinions between characters affect loyalty and plots.
+- **Secrets and schemes:** blackmail, smear campaigns and assassination plots against you or by you. These build on the existing character actions.
+- **Dynasties and family trees:** marriage alliances between royal houses, contested successions, regencies for child monarchs, and education of heirs.
+- **Espionage:** spy networks, stealing technology, sabotage, election interference abroad.
+- **Play as a character:** optionally play a person instead of a state, so losing power doesn't end your game. You could be the opposition leader or an exiled general.
 
 ---
 
@@ -142,11 +162,12 @@ The biggest multiplier for political depth. Governments become combinations of l
 
 ---
 
-## Suggested order
+## Order
 
-1. **Milestone 1** (empires, blocs, coalitions): agreed.
-2. **Quick wins:** number breakdowns, the province panel and save slots. They're cheap and make every other system easier to understand.
-3. **Milestone 2** (laws and interest groups): the biggest increase in political depth.
-4. **Milestone 3** (Military 2.0).
-5. **Milestone 4** (peoples and culture): it feeds federations, separatism and war claims.
-6. **The rest** as interest dictates, with a new campaign shipped alongside each major milestone.
+1. **Milestone 1:** empires, blocs, coalitions. It leans on the economy (customs unions, free-trade zones, special economic zones, investment treaties) as much as on politics.
+2. **Quick wins:** number breakdowns, the ledger, the province panel and save slots. A deep economic simulation is only fun if you can see why things happen.
+3. **Milestone 2:** laws and interest groups.
+4. **Milestone 3:** society, peoples and culture.
+5. **Milestone 4:** deeper economy.
+6. **Milestone 5:** military strategy. It builds on everything above: war economy, mobilization from pops, war goals from nationalism.
+7. **Milestones 6–8** as we go. Each big milestone ships with a new campaign chapter or campaign, and the AI improves alongside every system.
