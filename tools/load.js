@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 
-const SIM_FILES = ['rng', 'names', 'governments', 'earth-data', 'mapgen', 'economy', 'sim', 'balance', 'empire', 'blocs', 'federal', 'coalitions', 'laws', 'characters', 'tech', 'movements', 'events', 'campaign'];
+const SIM_FILES = ['rng', 'names', 'governments', 'earth-data', 'mapgen', 'economy', 'sim', 'balance', 'empire', 'blocs', 'federal', 'coalitions', 'laws', 'arena', 'characters', 'tech', 'movements', 'events', 'campaign'];
 
 function loadGame() {
   const ctx = vm.createContext({ console, Math, JSON });

@@ -337,7 +337,7 @@ function tickCountry(game, c) {
     ['Baseline', 50], ['Economic growth', clamp(growthA * 2, -15, 10)], ['Welfare spending', (p.welfare - 8) * 0.6], ['Education spending', (p.education - 4) * 0.5],
     ['Infrastructure spending', (p.infrastructure - 3) * 0.4], ['Taxes', -(p.tax - 0.25) * 60], ['Corruption', -c.corruption * 0.12], ['War exhaustion', -c.warExhaustion * 0.25],
     ['Public opinion vs. the regime', -mismatch * 8], ['Leader\'s traits', T.approval || 0], ['Temporary effects', M.approval || 0], ['National debt', -Math.max(0, debtRatio - 0.6) * 15],
-    ['Contentment of the people', E.contentment * 0.5], ['Unemployment', -E.unemployment * 50], ['Leader\'s charisma', (L.cha - 5) * 0.8], ['Cabinet', CF.approval], ['Laws', LF.approval], ['Technology', techSum(c, 'approval')],
+    ['Contentment of the people', E.contentment * 0.5], ['Unemployment', -E.unemployment * 50], ['Leader\'s charisma', (L.cha - 5) * 0.8], ['Cabinet', CF.approval], ['Laws', LF.approval], ['The press', pressApproval(c)], ['Technology', techSum(c, 'approval')],
   ];
   const apT = sumParts(apParts);
   c.approval = clamp(c.approval + (clamp(apT, 0, 100) - c.approval) * 0.1 + rng.normal() * 0.6, 0, 100);
@@ -456,13 +456,14 @@ function runElection(game, c) {
   }
   const tot = votes.reduce((a, b) => a + b, 0);
   const shares = votes.map(v => v / tot);
-  const seats = allocateSeats(shares, 200, 0.03);
+  const ES = electSeats(game, c, shares);
+  const seats = ES.seats;
   let wi = 0;
   seats.forEach((s, i) => { if (s > seats[wi]) wi = i; });
   const winner = c.parties[wi].id;
   const result = {
     month: game.month, fraud, exposed, winner, prev: c.rulingParty, turnout: rng.range(0.52, 0.81),
-    results: c.parties.map((p, i) => ({ id: p.id, name: p.name, color: p.color, vote: shares[i], seats: seats[i] })),
+    results: c.parties.map((p, i) => ({ id: p.id, name: p.name, color: p.color, vote: shares[i], seats: seats[i] })), prov: ES.prov, system: c.laws.electoral,
   };
   c.lastElection = result;
   const seatMap = seatsOf(result);
@@ -1073,6 +1074,7 @@ function tickPolitics(game, c) {
   tickResearch(game, c);
   tickMovements(game, c);
   tickLaws(game, c);
+  tickArena(game, c);
   if (!isPlayer(game, c)) { aiPolicy(game, c); aiShock(game, c); }
   checkCrisis(game, c);
 }

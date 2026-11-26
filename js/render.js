@@ -26,6 +26,7 @@ const MAP_MODES = {
   blocs: { name: 'Blocs', legend: '', blocMode: true },
   admin: { name: 'Administration', legend: 'Gold = special economic zone · teal = autonomous · brown = colonial · orange = non-core · stripes of color = federal states', province: (p, game) => adminColor(p, game) },
   industry: { name: 'Industry', legend: 'Share of each province working in factories: grey = rural, orange = industrial', province: p => mixRgb([75, 78, 92], [240, 130, 40], clamp(provinceIndustry(p) / 0.4, 0, 1)) },
+  elections: { name: 'Elections', legend: 'Which party carried each province at the last free election', province: (p, game) => electionColor(p, game) },
   relations: { name: 'Relations', legend: 'Your relations: red = hostile, green = friendly' },
 };
 
@@ -417,4 +418,11 @@ function adminColor(p, game) {
   const c = game && game.countries[p.owner];
   if (c && c.federal && p.state != null) { const h = (p.state * 137.5) % 360; return hslToRgb(h, 35, 45); }
   return [90, 94, 108];
+}
+
+function electionColor(p, game) {
+  const c = game && game.countries[p.owner], E = c && c.lastElection;
+  if (!E || E.sham || !E.prov || !E.prov[p.id]) return [70, 72, 82];
+  const party = c.parties.find(x => x.id === E.prov[p.id]);
+  return party ? hexToRgb(party.color) : [70, 72, 82];
 }

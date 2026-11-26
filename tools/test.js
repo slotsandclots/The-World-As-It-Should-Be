@@ -260,6 +260,27 @@ test('interest-group leaders act and constitutional crises fire', () => {
   assert(r.bad.length === 0, r.bad.join('; '));
 });
 
+test('AI nations face crises; regional elections, referendums and the press work', () => {
+  const r = run(`(() => { const g = createGame('arena1', { size: 'small', countries: 10 }); setPlayer(g, 0); const c = g.countries[0];
+    if (GOVS[c.gov].elections !== 'free') changeGovernment(g, c, 'democracy', 'reform', { keepLeader: true });
+    c.laws.electoral = 'constituencies';
+    for (let i = 0; i < 360; i++) { tick(g); g.pending.length = 0; }
+    const aiCrises = g.log.filter(n => n.kind === 'crisis' && !n.ids.includes(0)).length;
+    const E = c.lastElection, provOk = E && E.prov && Object.keys(E.prov).length > 0 && E.results.reduce((s, x) => s + x.seats, 0) === 200;
+    c.pc = 100; c.reform = null; const cat = 'church', opt = Object.keys(LAW_CATS.church.opts).find(o => o !== c.laws.church);
+    const ref = holdReferendum(g, c, cat, opt);
+    const barons = g.countries.reduce((s, x) => s + (x.barons || []).length, 0);
+    let pressOk = true; if (c.barons && c.barons.length) pressOk = pressAction(g, 0, 'court').ok;
+    const h = deserializeGame(serializeGame(g));
+    return { aiCrises, provOk, ref: ref.ok, barons, pressOk, reload: h.countries[0].laws.electoral === 'constituencies', bad: __sane(g) }; })()`);
+  assert(r.aiCrises > 0, 'AI nations never faced a crisis');
+  assert(r.provOk, 'regional election results missing or seats do not add to 200');
+  assert(r.ref, 'referendum could not be held');
+  assert(r.barons > 0 && r.pressOk, 'no press barons');
+  assert(r.reload, 'laws lost on reload');
+  assert(r.bad.length === 0, r.bad.join('; '));
+});
+
 test('the campaign can be completed', () => {
   const r = run(`(() => {
     const g = startCampaign(); const c = g.countries[g.player]; const cs = g.campaign;

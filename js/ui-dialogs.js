@@ -181,6 +181,11 @@ Object.assign(UI, {
         const res = it.result;
         const winner = res.results.find(r => r.id === res.winner);
         let body = `<p>Turnout: ${pct(res.turnout)}. ${res.fraud ? '<span class="warn">The ballot boxes were stuffed in our favor.</span>' : ''}</p>${this.seatBar(res)}`;
+        if (res.prov) {
+          const won = {};
+          for (const k in res.prov) won[res.prov[k]] = (won[res.prov[k]] || 0) + 1;
+          body += `<p class="small muted">${res.system === 'constituencies' ? 'Winner-takes-all constituencies: each province\'s seats go to the party that carries it.' : 'Proportional representation: seats follow the national vote.'} Provinces carried: ${Object.entries(won).sort((x, y) => y[1] - x[1]).map(([id, n]) => { const p = c.parties.find(q => q.id === id); return p ? `<span style="color:${p.color}">●</span> ${esc(p.name)} ${n}` : ''; }).join(' · ')}. See the Elections map mode.</p>`;
+        }
         if (res.exposed) body += '<div class="alert bad" style="margin-top:10px">The fraud has been exposed! Stability −15, legitimacy −25.</div>';
         if (it.hung) {
           const seats = seatsOf(res);

@@ -23,7 +23,7 @@ function getFlag(game, k) { return game.flags ? game.flags[k] : undefined; }
 
 function scheduleEvent(game, id, delay, ctx) {
   game.scheduled = game.scheduled || [];
-  game.scheduled.push({ id, month: game.month + (delay || 0), ctx: ctx || {} });
+  game.scheduled.push({ id, month: game.month + (delay || 0), ctx: ctx || {}, cid: game._actor != null ? game._actor : undefined });
 }
 
 function minister(c, pred) { return POST_KEYS.map(p => c.cabinet[p]).filter(Boolean).find(pred) || null; }
@@ -359,9 +359,9 @@ const EVENTS = [
     speaker: (game, c) => c.cabinet.chief || null,
     text: (game, c) => `${c.leader.name} has led the nation for ${Math.floor((game.month - (c.leader.since || 0)) / 12)} years, and the constitution allows no more. Loyalists are drafting an amendment; the courts and the press are watching.`,
     options: [
-      { label: 'Respect the limit: step aside for a successor', fx: { legitimacy: 8, intelligentsia: 6 }, run: (game, c) => { const old = c.leader.name; c.leader = makeLeader(game, c); setFlag(game, 'term:' + c.leader.id); return `${old} retires to applause. ${c.leader.name} takes over.`; } },
-      { label: 'Amend the constitution', cond: (game, c) => c.pc >= 20, fx: { pc: -20, legitimacy: -12, intelligentsia: -15 }, run: (game, c) => { setFlag(game, 'term:' + c.leader.id); scheduleEvent(game, 'impeachment', 8, { why: 'term' }); return 'The amendment passes, narrowly. The opposition vows to fight on.'; } },
-      { label: 'Suspend the limit under emergency powers', fx: { legitimacy: -20, freedom: -10, military: 5 }, run: (game, c) => { setFlag(game, 'term:' + c.leader.id); c.emergency = true; scheduleEvent(game, 'exception', 10, {}); return 'A state of emergency is declared. Elections are postponed.'; } },
+      { label: 'Respect the limit: step aside for a successor', ai: (game, c) => 2.2 - (c.leader.ambition || 50) / 50, fx: { legitimacy: 8, intelligentsia: 6 }, run: (game, c) => { const old = c.leader.name; c.leader = makeLeader(game, c); setFlag(game, 'term:' + c.leader.id); return `${old} retires to applause. ${c.leader.name} takes over.`; } },
+      { label: 'Amend the constitution', ai: (game, c) => (c.leader.ambition || 50) / 60 * c.approval / 55, cond: (game, c) => c.pc >= 20, fx: { pc: -20, legitimacy: -12, intelligentsia: -15 }, run: (game, c) => { setFlag(game, 'term:' + c.leader.id); scheduleEvent(game, 'impeachment', 8, { why: 'term' }); return 'The amendment passes, narrowly. The opposition vows to fight on.'; } },
+      { label: 'Suspend the limit under emergency powers', ai: (game, c) => (c.leader.ambition || 50) / 100 * c.factions.military / 70 * (c.ideo.auth + 1) * 0.6, fx: { legitimacy: -20, freedom: -10, military: 5 }, run: (game, c) => { setFlag(game, 'term:' + c.leader.id); c.emergency = true; scheduleEvent(game, 'exception', 10, {}); return 'A state of emergency is declared. Elections are postponed.'; } },
     ],
   },
   {
@@ -399,9 +399,9 @@ const EVENTS = [
     speaker: (game, c) => c.cabinet.interior || null,
     text: () => 'The emergency was meant to last weeks. It has lasted months. Judges are refusing to sign decrees, and generals ask whether the constitution still binds them.',
     options: [
-      { label: 'Lift the emergency and restore the constitution', fx: { legitimacy: 8, intelligentsia: 8, unrest: 4 }, run: (game, c) => { c.emergency = false; } },
+      { label: 'Lift the emergency and restore the constitution', ai: (game, c) => 0.6 + c.legitimacy / 80, fx: { legitimacy: 8, intelligentsia: 8, unrest: 4 }, run: (game, c) => { c.emergency = false; } },
       { label: 'Extend it another year', fx: { legitimacy: -6, freedom: -5 }, run: (game, c) => { scheduleEvent(game, 'exception', 12, {}); } },
-      { label: 'Suspend the constitution for good', fx: { military: 8, intelligentsia: -20 }, run: (game, c) => { c.emergency = false; changeGovernment(game, c, c.ideo.econ < -0.3 ? 'communist' : c.ideo.econ > 0.3 ? 'fascist' : 'junta', 'coup', { keepLeader: true }); return `The republic is over. The ${formalName(c)} takes its place.`; } },
+      { label: 'Suspend the constitution for good', ai: (game, c) => c.factions.military / 100 * (c.ideo.auth + 1) * 0.7 * (c.leader.ambition || 50) / 60, fx: { military: 8, intelligentsia: -20 }, run: (game, c) => { c.emergency = false; changeGovernment(game, c, c.ideo.econ < -0.3 ? 'communist' : c.ideo.econ > 0.3 ? 'fascist' : 'junta', 'coup', { keepLeader: true }); return `The republic is over. The ${formalName(c)} takes its place.`; } },
     ],
   },
   {
@@ -452,8 +452,9 @@ function presentEvent(game, c, ev, ctx) {
 // Scheduled and chained events fire first; otherwise there is a chance of a random one.
 function runScheduledEvents(game, c) {
   if (!game.scheduled || !game.scheduled.length) return;
-  const due = game.scheduled.filter(e => e.month <= game.month);
-  game.scheduled = game.scheduled.filter(e => e.month > game.month);
+  const mine = e => e.cid == null || e.cid === game.player;
+  const due = game.scheduled.filter(e => mine(e) && e.month <= game.month);
+  game.scheduled = game.scheduled.filter(e => !due.includes(e));
   for (const d of due) {
     const ev = eventById(d.id);
     if (ev && (!ev.cond || !ev.condOnSchedule || ev.cond(game, c, d.ctx))) presentEvent(game, c, ev, d.ctx);

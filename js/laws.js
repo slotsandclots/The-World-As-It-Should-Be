@@ -65,6 +65,12 @@ const LAW_CATS = {
       secret: { name: 'Secret police', desc: 'Informers everywhere.', fx: { freedom: -14, unrest: -5, intelligentsia: -10, stability: 3, approval: -2 }, pos: [0, 1] },
     },
   },
+  electoral: {
+    name: 'Electoral system', opts: {
+      proportional: { name: 'Proportional representation', desc: 'Seats follow the national vote: many parties, frequent coalitions.', fx: { intelligentsia: 3, legitimacy: 2 }, pos: [-0.1, -0.3] },
+      constituencies: { name: 'Winner-takes-all constituencies', desc: 'Each province elects its own members: big parties win big, regions matter.', fx: { business: 3, stability: 2, intelligentsia: -2 }, pos: [0.2, 0.1] },
+    },
+  },
   conscription: {
     name: 'Conscription', opts: {
       volunteer: { name: 'Volunteer army', desc: 'A small professional force.', fx: { army: -0.2, military: -4, approval: 2 }, pos: [0.2, -0.4] },
@@ -76,13 +82,13 @@ const LAW_CATS = {
 const LAW_KEYS = Object.keys(LAW_CATS);
 
 const LAW_PRESETS = {
-  democracy: { head: 'elected', suffrage: 'universal', press: 'free', assembly: 'protected', church: 'secular', labor: 'unions', economy: 'interventionist', policing: 'civilian', conscription: 'volunteer' },
-  constMonarchy: { head: 'monarch', suffrage: 'universal', press: 'free', assembly: 'protected', church: 'tolerant', labor: 'unions', economy: 'laissezFaire', policing: 'civilian', conscription: 'selective' },
-  absMonarchy: { head: 'autocrat', suffrage: 'property', press: 'licensed', assembly: 'restricted', church: 'state', labor: 'none', economy: 'laissezFaire', policing: 'gendarmerie', conscription: 'selective' },
-  junta: { head: 'autocrat', suffrage: 'none', press: 'licensed', assembly: 'banned', church: 'tolerant', labor: 'none', economy: 'interventionist', policing: 'gendarmerie', conscription: 'universal' },
-  communist: { head: 'autocrat', suffrage: 'none', press: 'state', assembly: 'banned', church: 'secular', labor: 'stateUnions', economy: 'planned', policing: 'secret', conscription: 'universal' },
-  fascist: { head: 'autocrat', suffrage: 'none', press: 'state', assembly: 'banned', church: 'tolerant', labor: 'stateUnions', economy: 'interventionist', policing: 'secret', conscription: 'universal' },
-  theocracy: { head: 'autocrat', suffrage: 'property', press: 'licensed', assembly: 'restricted', church: 'state', labor: 'none', economy: 'interventionist', policing: 'gendarmerie', conscription: 'selective' },
+  democracy: { head: 'elected', suffrage: 'universal', press: 'free', assembly: 'protected', church: 'secular', labor: 'unions', economy: 'interventionist', policing: 'civilian', conscription: 'volunteer', electoral: 'proportional' },
+  constMonarchy: { head: 'monarch', suffrage: 'universal', press: 'free', assembly: 'protected', church: 'tolerant', labor: 'unions', economy: 'laissezFaire', policing: 'civilian', conscription: 'selective', electoral: 'constituencies' },
+  absMonarchy: { head: 'autocrat', suffrage: 'property', press: 'licensed', assembly: 'restricted', church: 'state', labor: 'none', economy: 'laissezFaire', policing: 'gendarmerie', conscription: 'selective', electoral: 'proportional' },
+  junta: { head: 'autocrat', suffrage: 'none', press: 'licensed', assembly: 'banned', church: 'tolerant', labor: 'none', economy: 'interventionist', policing: 'gendarmerie', conscription: 'universal', electoral: 'proportional' },
+  communist: { head: 'autocrat', suffrage: 'none', press: 'state', assembly: 'banned', church: 'secular', labor: 'stateUnions', economy: 'planned', policing: 'secret', conscription: 'universal', electoral: 'proportional' },
+  fascist: { head: 'autocrat', suffrage: 'none', press: 'state', assembly: 'banned', church: 'tolerant', labor: 'stateUnions', economy: 'interventionist', policing: 'secret', conscription: 'universal', electoral: 'proportional' },
+  theocracy: { head: 'autocrat', suffrage: 'property', press: 'licensed', assembly: 'restricted', church: 'state', labor: 'none', economy: 'interventionist', policing: 'gendarmerie', conscription: 'selective', electoral: 'proportional' },
 };
 
 const LAW_PC = 15;           // political capital to put a bill forward
@@ -90,6 +96,7 @@ const LAW_FX_KEYS = ['freedom', 'unrest', 'approval', 'stability', 'legitimacy',
 
 function ensureLaws(c) {
   if (!c.laws) c.laws = Object.assign({}, LAW_PRESETS[c.gov]);
+  for (const k of LAW_KEYS) if (!c.laws[k]) c.laws[k] = LAW_PRESETS[c.gov][k];
   if (c.reform === undefined) c.reform = null;
   return c.laws;
 }
@@ -321,7 +328,7 @@ function tickIGLeaders(game, c) {
       if (loy < 25 && rng.chance(0.012)) {
         adjust(c, { unrest: 6, stability: -2 });
         logNews(game, `${ch.name} leads the ${FACTIONS[f].name.toLowerCase()} into the streets of ${c.name}.`, 'crisis', [c.id]);
-        if (isPlayer(game, c)) notify(game, `${FACTIONS[f].name} Take to the Streets`, `${ch.name}, the radical leader of the ${FACTIONS[f].name.toLowerCase()}, has called mass demonstrations. Unrest +6.`, ch.id);
+        if (isPlayer(game, c)) notify(game, `${FACTIONS[f].name} Take to the Streets`, `${ch.name}, the radical leader of the ${FACTIONS[f].name.toLowerCase()}, has called mass demonstrations. Unrest +6.`, { charId: ch.id });
       }
       if (loy > 60 && rng.chance(0.02)) ch.stance = 'moderate';
     } else {

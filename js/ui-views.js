@@ -2,6 +2,22 @@
 // Side-panel tab views. Each view returns HTML for the tab body.
 
 Object.assign(UI, {
+  // ------------------------------------------------------------------ press
+
+  pressHtml(c, g) {
+    const k = pressStrength(c);
+    let h = `<div class="card"><h3>${icon('news', 16)} The Press</h3>`;
+    if (!k) return h + '<p class="small muted" style="margin:0">All newspapers belong to the state. There are no press barons, and no criticism.</p></div>';
+    h += `<p class="small muted" style="margin-top:0">Press barons pull public opinion toward their views, give their favorite party coverage, and sway approval and referendums. ${k < 1 ? 'Under a licensed press their influence is halved, and papers can be censored.' : ''} Press effect on approval: <b class="${pressApproval(c) >= 0 ? 'good' : 'bad'}">${fmtSigned(pressApproval(c))}</b>.</p>`;
+    if (!(c.barons || []).length) return h + '<p class="small muted">No major papers yet. They appear as literacy grows.</p></div>';
+    c.barons.forEach((b, i) => {
+      const att = b.attitude > 0.25 ? ['friendly', 'good'] : b.attitude < -0.25 ? ['hostile', 'bad'] : ['neutral', 'muted'];
+      h += `<div class="person"><div>${portraitSVG(b.ch, { size: 46, gov: c.gov })}</div><div class="pinfo"><div><b>${esc(b.paper)}</b></div><div class="small">${esc(b.ch.name)}, ${b.ch.age} · <span class="${att[1]}">${att[0]}</span> · ${ideologyText(b.slant)}</div>${bar('Readership', b.reach * 100, { color: '#8fb0dc', text: pct(b.reach) })}</div>
+        <div class="pact">${Object.entries(PRESS_ACTIONS).map(([a, A]) => `<button data-act="press" data-i="${i}" data-a="${a}" title="${esc(A.desc)}" ${(A.pc && c.pc < A.pc) || (a === 'censor' && c.laws.press !== 'licensed') ? 'disabled' : ''}>${A.name}${A.pc ? ` (${A.pc})` : ''}</button>`).join('')}</div></div>`;
+    });
+    return h + '</div>';
+  },
+
   // ------------------------------------------------------------------ laws
 
   lawsHtml(c, g) {
@@ -26,7 +42,8 @@ Object.assign(UI, {
           const fx = Object.fromEntries(Object.entries(O.fx).map(([k, v]) => [k, v - (C.opts[cur].fx[k] || 0)]).concat(Object.entries(C.opts[cur].fx).filter(([k]) => !(k in O.fx)).map(([k, v]) => [k, -v])).filter(([k, v]) => v && !['growth', 'pc', 'army'].includes(k)));
           h += `<div class="opt" style="margin:6px 0;cursor:default;border:1px solid var(--line);border-radius:5px;${pick.opt === opt ? 'border-color:var(--gold)' : ''}"><div class="lbl">${esc(O.name)}${opt === P[cat] ? ' <span class="ftag">tradition</span>' : ''}</div><div class="small muted">${esc(O.desc)}</div><div>${describeEffects(fx)}</div>
             <div class="small" style="display:flex;justify-content:space-between;align-items:center;margin-top:4px"><span>Support: <b class="${sup >= 0.5 ? 'good' : 'bad'}">${pct(sup)}</b></span>
-            <button class="primary" data-act="propose" data-cat="${cat}" data-opt="${opt}" ${R || c.pc < LAW_PC ? 'disabled' : ''}>Propose (${LAW_PC} PC)</button></div></div>`;
+            <span><button class="primary" data-act="propose" data-cat="${cat}" data-opt="${opt}" ${R || c.pc < LAW_PC ? 'disabled' : ''}>Propose (${LAW_PC} PC)</button>
+            ${canReferendum(c) ? `<button data-act="referendum" data-cat="${cat}" data-opt="${opt}" ${c.pc < REFERENDUM_PC ? 'disabled' : ''} title="Put it to the people: decided at once by the public's views, class by class. Win: +5 legitimacy. Lose: −6 legitimacy, −3 approval.">Referendum (${REFERENDUM_PC} PC) · public ${pct(publicSupport(g, c, cat, opt))}</button>` : ''}</span></div></div>`;
         }
       }
     }
@@ -258,6 +275,7 @@ Object.assign(UI, {
     h += `<button class="gold" data-act="regime" style="width:100%;margin-top:6px">Change form of government…</button></div>`;
 
     h += this.lawsHtml(c, g);
+    h += this.pressHtml(c, g);
     const clout = interestClout(c);
     h += `<div class="card"><h3>Interest groups</h3><p class="small muted">★ marks the regime's power base: their loyalty matters most for stability. Clout comes from the classes behind each group. Concessions cost ${APPEASE_COST.pc} PC and ${fmtMoney(APPEASE_COST.money * c.gdp)}.</p>`;
     for (const f of FACTION_KEYS) {
