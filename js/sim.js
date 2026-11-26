@@ -936,7 +936,8 @@ function playerMonthly(game) {
     notify(game, 'The Nation Is in Crisis', `Stability has fallen to ${Math.round(c.stability)}. Every month there is a real chance of a coup, a revolution or the government collapsing. Shore up your power base, crack down, or win back the public, and do it fast.`);
   } else if (c.stability > CRISIS_LEVEL + 7) c.flags.warned = false;
   runScheduledEvents(game, c);
-  if (!game.pending.some(p => p.type !== 'toast') && game.rng.chance(0.15)) maybeEvent(game, c);
+  const learning = game.campaign && !game.campaign.ended && game.campaign.step < 7;
+  if (!learning && !game.pending.some(p => p.type !== 'toast') && game.rng.chance(0.15)) maybeEvent(game, c);
 }
 
 function setPlayer(game, id) {

@@ -17,6 +17,17 @@ const App = {
     UI.refresh();
   },
 
+  startCampaign() {
+    this.setSpeed(0);
+    this.game = startCampaign();
+    this.renderer.setWorld(this.game.world);
+    UI.choosing = false;
+    UI.selected = null;
+    UI.tab = 'overview';
+    this.redraw();
+    UI.refresh();
+  },
+
   startAs(id) {
     setPlayer(this.game, id);
     UI.choosing = false;

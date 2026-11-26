@@ -210,3 +210,18 @@ button.cand { display: flex; gap: 12px; text-align: left; padding: 10px; align-i
 button.cand .skill { grid-template-columns: 100px 1fr 18px; }
 .speaker { display: flex; gap: 14px; align-items: flex-start; }
 .speaker > div:last-child { flex: 1; }
+
+/* ---------- campaign */
+#campaign-box { position: absolute; top: 12px; right: 12px; width: 300px; background: rgba(21,27,43,.96); border: 1px solid var(--accent); border-radius: 10px; padding: 10px 12px; z-index: 6; box-shadow: 0 8px 30px rgba(0,0,0,.5); font-size: 13px; }
+#campaign-box .cb-head { display: flex; justify-content: space-between; font-size: 11px; color: var(--accent); text-transform: uppercase; letter-spacing: .05em; }
+#campaign-box .cb-title { font-family: Georgia, serif; font-size: 16px; margin: 2px 0 6px; }
+#campaign-box .cb-obj { margin-bottom: 6px; }
+#campaign-box details { margin: 4px 0 8px; color: var(--muted); }
+#campaign-box summary { cursor: pointer; }
+.dialogue .line { display: flex; gap: 12px; margin: 10px 0; align-items: flex-start; }
+.dialogue .who { font-weight: 600; font-size: 13px; margin-bottom: 2px; }
+.objective { margin-top: 12px; padding: 9px 12px; border-radius: 8px; background: #2b2a1a; border: 1px solid #6b5a22; }
+.chapter { font-family: system-ui, sans-serif; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.pulse { animation: pulse 1.4s ease-in-out infinite; position: relative; z-index: 1; }
+@keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(232,184,74,.0); } 50% { box-shadow: 0 0 0 4px rgba(232,184,74,.75); } }
+@media (max-width: 900px) { #campaign-box { position: static; width: auto; margin: 8px; } }

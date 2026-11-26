@@ -159,6 +159,7 @@ const UI = {
     this.renderTopbar();
     if (!this.dragging) this.renderTab();
     this.renderMapModes();
+    this.campaignCheck();
   },
 
   renderTopbar() {
@@ -213,6 +214,9 @@ const UI = {
     }
     body.scrollTop = st;
     this.renderTopbar();
+    const g2 = App.game;
+    if (g2 && g2.campaign && !this.choosing && !g2.campaign.tabsSeen.includes(this.tab)) g2.campaign.tabsSeen.push(this.tab);
+    if (g2 && g2.campaign) setTimeout(() => this.campaignCheck(), 0);
   },
 
   nationHeader(c) {
@@ -719,17 +723,18 @@ const UI = {
       case 'regen': this.showSetup(false); return;
       case 'sort': this.worldSort = ds.k; this.renderTab(); return;
       case 'newsmine': this.newsMine = !this.newsMine; this.renderTab(); return;
-      case 'dom': { const r = performDomestic(g, ds.id); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }
-      case 'appease': { const r = appeaseFaction(g, ds.f); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }
+      case 'dom': { const r = performDomestic(g, ds.id); this.track('dom:' + ds.id, r.ok); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }
+      case 'appease': { const r = appeaseFaction(g, ds.f); this.track('appease:' + ds.f, r.ok); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }
       case 'regime': this.showRegimeModal(); return;
       case 'appoint': this.showAppointModal(ds.post); return;
       case 'dismiss': { const r = dismissMinister(g, ds.post); this.toast(r.msg, r.ok ? 'info' : 'bad'); App.afterAction(); return; }
       case 'char': { const r = characterAction(g, ds.a, +ds.id); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }
-      case 'build': { const r = orderBuilding(g, ds.t); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }
+      case 'build': { const r = orderBuilding(g, ds.t); this.track('build:' + ds.t, r.ok); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }
       case 'autoinvest': { const c = this.player(); c.econ.autoInvest = !c.econ.autoInvest; this.renderTab(); return; }
       case 'diplo': {
         if (ds.id === 'war') { this.confirmWar(+ds.target); return; }
         const r = performDiplo(g, ds.id, +ds.target);
+        this.track('diplo:' + ds.id, r.ok);
         this.toast(r.msg, r.ok ? 'good' : 'bad');
         App.afterAction();
         return;
@@ -774,6 +779,81 @@ const UI = {
     const owner = g.world.provinces[p].owner;
     if (!this.choosing) this.tab = owner === g.player ? 'overview' : 'diplomacy';
     this.select(owner === g.player && !this.choosing ? null : owner);
+  },
+
+  // ------------------------------------------------------------ campaign
+
+  campaignCheck() {
+    const g = App.game;
+    if (!g || !g.campaign || this.choosing) return;
+    const cs = g.campaign;
+    if (cs.ended) { if (!cs.endingShown && !this.modalOpen()) this.showEnding(); return; }
+    if (this.modalOpen()) return;
+    const r = campaignUpdate(g, { tab: this.tab, selected: this.selected });
+    this.renderCampaign();
+    if (!r) return;
+    if (r.completed) this.toast(`✔ ${r.completed}${r.msg ? ': ' + r.msg : ''}`, 'good');
+    if (r.ending) { this.showEnding(); return; }
+    if (r.brief !== undefined && g.campaign.briefed !== g.campaign.step) this.showBriefing();
+  },
+
+  track(key, ok) {
+    const g = App.game;
+    if (ok && g && g.campaign && !g.campaign.ended) g.campaign.actions[key] = true;
+  },
+
+  showBriefing() {
+    const g = App.game, cs = g.campaign, step = CAMPAIGN_STEPS[cs.step];
+    App.setSpeed(0);
+    const c = g.countries[g.player];
+    const lines = step.brief.map(([who, text]) => {
+      const ch = campaignChar(g, who);
+      let owner = c;
+      for (const o of g.countries) if (ch && findCharacter(o, ch.id)) owner = o;
+      const t = typeof text === 'function' ? text(g, c) : text;
+      return `<div class="line">${ch ? portraitSVG(ch, { size: 56, gov: owner.gov }) : ''}<div><div class="who">${ch ? esc(ch.name) : ''} <span class="muted">${ch ? esc(roleTitle(owner, ch)) : ''}</span></div><div>${esc(t)}</div></div></div>`;
+    }).join('');
+    this.openModal({
+      title: `<span class="chapter">${esc(step.chapter)}</span><br>${esc(step.title)}`, wide: true,
+      body: `<div class="dialogue">${lines}</div><div class="objective">🎯 ${esc(campaignObjective(g))}</div>`,
+      buttons: [{ label: 'Understood', cls: 'primary', fn: () => { campaignBriefed(g); } }],
+    });
+  },
+
+  showEnding() {
+    const g = App.game, cs = g.campaign;
+    cs.endingShown = true;
+    App.setSpeed(0);
+    const e = cs.ending;
+    this.openModal({
+      title: `<span class="chapter">The First Republic · Ending</span><br>${esc(e.title)}`, wide: true,
+      body: e.text.map(p => `<p>${esc(p)}</p>`).join('') + '<p class="small muted">The campaign is over, but the world goes on. Keep playing as long as you like.</p>',
+      buttons: [{ label: 'Keep playing', cls: 'primary' }, { label: 'Start a new world', fn: () => { this.showSetup(false); } }],
+      row: true,
+    });
+    this.renderCampaign();
+  },
+
+  renderCampaign() {
+    const box = $('#campaign-box');
+    const g = App.game;
+    if (!box) return;
+    if (!g || !g.campaign || g.campaign.ended || this.choosing) { box.classList.add('hidden'); this.applyHighlight(null); return; }
+    const cs = g.campaign, step = CAMPAIGN_STEPS[cs.step];
+    box.classList.remove('hidden');
+    box.innerHTML = `<div class="cb-head"><span>${esc(step.chapter)}</span><span>${cs.step + 1}/${CAMPAIGN_STEPS.length}</span></div>
+      <div class="cb-title">${esc(step.title)}</div><div class="cb-obj">🎯 ${esc(campaignObjective(g))}</div>
+      ${step.hint ? `<details><summary>Hint</summary><div class="small">${esc(step.hint)}</div></details>` : ''}
+      <button class="small" id="cb-brief">Briefing</button>`;
+    $('#cb-brief').onclick = () => this.showBriefing();
+    this.applyHighlight(cs.briefed === cs.step ? step.highlight : null);
+  },
+
+  applyHighlight(hl) {
+    document.querySelectorAll('.pulse').forEach(el => el.classList.remove('pulse'));
+    if (!hl) return;
+    if (hl.tab && this.tab !== hl.tab) { const t = document.querySelector(`#tabs [data-tab="${hl.tab}"]`); if (t) t.classList.add('pulse'); return; }
+    if (hl.sel) document.querySelectorAll(hl.sel).forEach((el, i) => { if (i < 6) el.classList.add('pulse'); });
   },
 
   // ------------------------------------------------------------ modals & toasts
@@ -873,6 +953,7 @@ const UI = {
         break;
       }
       case 'deposed': {
+        if (g.campaign && !g.campaign.ended) setFlag(g, 'cDeposed');
         const how = it.how === 'coup' ? 'a military coup' : 'a revolution';
         this.openModal({
           title: 'You Have Been Overthrown',
@@ -988,13 +1069,14 @@ const UI = {
     try { hasSave = !!localStorage.getItem(SAVE_KEY); } catch (e) { /* storage unavailable */ }
     const seed = Math.random().toString(36).slice(2, 8);
     const body = `<p class="setup-title">The World As It Should Be</p>
+      <p class="muted">New here? Start with the campaign: it's a short story that teaches you the game.</p>
       <p class="muted">A political simulator. Generate a world, take the helm of any nation, and steer it through elections, coups, revolutions and wars. Turn it into a democracy, a monarchy, a junta, a communist or fascist state, or a theocracy, and try to survive.</p>
       <div class="form-row"><label>World seed</label><input type="text" id="setup-seed" value="${seed}"><button id="setup-dice" title="Random seed">🎲</button></div>
       <div class="form-row"><label>World</label><select id="setup-model" style="flex:1">${WORLD_MODEL_ORDER.map(k => `<option value="${k}">${WORLD_MODELS[k].name}</option>`).join('')}</select></div>
       <p class="small muted" id="setup-model-desc" style="margin:-4px 0 6px 140px">${WORLD_MODELS.continents.desc}</p>
       <div class="form-row"><label>Nations</label><input type="range" id="setup-n" min="4" max="40" value="14" style="flex:1"><b id="setup-n-v" style="width:24px">14</b></div>
       <div class="form-row"><label>Map size</label><select id="setup-size"><option value="small">Small</option><option value="medium" selected>Medium</option><option value="large">Large</option></select></div>`;
-    const buttons = [{
+    const buttons = [{ label: '▶ Play the campaign: The First Republic', cls: 'gold', title: 'A story campaign that teaches you the game', fn: () => { App.startCampaign(); } }, {
       label: 'Generate world', cls: 'primary', fn: () => {
         App.newWorld($('#setup-seed').value || 'world', { model: $('#setup-model').value, size: $('#setup-size').value, countries: +$('#setup-n').value });
       },
@@ -1029,6 +1111,7 @@ const UI = {
         { label: 'Load saved game', fn: () => { App.load(); } },
         { label: 'New world…', fn: () => { this.showSetup(false); } },
         { label: 'How to play', fn: () => { this.showHelp(); } },
+        { label: 'Play the campaign', fn: () => { App.startCampaign(); } },
         { label: 'Close' },
       ],
     });
