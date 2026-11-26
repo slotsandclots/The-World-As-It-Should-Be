@@ -400,3 +400,6 @@ button.cand .skill { grid-template-columns: 100px 1fr 18px; }
 .tech.locked { opacity: 0.5; }
 .tech.cur { background: linear-gradient(90deg, #c9a45a1e, transparent); margin: 0 -13px; padding: 8px 13px; box-shadow: inset 2px 0 0 var(--gold); }
 .card.bloc table.list { margin-top: 6px; }
+
+#tab-body a, .modal a { color: var(--gold-hi); text-decoration: none; border-bottom: 1px dotted var(--gold-lo); }
+#tab-body a:hover { color: #fff; }

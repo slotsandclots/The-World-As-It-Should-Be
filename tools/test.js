@@ -218,6 +218,27 @@ test('number breakdowns add up and history is recorded', () => {
   assert(r.noCache, 'transient caches leaked into the save');
 });
 
+test('laws: presets are neutral, bills pass or fail, AI reforms', () => {
+  const r = run(`(() => { const g = createGame('law1', { size: 'small', countries: 10 }); setPlayer(g, 0); const c = g.countries[0];
+    const neutral = g.countries.every(x => Object.values(lawFx(x)).every(v => v === 0));
+    for (let i = 0; i < 2; i++) { tick(g); g.pending.length = 0; }
+    c.pc = 100; const cat = 'press', opt = Object.keys(LAW_CATS.press.opts).find(o => o !== c.laws.press);
+    const p1 = proposeLaw(g, c, cat, opt).ok, p2 = proposeLaw(g, c, 'labor', 'none').ok;
+    let months = 0; while (c.reform && months < 60) { tick(g); g.pending.length = 0; months++; }
+    const resolved = !c.reform;
+    if (GOVS[c.gov].elections !== 'free') { c.pc = 100; proposeLaw(g, c, 'church', Object.keys(LAW_CATS.church.opts).find(o => o !== c.laws.church)); lawAction(g, 'decree'); }
+    for (let i = 0; i < 480; i++) { tick(g); g.pending.length = 0; }
+    const changed = g.countries.filter(x => x.alive && x.id !== 0 && LAW_KEYS.some(k => x.laws[k] !== LAW_PRESETS[x.gov][k])).length;
+    const labels = g.countries.filter(x => x.alive).map(constitutionLabel);
+    return { neutral, p1, p2, resolved, months, changed, labels, bad: __sane(g) }; })()`);
+  assert(r.neutral, 'preset laws should have no net effect');
+  assert(r.p1 && !r.p2, 'one bill at a time');
+  assert(r.resolved, 'bill never resolved');
+  assert(r.changed >= 1, 'AI never reformed its laws');
+  assert(r.bad.length === 0, r.bad.join('; '));
+  console.log('    bill took', r.months, 'months; AI nations with reformed laws:', r.changed, '; e.g.', [...new Set(r.labels)].slice(0, 6).join(', '));
+});
+
 test('the campaign can be completed', () => {
   const r = run(`(() => {
     const g = startCampaign(); const c = g.countries[g.player]; const cs = g.campaign;

@@ -112,6 +112,8 @@ Characters are managed from the Leader tab: appoint and dismiss ministers, honor
 
 The game saves to your browser's local storage (Menu → Save game).
 
+**Laws and interest groups.** Nine law categories, from press freedom to the economic system. Bills take months, need votes in parliament (or the power base's backing), and stir up the interest groups they hurt. Each group's clout comes from the classes behind it, and each wants something changed. Drift far enough from tradition and your regime gets a new name: a Guided Democracy, a Plebiscitary Junta.
+
 **Seeing why.** Hover approval, stability, unrest, political capital or the treasury for a breakdown of what drives it. The Ledger tab charts your nation over time, compares you with your rivals, and tracks world market prices.
 
 **Saves.** As many save slots as you like, plus an autosave every January. The title screen offers to continue your latest game.
@@ -131,6 +133,7 @@ The game saves to your browser's local storage (Menu → Save game).
 | `js/blocs.js` | Military pacts, free-trade zones, customs unions, confederations |
 | `js/federal.js` | Province designations, separatism, federations |
 | `js/coalitions.js` | Hung parliaments, coalition governments, partner demands |
+| `js/laws.js` | Laws, bills, interest-group clout and demands, hybrid regime labels |
 | `js/sim.js` | The monthly simulation: politics, elections, regime change, war, peace, diplomacy, actions, save/load |
 | `js/characters.js` | Leaders, cabinets, generals, opposition, heirs; loyalty and succession |
 | `js/portrait.js` | Procedural SVG portraits |

@@ -343,6 +343,16 @@ const EVENTS = [
     ],
   },
   {
+    id: 'petition', title: 'A Petition to the Government', weight: 1.1,
+    cond: (game, c) => !c.reform && !!petitionTarget(c),
+    text: (game, c) => { const t = petitionTarget(c); return `Leaders of the ${FACTIONS[t.f].name.toLowerCase()} have delivered a petition with thousands of signatures. They demand a new law: ${LAW_CATS[t.cat].opts[t.opt].name.toLowerCase()} (${LAW_CATS[t.cat].opts[t.opt].desc.toLowerCase()}) and warn that their patience is wearing thin.`; },
+    options: [
+      { label: 'Put their bill before the government', fx: {}, run: (game, c) => { const t = petitionTarget(c); if (!t) return ''; proposeLaw(game, c, t.cat, t.opt, true); c.factions[t.f] = clamp(c.factions[t.f] + 8, 0, 100); return 'The bill is introduced at no cost in political capital. Follow it in the Politics tab.'; } },
+      { label: 'Promise to consider it', fx: { pc: -5 }, run: (game, c) => { const t = petitionTarget(c); if (t) c.factions[t.f] = clamp(c.factions[t.f] + 3, 0, 100); } },
+      { label: 'Refuse', fx: {}, run: (game, c) => { const t = petitionTarget(c); if (t) { c.factions[t.f] = clamp(c.factions[t.f] - 10, 0, 100); c.unrest = clamp(c.unrest + 4, 0, 100); } } },
+    ],
+  },
+  {
     id: 'summit', title: 'An Invitation to a Summit', weight: 0.9,
     cond: (game, c) => game.countries.some(o => o.alive && o.id !== c.id && relation(game, c.id, o.id) > 0 && !atWarWith(game, c.id, o.id)),
     setup: (game, c) => ({ other: game.rng.pick(game.countries.filter(o => o.alive && o.id !== c.id && relation(game, c.id, o.id) > 0 && !atWarWith(game, c.id, o.id))).id }),

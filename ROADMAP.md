@@ -65,6 +65,8 @@ Done, except war coalitions with joint war goals and peace, and confederation co
 
 The biggest multiplier for political depth. Governments become combinations of laws instead of fixed types.
 
+**Done (first pass):** nine law categories (head of state, suffrage, press, assembly, church and state, labor, economic system, policing, conscription) with each regime's traditional preset; bills that take months, need parliamentary seats or the power base, can stall or be voted down, and can be decreed in autocracies; interest groups with clout drawn from the pops and a law each one demands; petitions; hybrid regime names ("Guided Democracy", "Confessional Constitutional Monarchy"). Still to do: interest-group leaders as characters, regional constituencies, referendums, press barons, and constitutional crises.
+
 - **Law categories:** head of state, legislature, suffrage, elections, press freedom, assembly, church and state, labor rights, economic system (laissez-faire, interventionist, planned), land ownership, citizenship, policing, conscription and term limits.
 - **Government names follow the laws:** the current seven types become presets, and hybrids appear naturally (an elected monarchy, a one-party technocracy, a guided democracy).
 - **Passing laws:** a law has to get through the legislature (or the power base, in autocracies). Each attempt takes months, can stall, and can provoke a backlash.
@@ -169,7 +171,7 @@ The biggest multiplier for political depth. Governments become combinations of l
 
 1. **Milestone 1:** empires, blocs, coalitions. It leans on the economy (customs unions, free-trade zones, special economic zones, investment treaties) as much as on politics.
 2. ✅ **Quick wins:** number breakdowns, the ledger, the province panel and save slots, plus a visual overhaul. A deep economic simulation is only fun if you can see why things happen.
-3. **Milestone 2:** laws and interest groups.
+3. **Milestone 2:** laws and interest groups (first pass done).
 4. **Milestone 3:** society, peoples and culture.
 5. **Milestone 4:** deeper economy.
 6. **Milestone 5:** military strategy. It builds on everything above: war economy, mobilization from pops, war goals from nationalism.

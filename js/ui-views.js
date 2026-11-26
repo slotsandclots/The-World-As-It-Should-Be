@@ -2,6 +2,37 @@
 // Side-panel tab views. Each view returns HTML for the tab body.
 
 Object.assign(UI, {
+  // ------------------------------------------------------------------ laws
+
+  lawsHtml(c, g) {
+    ensureLaws(c);
+    const gv = GOVS[c.gov], P = LAW_PRESETS[c.gov], R = c.reform;
+    const label = constitutionLabel(c);
+    let h = `<div class="card"><h3>${icon('politics', 16)} The Constitution</h3><p class="small" style="margin-top:0">${label !== gv.name ? `Our laws make us a <b>${esc(label)}</b>. ` : ''}${gv.elections === 'free' ? 'Bills need a majority in parliament.' : 'Reforms need the backing of the regime\'s power base.'} A bill costs ${LAW_PC} PC and takes months; opponents grow restless while it is debated. Laws that break with the regime's tradition (◇) carry their full effects.</p>`;
+    if (R) {
+      const O = LAW_CATS[R.cat].opts[R.opt], sup = R.support != null ? R.support : lawSupport(g, c, R.cat, R.opt);
+      h += `<div class="alert info"><b>Bill under debate:</b> ${esc(LAW_CATS[R.cat].name)}: ${esc(O.name)}${bar('Progress', R.progress)}
+        <div class="small">Support: <b class="${sup >= 0.5 ? 'good' : 'bad'}">${pct(sup)}</b> ${sup >= 0.5 ? '(passing)' : '(stalled: it may be voted down)'} · ${R.months} months</div>
+        <div style="display:flex;gap:6px;margin-top:6px"><button data-act="lawact" data-a="abandon">Withdraw</button>${gv.elections === 'free' ? '' : `<button class="danger" data-act="lawact" data-a="decree" ${c.pc < LAW_ACTIONS.decree.pc ? 'disabled' : ''}>Decree it (${LAW_ACTIONS.decree.pc} PC, −8 legitimacy)</button>`}</div></div>`;
+    }
+    const pick = this.lawPick || {};
+    for (const cat of LAW_KEYS) {
+      const C = LAW_CATS[cat], cur = c.laws[cat];
+      h += `<div class="kv"><span>${C.name}</span><span><b title="${esc(C.opts[cur].desc)}">${esc(C.opts[cur].name)}</b>${cur !== P[cat] ? ' ◇' : ''} <a href="#" data-act="lawpick" data-cat="${cat}" data-opt="">${pick.cat === cat ? '▴' : 'change'}</a></span></div>`;
+      if (pick.cat === cat) {
+        for (const opt in C.opts) {
+          if (opt === cur) continue;
+          const O = C.opts[opt], sup = lawSupport(g, c, cat, opt);
+          const fx = Object.fromEntries(Object.entries(O.fx).map(([k, v]) => [k, v - (C.opts[cur].fx[k] || 0)]).concat(Object.entries(C.opts[cur].fx).filter(([k]) => !(k in O.fx)).map(([k, v]) => [k, -v])).filter(([k, v]) => v && !['growth', 'pc', 'army'].includes(k)));
+          h += `<div class="opt" style="margin:6px 0;cursor:default;border:1px solid var(--line);border-radius:5px;${pick.opt === opt ? 'border-color:var(--gold)' : ''}"><div class="lbl">${esc(O.name)}${opt === P[cat] ? ' <span class="ftag">tradition</span>' : ''}</div><div class="small muted">${esc(O.desc)}</div><div>${describeEffects(fx)}</div>
+            <div class="small" style="display:flex;justify-content:space-between;align-items:center;margin-top:4px"><span>Support: <b class="${sup >= 0.5 ? 'good' : 'bad'}">${pct(sup)}</b></span>
+            <button class="primary" data-act="propose" data-cat="${cat}" data-opt="${opt}" ${R || c.pc < LAW_PC ? 'disabled' : ''}>Propose (${LAW_PC} PC)</button></div></div>`;
+        }
+      }
+    }
+    return h + '</div>';
+  },
+
   // ------------------------------------------------------------------ ledger
 
   viewLedger(c, g) {
@@ -66,7 +97,7 @@ Object.assign(UI, {
   nationHeader(c) {
     const g = App.game;
     const party = GOVS[c.gov].party === 'multi' ? `<div class="small muted">Governing party: ${esc(rulingPartyObj(c).name)}</div>` : '';
-    return `<div class="nation-head"><div class="nh-portrait">${portraitSVG(c.leader, { size: 52, gov: c.gov })}<span class="nh-flag">${flagSVG(c, 24, 16)}</span></div><div><div class="formal">${esc(formalName(c))}</div>
+    return `<div class="nation-head"><div class="nh-portrait">${portraitSVG(c.leader, { size: 52, gov: c.gov })}<span class="nh-flag">${flagSVG(c, 24, 16)}</span></div><div><div class="formal">${esc(formalName(c))}</div>${constitutionLabel(c) !== GOVS[c.gov].name ? `<div class="small" style="color:var(--gold)">${esc(constitutionLabel(c))}</div>` : ''}
       <div style="margin:4px 0">${govBadge(c.gov)} <span class="small muted">since ${gameDate(g, Math.max(0, g.month - c.monthsInRegime))}</span></div>
       <div class="small">${esc(leaderLine(c))}, ${c.leader.age}</div><div>${this.traitChips(c.leader)}</div>${party}</div></div>`;
   },
@@ -226,11 +257,15 @@ Object.assign(UI, {
     } else h += '<p class="small muted">No elections. Power rests on the loyalty of the regime\'s backers.</p>';
     h += `<button class="gold" data-act="regime" style="width:100%;margin-top:6px">Change form of government…</button></div>`;
 
-    h += `<div class="card"><h3>Factions</h3><p class="small muted">★ marks the regime's power base: their loyalty matters most for stability. Concessions cost ${APPEASE_COST.pc} PC and ${fmtMoney(APPEASE_COST.money * c.gdp)}.</p>`;
+    h += this.lawsHtml(c, g);
+    const clout = interestClout(c);
+    h += `<div class="card"><h3>Interest groups</h3><p class="small muted">★ marks the regime's power base: their loyalty matters most for stability. Clout comes from the classes behind each group. Concessions cost ${APPEASE_COST.pc} PC and ${fmtMoney(APPEASE_COST.money * c.gdp)}.</p>`;
     for (const f of FACTION_KEYS) {
       const F = FACTIONS[f];
       const star = gv.base[f] ? '★ ' : '';
-      h += `<div class="faction"><span class="icon">${F.icon}</span><div title="${esc(F.desc)}">${bar(star + F.name, c.factions[f])}</div>
+      const dem = interestDemand(c, f);
+      h += `<div class="faction"><span class="icon">${F.icon}</span><div title="${esc(F.desc)}">${bar(`${star}${F.name} <span class="ftag">clout ${pct(clout[f])}</span>`, c.factions[f])}
+        ${dem ? `<div class="small muted">Wants: <a href="#" data-act="lawpick" data-cat="${dem.cat}" data-opt="${dem.opt}">${esc(LAW_CATS[dem.cat].opts[dem.opt].name)}</a></div>` : ''}</div>
         <button data-act="appease" data-f="${f}" ${costOk(c, APPEASE_COST) ? 'disabled' : ''} title="Make concessions to the ${F.name}">Appease</button></div>`;
     }
     h += '</div>';

@@ -457,6 +457,9 @@ const UI = {
       case 'random': { const alive = g.countries.filter(x => x.alive); this.select(alive[Math.floor(Math.random() * alive.length)].id); return; }
       case 'regen': this.showSetup(false); return;
       case 'sort': this.worldSort = ds.k; this.renderTab(); return;
+      case 'lawpick': this.lawPick = this.lawPick && this.lawPick.cat === ds.cat && !ds.opt ? null : { cat: ds.cat, opt: ds.opt }; if (this.tab !== 'politics') this.tab = 'politics'; this.renderTab(); return;
+      case 'propose': { const r = proposeLaw(g, this.player(), ds.cat, ds.opt); this.track('law:' + ds.cat, r.ok); this.toast(r.msg, r.ok ? 'good' : 'bad'); if (r.ok) this.lawPick = null; App.afterAction(); return; }
+      case 'lawact': { const r = lawAction(g, ds.a); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }
       case 'ledger': this.ledger = Object.assign(this.ledger || {}, { [ds.k]: ds.v }); this.renderTab(); return;
       case 'newsmine': this.newsMine = !this.newsMine; this.renderTab(); return;
       case 'dom': { const r = performDomestic(g, ds.id); this.track('dom:' + ds.id, r.ok); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }

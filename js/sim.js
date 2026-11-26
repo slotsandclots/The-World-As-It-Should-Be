@@ -231,7 +231,7 @@ function makeParties(game, c) {
 
 function armyTarget(c) {
   // Non-core land supplies half as many soldiers.
-  return c.pop * (1 - (c.nonCoreShare || 0) * 0.5) * (1 - (c.autonomousShare || 0) * 0.5) * c.policy.military * 0.004 * GOVS[c.gov].milMult;
+  return c.pop * (1 - (c.nonCoreShare || 0) * 0.5) * (1 - (c.autonomousShare || 0) * 0.5) * c.policy.military * 0.004 * GOVS[c.gov].milMult * (1 + lawFx(c).army);
 }
 
 function strength(c) {
@@ -262,6 +262,7 @@ function tickCountry(game, c) {
   const M = sumMods(c);
   const L = c.leader.skills;
   const CF = cabinetFx(c);
+  const LF = lawFx(c);
   const atWar = isAtWar(game, c.id);
   const debtRatio = Math.max(0, -c.treasury) / Math.max(1e-6, c.gdp);
 
@@ -269,7 +270,7 @@ function tickCountry(game, c) {
   // here technology advances and growth is measured.
   const E = c.econ;
   let techG = 0.0004 + (L.admin - 5) * 0.00004 + (p.education - 4) * 0.00012 + c.trade.length * 0.00005 + Math.max(0, 1.5 - E.tech) * 0.0002
-    - c.corruption * 0.000006 + g.growth * 0.6 + (T.growth || 0) + (M.growth || 0) + rng.normal() * 0.0004;
+    - c.corruption * 0.000006 + g.growth * 0.6 + (T.growth || 0) + (M.growth || 0) + LF.growth + rng.normal() * 0.0004;
   if (debtRatio > 0.8) techG -= (debtRatio - 0.8) * 0.002;
   E.tech = Math.max(0.1, E.tech * (1 + techG));
   const gr = E.gdpM / E.prevGdpM - 1;
@@ -297,9 +298,9 @@ function tickCountry(game, c) {
   c.ideo.auth = clamp(c.ideo.auth + da, -1, 1);
 
   // --- Freedom & corruption
-  const freeT = clamp(g.freedom - p.police * 4 + (c.emergency ? -25 : 0) + (M.freedom || 0), 0, 100);
+  const freeT = clamp(g.freedom - p.police * 4 + (c.emergency ? -25 : 0) + (M.freedom || 0) + LF.freedom, 0, 100);
   c.freedom += (freeT - c.freedom) * 0.08;
-  const corrT = clamp(g.corruption + techSum(c, 'corruption') + (T.corruption || 0) - (L.admin - 5) * 1.5 + CF.corruption + (50 - c.freedom) * 0.15 + (M.corruption || 0), 0, 100);
+  const corrT = clamp(g.corruption + techSum(c, 'corruption') + (T.corruption || 0) - (L.admin - 5) * 1.5 + CF.corruption + (50 - c.freedom) * 0.15 + (M.corruption || 0) + LF.corruption, 0, 100);
   c.corruption += (corrT - c.corruption) * 0.02;
 
   // --- Factions
@@ -312,7 +313,7 @@ function tickCountry(game, c) {
     intelligentsia: 28 - (c.flags.clericalSchools ? 6 : 0) + c.freedom * 0.35 + (p.education - 4) * 3 - p.police * 2.5 - (c.emergency ? 15 : 0) + (E.strataSol.middle - 65) * 0.2,
   };
   for (const f of FACTION_KEYS) {
-    const target = clamp(ft[f] + (T[f] || 0) + (M[f] || 0) + (CF.factions[f] || 0) + (f === 'military' ? CF.military : 0), 0, 100);
+    const target = clamp(ft[f] + (T[f] || 0) + (M[f] || 0) + (CF.factions[f] || 0) + (f === 'military' ? CF.military : 0) + LF[f], 0, 100);
     c.factions[f] += (target - c.factions[f]) * 0.07;
   }
 
@@ -323,7 +324,7 @@ function tickCountry(game, c) {
     ['Low approval', Math.max(0, 55 - c.approval) * 1.4], ['Public opinion vs. the regime', mismatch * 14], ['War exhaustion', c.warExhaustion * 0.2],
     ['Recession', Math.max(0, -growthA) * 2], ['Unemployment', E.unemployment * 40], ['Poverty of the lower classes', Math.max(0, 30 - E.strataSol.lower) * 0.5],
     ['Cabinet', CF.unrest], ['Dissidents', dissidentPressure(c)], ['Political movements', movementPressure(c)], ['Occupied land', occupiedShare(game, c) * 45],
-    ['Unintegrated conquests', (c.nonCoreShare || 0) * 18], ['Separatism', c.separatistPressure || 0], ['Special economic zones', (c.sezCount || 0) * 1.5], ['Temporary effects', M.unrest || 0],
+    ['Unintegrated conquests', (c.nonCoreShare || 0) * 18], ['Separatism', c.separatistPressure || 0], ['Special economic zones', (c.sezCount || 0) * 1.5], ['Laws', LF.unrest], ['Temporary effects', M.unrest || 0],
   ];
   let unrestT = sumParts(unParts);
   const repress = clamp(p.police / 5 * g.repression * 0.5, 0, 0.75);
@@ -336,7 +337,7 @@ function tickCountry(game, c) {
     ['Baseline', 50], ['Economic growth', clamp(growthA * 2, -15, 10)], ['Welfare spending', (p.welfare - 8) * 0.6], ['Education spending', (p.education - 4) * 0.5],
     ['Infrastructure spending', (p.infrastructure - 3) * 0.4], ['Taxes', -(p.tax - 0.25) * 60], ['Corruption', -c.corruption * 0.12], ['War exhaustion', -c.warExhaustion * 0.25],
     ['Public opinion vs. the regime', -mismatch * 8], ['Leader\'s traits', T.approval || 0], ['Temporary effects', M.approval || 0], ['National debt', -Math.max(0, debtRatio - 0.6) * 15],
-    ['Contentment of the people', E.contentment * 0.5], ['Unemployment', -E.unemployment * 50], ['Leader\'s charisma', (L.cha - 5) * 0.8], ['Cabinet', CF.approval], ['Technology', techSum(c, 'approval')],
+    ['Contentment of the people', E.contentment * 0.5], ['Unemployment', -E.unemployment * 50], ['Leader\'s charisma', (L.cha - 5) * 0.8], ['Cabinet', CF.approval], ['Laws', LF.approval], ['Technology', techSum(c, 'approval')],
   ];
   const apT = sumParts(apParts);
   c.approval = clamp(c.approval + (clamp(apT, 0, 100) - c.approval) * 0.1 + rng.normal() * 0.6, 0, 100);
@@ -344,7 +345,7 @@ function tickCountry(game, c) {
   // --- Legitimacy
   // Autocracies grow stale: legitimacy erodes the longer a regime rules without renewal.
   const fatigue = g.elections === 'free' ? 0 : Math.min(18, Math.max(0, c.monthsInRegime - 96) / 20);
-  const legT = g.legitimacy + (c.emergency ? -20 : 0) + (M.legitimacy || 0) - fatigue - (c.nonCoreShare || 0) * 15;
+  const legT = g.legitimacy + LF.legitimacy + (c.emergency ? -20 : 0) + (M.legitimacy || 0) - fatigue - (c.nonCoreShare || 0) * 15;
   c.legitimacy += (clamp(legT, 0, 100) - c.legitimacy) * 0.02;
 
   // --- Stability
@@ -353,7 +354,7 @@ function tickCountry(game, c) {
   const stParts = [
     ['Baseline', 8], [`Public approval (weight ${Math.round(aw * 100)}%)`, 0.38 * aw * c.approval], [`Loyalty of the power base (weight ${Math.round((1 - aw) * 100)}%)`, 0.38 * (1 - aw) * baseLoy],
     ['Legitimacy', 0.25 * c.legitimacy], ['Goodwill of all factions', 0.2 * avgLoyalty(c)], ['Unrest', -0.4 * c.unrest], ['Police', p.police * 1.2 * g.repression],
-    ['War exhaustion', -c.warExhaustion * 0.1], ['Leader\'s traits', T.stability || 0], ['Cabinet', CF.stability], ['Temporary effects', M.stability || 0], ['Unintegrated conquests', -Math.min(25, (c.nonCoreCount || 0) * 0.6)],
+    ['War exhaustion', -c.warExhaustion * 0.1], ['Leader\'s traits', T.stability || 0], ['Cabinet', CF.stability], ['Laws', LF.stability], ['Temporary effects', M.stability || 0], ['Unintegrated conquests', -Math.min(25, (c.nonCoreCount || 0) * 0.6)],
   ];
   const stT = sumParts(stParts);
   c.stability = clamp(c.stability + (clamp(stT, 0, 100) - c.stability) * 0.08 + rng.normal() * 1.1, 0, 100);
@@ -381,12 +382,12 @@ function pcParts(c) {
   const parts = [[`${g.name} (scaled by stability)`, base]];
   if (c.federal) parts.push(['Federal system (−10%)', -base * 0.1]);
   if (c.coalition && c.coalition.minority) parts.push(['Minority government (−25%)', -base * (c.federal ? 0.9 : 1) * 0.25]);
-  parts.push(['Technology', techSum(c, 'pc')], ['Leader\'s traits', traitFx(c.leader).pc || 0], ['Cabinet', c.cabinet ? cabinetFx(c).pc : 0]);
+  parts.push(['Laws', lawFx(c).pc], ['Technology', techSum(c, 'pc')], ['Leader\'s traits', traitFx(c.leader).pc || 0], ['Cabinet', c.cabinet ? cabinetFx(c).pc : 0]);
   return parts;
 }
 
 function pcIncome(c) {
-  return GOVS[c.gov].pcGain * (c.federal ? 0.9 : 1) * (c.coalition && c.coalition.minority ? 0.75 : 1) * (0.6 + c.stability / 120) + techSum(c, 'pc') + (traitFx(c.leader).pc || 0) + (c.cabinet ? cabinetFx(c).pc : 0);
+  return GOVS[c.gov].pcGain * (c.federal ? 0.9 : 1) * (c.coalition && c.coalition.minority ? 0.75 : 1) * (0.6 + c.stability / 120) + lawFx(c).pc + techSum(c, 'pc') + (traitFx(c.leader).pc || 0) + (c.cabinet ? cabinetFx(c).pc : 0);
 }
 
 function sovereignDefault(game, c) {
@@ -523,6 +524,8 @@ function changeGovernment(game, c, newGov, how, opts) {
   const oldFormal = formalName(c);
   c.prevGov = old;
   c.gov = newGov;
+  c.laws = presetLaws(newGov);
+  c.reform = null;
   if (g.party === 'multi' && GOVS[old].party === 'multi') {
     // keep the existing party system
   } else {
@@ -1069,6 +1072,7 @@ function tickPolitics(game, c) {
   tickCoalition(game, c);
   tickResearch(game, c);
   tickMovements(game, c);
+  tickLaws(game, c);
   if (!isPlayer(game, c)) { aiPolicy(game, c); aiShock(game, c); }
   checkCrisis(game, c);
 }

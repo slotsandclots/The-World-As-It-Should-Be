@@ -493,6 +493,8 @@ Object.assign(UI, {
       <p class="small">${GOV_ORDER.map(k => `${govBadge(k)} ${GOVS[k].desc}`).join('<br><br>')}</p>
       <h4>Elections</h4>
       <p class="small">Democracies and constitutional monarchies vote every 4 years. Parties poll according to how close they are to public opinion, and the governing party gains or loses votes with approval. Lose, and you can concede or refuse to leave (if the army backs you). Campaigns, snap elections, ballot rigging and states of emergency are all on the table.</p>
+      <h4>Laws and interest groups</h4>
+      <p class="small">Your constitution is nine laws (Politics tab). Each regime has traditional laws; break with them and you feel the full effects. Bills cost ${LAW_PC} PC and take months. In free states they need a majority in parliament; elsewhere the power base must back them, and you can decree them at a cost to legitimacy. Interest groups opposed to a bill grow restless while it is debated.</p>
       <h4>Coalitions</h4>
       <p class="small">Parliament has 200 seats; a majority is ${MAJORITY}. If no party wins one, parties negotiate: you can form a coalition with nearby parties, govern alone as a fragile minority, or go into opposition. Partners take a cabinet post and make a policy demand; keep them satisfied (Politics tab), or they walk out and the government may fall.</p>
       <h4>Pops & the economy</h4>
