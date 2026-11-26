@@ -5,7 +5,7 @@ const path = require('path');
 const vm = require('vm');
 
 const ctx = vm.createContext({ console, Math, JSON });
-for (const f of ['rng', 'names', 'governments', 'mapgen', 'sim', 'events']) {
+for (const f of ['rng', 'names', 'governments', 'mapgen', 'economy', 'sim', 'events']) {
   vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'js', f + '.js'), 'utf8'), ctx, { filename: f + '.js' });
 }
 

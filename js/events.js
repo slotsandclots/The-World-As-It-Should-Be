@@ -62,7 +62,7 @@ const EVENTS = [
     cond: (game, c) => c.growthAvg > 0.0018,
     text: () => 'A surge in exports and a run of good harvests have sent the economy soaring. Advisors debate what to do with the windfall.',
     options: [
-      { label: 'Invest in industry', fx: { business: 5 }, run: (game, c) => { c.gdpPerCap *= 1.02; return 'GDP +2%.'; } },
+      { label: 'Invest in industry', fx: { business: 5 }, run: (game, c) => { c.econ.tech *= 1.02; return 'Productivity +2%.'; } },
       { label: 'Fill the coffers', fx: { money: 0.015 } },
       { label: 'Hand out bonuses', fx: { approval: 8, workers: 5 } },
     ],

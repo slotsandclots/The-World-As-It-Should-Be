@@ -10,9 +10,11 @@ const POLICY_LIMITS = {
   welfare: { min: 0, max: 25, step: 0.1, label: 'Welfare', hint: 'Approval and worker loyalty.' },
   education: { min: 0, max: 10, step: 0.1, label: 'Education', hint: 'Growth and intelligentsia loyalty; makes the public more liberal.' },
   police: { min: 0, max: 8, step: 0.1, label: 'Police & security', hint: 'Suppresses unrest and props up stability, but erodes freedom.' },
-  infrastructure: { min: 0, max: 10, step: 0.1, label: 'Infrastructure', hint: 'Growth and business loyalty.' },
+  infrastructure: { min: 0, max: 10, step: 0.1, label: 'Infrastructure', hint: 'Productivity of every building, and business loyalty. Buys steel, timber and tools.' },
+  investment: { min: 0, max: 12, step: 0.1, label: 'State investment', hint: 'Funds state construction of new buildings (see Industry below).' },
+  tariff: { min: 0, max: 0.5, step: 0.01, label: 'Tariffs', hint: 'Tax on imports: revenue and protection for local producers, but dearer goods and less trade.' },
 };
-const SPEND_KEYS = ['military', 'welfare', 'education', 'police', 'infrastructure'];
+const SPEND_KEYS = ['military', 'welfare', 'education', 'police', 'infrastructure', 'investment'];
 
 // ------------------------------------------------------------------ helpers
 
@@ -102,7 +104,8 @@ function recomputeCountry(game, c) {
     pop += p.pop; tiles += p.tiles; n++;
   }
   c.pop = pop; c.tiles = tiles; c.provinceCount = n;
-  c.gdp = pop * c.gdpPerCap / 1e6; // billions
+  c.gdp = Math.max(0.01, c.econ ? c.econ.gdpAnnual : pop * 0.33 * c.tech * 12 / 1e6); // billions per year
+  c.gdpPerCap = pop > 0 ? c.gdp * 1e6 / pop : 0; // thousands of $
 }
 
 function refreshAll(game) {
@@ -141,9 +144,12 @@ function createGame(seed, opts) {
   };
   world.countrySeeds.forEach((cs, i) => game.countries.push(initCountry(game, cs, i)));
   refreshAll(game);
+  for (const c of game.countries) c.army = armyTarget(c) * game.rng.range(0.85, 1.1);
+  initEconomy(game);
+  refreshAll(game);
   for (const c of game.countries) {
     c.treasury = c.gdp * game.rng.range(0.0, 0.15);
-    c.army = armyTarget(c) * game.rng.range(0.85, 1.1);
+    c.budget = projectBudget(c);
   }
   initRelations(game);
   logNews(game, `The world enters a new era. ${game.countries.length} nations vie for their place in history.`, 'info');
@@ -158,7 +164,7 @@ function initCountry(game, cs, id) {
     id, name: cs.name, adj: cs.adj, color: cs.color, rgb: cs.rgb, capital: cs.capital, alive: true,
     gov, prevGov: null, monthsInRegime: rng.int(24, 240),
     ideo: { econ: clamp(g.econ * 0.55 + rng.normal() * 0.25, -1, 1), auth: clamp(g.auth * 0.5 + rng.normal() * 0.25, -1, 1) },
-    gdpPerCap: rng.range(2.5, 28), growthAvg: 0.0015, lastGrowth: 0.0015,
+    tech: Math.exp(rng.range(Math.log(0.35), Math.log(2.2))), gdpPerCap: 0, growthAvg: 0.0015, lastGrowth: 0.0015, econ: null,
     pop: 0, gdp: 0, tiles: 0, provinceCount: 0, treasury: 0, army: 0, budget: null,
     policy: defaultPolicy(gov),
     approval: rng.range(42, 62), stability: rng.range(48, 70), unrest: rng.range(5, 20),
@@ -231,16 +237,23 @@ function armyTarget(c) {
 }
 
 function strength(c) {
-  return c.army / 1000 * (0.6 + 0.4 * Math.sqrt(c.gdpPerCap / 10)) * (0.7 + 0.3 * c.stability / 100) * (0.75 + 0.5 * c.factions.military / 100);
+  const arms = c.econ ? c.econ.armsRatio : 1;
+  const tech = c.econ ? c.econ.tech : c.tech;
+  return c.army / 1000 * (0.6 + 0.4 * Math.sqrt(tech)) * (0.55 + 0.45 * Math.min(1.2, arms)) * (0.7 + 0.3 * c.stability / 100) * (0.75 + 0.5 * c.factions.military / 100);
 }
 
 function projectBudget(c) {
   const p = c.policy;
-  const revenue = c.gdp * p.tax * (1 - c.corruption / 250) / 12;
+  const E = c.econ;
+  const taxBase = E ? E.taxBase : c.gdp / 12;
+  const taxes = taxBase * p.tax * (1 - c.corruption / 250);
+  const tariffs = E ? E.tariffRev : 0;
+  const stateProfit = E ? E.stateProfit : 0;
+  const revenue = taxes + tariffs + stateProfit;
   const spendPct = ADMIN_COST + SPEND_KEYS.reduce((s, k) => s + p[k], 0);
   const spend = c.gdp * spendPct / 100 / 12;
   const interest = c.treasury < 0 ? -c.treasury * 0.004 : 0;
-  return { revenue, spend, interest, net: revenue - spend - interest, spendPct };
+  return { revenue, taxes, tariffs, stateProfit, spend, interest, net: revenue - spend - interest, spendPct };
 }
 
 function tickCountry(game, c) {
@@ -250,23 +263,16 @@ function tickCountry(game, c) {
   const atWar = isAtWar(game, c.id);
   const debtRatio = Math.max(0, -c.treasury) / Math.max(1e-6, c.gdp);
 
-  // --- Economy
-  let gr = 0.0016
-    + (p.education - 4) * 0.00012 + (p.infrastructure - 3) * 0.00018
-    - c.corruption * 0.00003
-    - Math.max(0, p.tax - 0.3) * 0.008 + Math.max(0, 0.25 - p.tax) * 0.002
-    + g.growth + (T.growth || 0) + c.trade.length * 0.0001
-    + Math.max(0, 25 - c.gdpPerCap) * 0.00002
-    + rng.normal() * 0.0015 + (M.growth || 0);
-  if (c.stability < 35) gr -= (35 - c.stability) * 0.00008;
-  if (atWar) gr -= 0.001;
-  if (debtRatio > 0.8) gr -= (debtRatio - 0.8) * 0.003;
-  c.gdpPerCap = Math.max(0.3, c.gdpPerCap * (1 + gr));
+  // --- Economy. Production, markets and pops run in tickEconomy (economy.js);
+  // here technology advances and growth is measured.
+  const E = c.econ;
+  let techG = 0.0007 + (p.education - 4) * 0.00012 + c.trade.length * 0.00005 + Math.max(0, 1.5 - E.tech) * 0.0002
+    - c.corruption * 0.000006 + g.growth * 0.6 + (T.growth || 0) + (M.growth || 0) + rng.normal() * 0.0004;
+  if (debtRatio > 0.8) techG -= (debtRatio - 0.8) * 0.002;
+  E.tech = Math.max(0.1, E.tech * (1 + techG));
+  const gr = E.gdpM / E.prevGdpM - 1;
   c.lastGrowth = gr;
-  c.growthAvg = c.growthAvg * 0.85 + gr * 0.15;
-
-  const popG = 0.0007 + (p.welfare - 8) * 0.00002 - (atWar ? 0.0005 : 0);
-  for (const pr of game.world.provinces) if (pr.owner === c.id) pr.pop *= 1 + popG;
+  c.growthAvg = c.growthAvg * 0.92 + clamp(gr, -0.05, 0.05) * 0.08;
   recomputeCountry(game, c);
 
   // --- Budget
@@ -283,7 +289,8 @@ function tickCountry(game, c) {
   if (atWar) da += 0.0015;
   da -= (p.education - 4) * 0.0003;
   if (M.propaganda) { de += (g.econ - c.ideo.econ) * 0.02; da += (g.auth - c.ideo.auth) * 0.02; }
-  de -= c.ideo.econ * 0.002; da -= c.ideo.auth * 0.002;
+  // The public's views follow the classes that make it up (see economy.js).
+  de += (E.popIdeo.econ - c.ideo.econ) * 0.012; da += (E.popIdeo.auth - c.ideo.auth) * 0.012;
   c.ideo.econ = clamp(c.ideo.econ + de, -1, 1);
   c.ideo.auth = clamp(c.ideo.auth + da, -1, 1);
 
@@ -297,10 +304,10 @@ function tickCountry(game, c) {
   const growthA = c.growthAvg * 1200; // annualized %
   const ft = {
     military: 32 + p.military * 4.5 + (g.base.military ? 10 : 0) + (atWar ? (c.warMomentum > 0 ? 8 : c.warMomentum < 0 ? -10 : 0) : 0),
-    workers: 48 + (p.welfare - 8) * 2 - (p.tax - 0.25) * 40 - g.econ * 12 - Math.max(0, p.police - 3) * 3 + growthA,
-    business: 46 + g.econ * 12 - (p.tax - 0.25) * 80 + (p.infrastructure - 3) * 2 - c.corruption * 0.1 + growthA * 2,
+    workers: 48 + (p.welfare - 8) * 1.5 - (p.tax - 0.25) * 40 - g.econ * 12 - Math.max(0, p.police - 3) * 3 + growthA + (E.strataSol.lower - 35) * 0.4 - E.unemployment * 40,
+    business: 46 + g.econ * 12 - (p.tax - 0.25) * 80 + (p.infrastructure - 3) * 2 - c.corruption * 0.1 + growthA * 2 + (E.strataSol.upper - 75) * 0.3 - p.tariff * 10,
     clergy: 48 + g.clergyBonus - (c.freedom - 50) * 0.12 + c.ideo.auth * 10,
-    intelligentsia: 28 + c.freedom * 0.35 + (p.education - 4) * 3 - p.police * 2.5 - (c.emergency ? 15 : 0),
+    intelligentsia: 28 + c.freedom * 0.35 + (p.education - 4) * 3 - p.police * 2.5 - (c.emergency ? 15 : 0) + (E.strataSol.middle - 65) * 0.2,
   };
   for (const f of FACTION_KEYS) {
     const target = clamp(ft[f] + (T[f] || 0) + (M[f] || 0), 0, 100);
@@ -309,15 +316,16 @@ function tickCountry(game, c) {
 
   // --- Unrest
   const mismatch = ideoDist(c.ideo, g);
-  let unrestT = Math.max(0, 55 - c.approval) * 1.4 + mismatch * 14 + c.warExhaustion * 0.2 + Math.max(0, -growthA) * 3 + (M.unrest || 0);
+  let unrestT = Math.max(0, 55 - c.approval) * 1.4 + mismatch * 14 + c.warExhaustion * 0.2 + Math.max(0, -growthA) * 2 + E.unemployment * 40 + Math.max(0, 30 - E.strataSol.lower) * 0.5 + (M.unrest || 0);
   const repress = clamp(p.police / 5 * g.repression * 0.5, 0, 0.75);
   unrestT *= 1 - repress;
   c.unrest += (clamp(unrestT, 0, 100) - c.unrest) * 0.12;
 
   // --- Approval
-  const apT = 47 + clamp(growthA * 3, -20, 12) + (p.welfare - 8) * 1.1 + (p.education - 4) * 0.8 + (p.infrastructure - 3) * 0.6
-    - (p.tax - 0.25) * 80 - c.corruption * 0.12 - c.warExhaustion * 0.25 - mismatch * 8
-    + (T.approval || 0) + (M.approval || 0) - Math.max(0, debtRatio - 0.6) * 15 + Math.log(c.gdpPerCap / 10) * 3;
+  const apT = 50 + clamp(growthA * 2, -15, 10) + (p.welfare - 8) * 0.6 + (p.education - 4) * 0.5 + (p.infrastructure - 3) * 0.4
+    - (p.tax - 0.25) * 60 - c.corruption * 0.12 - c.warExhaustion * 0.25 - mismatch * 8
+    + (T.approval || 0) + (M.approval || 0) - Math.max(0, debtRatio - 0.6) * 15
+    + E.contentment * 0.5 - E.unemployment * 50;
   c.approval = clamp(c.approval + (clamp(apT, 0, 100) - c.approval) * 0.1 + rng.normal() * 0.6, 0, 100);
 
   // --- Legitimacy
@@ -640,8 +648,6 @@ function transferProvince(game, pid, to) {
   const fromId = pr.owner;
   if (fromId === to) return;
   const from = game.countries[fromId], T = game.countries[to];
-  const newPop = T.pop + pr.pop;
-  if (newPop > 0) T.gdpPerCap = (T.gdpPerCap * T.pop + from.gdpPerCap * pr.pop * 0.8) / newPop;
   pr.owner = to;
   game.neighborCache = {};
   game.mapDirty = true;
@@ -908,6 +914,7 @@ function tickPolitics(game, c) {
 function tick(game) {
   if (game.over) return;
   game.month++;
+  tickEconomy(game, false);
   for (const c of game.countries) if (c.alive) tickCountry(game, c);
   tickWars(game);
   tickDiplomacy(game);
@@ -1281,25 +1288,39 @@ function resolveDiploOffer(game, item, accept) {
 
 // ------------------------------------------------------------------ save / load
 
+const SAVE_VERSION = 2;
+
 function serializeGame(game) {
   return JSON.stringify({
-    v: 1, seed: game.seed, opts: game.opts, month: game.month, startYear: game.startYear,
+    v: SAVE_VERSION, seed: game.seed, opts: game.opts, month: game.month, startYear: game.startYear,
     countries: game.countries, wars: game.wars, log: game.log.slice(-300), player: game.player,
     nextWarId: game.nextWarId, truces: game.truces, rng: game.rng.getState(),
-    owners: game.world.provinces.map(p => p.owner), pops: game.world.provinces.map(p => Math.round(p.pop)),
+    owners: game.world.provinces.map(p => p.owner),
+    provEcon: game.world.provinces.map(p => ({
+      pops: p.pops, inc: p.inc, sol: p.sol, wealth: p.wealth, lit: p.lit, res: p.res,
+      b: p.buildings.map(b => ({ t: b.t, level: b.level, active: b.active, idle: b.idle, va: b.va })),
+    })),
+    worldMarket: game.worldMarket,
     lastEvents: game.lastEvents, stats: game.stats, playerMonths: game.playerMonths || 0,
   });
 }
 
 function deserializeGame(str) {
   const d = JSON.parse(str);
+  if (d.v !== SAVE_VERSION) throw new Error('This save comes from an older version of the game and cannot be loaded.');
   const world = generateWorld(d.seed, d.opts);
-  world.provinces.forEach((p, i) => { p.owner = d.owners[i]; p.pop = d.pops[i]; });
+  world.provinces.forEach((p, i) => {
+    const e = d.provEcon[i];
+    p.owner = d.owners[i];
+    p.pops = e.pops; p.inc = e.inc; p.sol = e.sol; p.wealth = e.wealth; p.lit = e.lit; p.res = e.res;
+    p.buildings = e.b;
+    p.pop = POP_KEYS.reduce((s, t) => s + p.pops[t], 0);
+  });
   const game = {
     seed: d.seed, opts: d.opts, world, rng: makeRng(d.seed + '|sim'), month: d.month, startYear: d.startYear,
     countries: d.countries, wars: d.wars, log: d.log, player: d.player, nextWarId: d.nextWarId, truces: d.truces,
     pending: [], over: false, neighborCache: {}, mapDirty: true, lastEvents: d.lastEvents || [], stats: d.stats,
-    playerMonths: d.playerMonths,
+    playerMonths: d.playerMonths, worldMarket: d.worldMarket,
   };
   game.rng.setState(d.rng);
   refreshAll(game);

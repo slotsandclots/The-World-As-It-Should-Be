@@ -8,7 +8,7 @@
 // base = the factions whose loyalty props the regime up (its power base).
 // approvalWeight = how much stability depends on public approval vs. the power base.
 
-const BASE_POLICY = { tax: 0.25, military: 2.5, welfare: 8, education: 4, police: 1.5, infrastructure: 3 };
+const BASE_POLICY = { tax: 0.25, military: 2.5, welfare: 8, education: 4, police: 1.5, infrastructure: 3, investment: 1, tariff: 0.1 };
 
 const GOVS = {
   democracy: {
@@ -19,7 +19,7 @@ const GOVS = {
     base: { intelligentsia: 1, business: 0.8, workers: 0.8 },
     title: 'President',
     formal: n => `Republic of ${n}`,
-    policy: { tax: 0.3, welfare: 11, police: 1 },
+    policy: { tax: 0.3, welfare: 11, police: 1, tariff: 0.05 },
     desc: 'Power flows from free and fair elections. Citizens enjoy broad liberties, but leaders must win votes every four years and answer to public opinion.',
     pros: ['High freedom and legitimacy', 'Strong long-term growth', 'Stability rests on approval'],
     cons: ['Must win elections', 'Wars of aggression are unpopular', 'Little political capital'],
@@ -45,7 +45,7 @@ const GOVS = {
     base: { clergy: 1, military: 0.9, business: 0.6 },
     title: 'King',
     formal: (n, size) => size >= 18 ? `Empire of ${n}` : size <= 6 ? `Grand Duchy of ${n}` : `Realm of ${n}`,
-    policy: { tax: 0.2, welfare: 3, police: 2.5, military: 3.5, education: 2 },
+    policy: { tax: 0.2, welfare: 3, police: 2.5, military: 3.5, education: 2, tariff: 0.2 },
     desc: 'The monarch rules by hereditary right with no parliament to answer to. Succession passes through the royal house, for better or worse.',
     pros: ['Hereditary legitimacy', 'No elections to lose', 'Plenty of political capital'],
     cons: ['Low freedom and growth', 'Each succession is a gamble', 'Liberal publics resent it'],
@@ -58,7 +58,7 @@ const GOVS = {
     base: { military: 1 },
     title: 'General',
     formal: n => `State of ${n}`,
-    policy: { military: 6, police: 3.5, tax: 0.22, welfare: 4 },
+    policy: { military: 6, police: 3.5, tax: 0.22, welfare: 4, investment: 1.5, tariff: 0.15 },
     desc: 'The generals have seized power "temporarily". The regime lives and dies by the loyalty of the officer corps.',
     pros: ['Strong army', 'Heavy repression keeps unrest down', 'Lots of political capital'],
     cons: ['Very low legitimacy', 'Corruption and weak growth', 'Disloyal officers mean another coup'],
@@ -71,7 +71,7 @@ const GOVS = {
     base: { workers: 1, military: 0.6 },
     title: 'Chairman',
     formal: n => `People's Republic of ${n}`,
-    policy: { tax: 0.45, welfare: 14, police: 3.5, military: 4 },
+    policy: { tax: 0.45, welfare: 14, police: 3.5, military: 4, investment: 7, tariff: 0.3 },
     desc: 'A single vanguard party directs a planned economy in the name of the working class. Elections are held, but there is only one name on the ballot.',
     pros: ['Workers loyal if welfare is high', 'Sham elections boost legitimacy', 'Strong state apparatus'],
     cons: ['Business and clergy hostile', 'Low freedom', 'Planned economy grows slowly'],
@@ -84,7 +84,7 @@ const GOVS = {
     base: { military: 1, business: 0.7 },
     title: 'Supreme Leader',
     formal: n => `${n} National State`,
-    policy: { tax: 0.3, military: 7, police: 4.5, welfare: 5 },
+    policy: { tax: 0.3, military: 7, police: 4.5, welfare: 5, investment: 3, tariff: 0.3 },
     desc: 'An ultranationalist movement fuses party, state and military under one leader, and the nation is mobilized for struggle and expansion.',
     pros: ['Strongest military bonus', 'Wars rally the public', 'Maximum political capital'],
     cons: ['Almost no freedom', 'Intelligentsia and workers alienated', 'Neighbors grow hostile'],

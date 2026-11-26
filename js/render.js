@@ -20,6 +20,8 @@ const MAP_MODES = {
   government: { name: 'Government', legend: 'Form of government' },
   stability: { name: 'Stability', legend: 'Red = collapsing, green = stable' },
   ideology: { name: 'Public Opinion', legend: 'Red = left, blue = right; darker = authoritarian' },
+  sol: { name: 'Living Standard', legend: 'Standard of living by province: red = destitute, green = prosperous', province: p => rampRgb((provinceSol(p) - 15) / 50 * 100) },
+  industry: { name: 'Industry', legend: 'Share of each province working in factories: grey = rural, orange = industrial', province: p => mixRgb([75, 78, 92], [240, 130, 40], clamp(provinceIndustry(p) / 0.4, 0, 1)) },
   relations: { name: 'Relations', legend: 'Your relations: red = hostile, green = friendly' },
 };
 
@@ -68,6 +70,8 @@ class MapRenderer {
     const data = this.img.data;
     const owner = provinces.map(p => p.owner);
     const ccol = game.countries.map(c => this.countryColor(game, c, mode, player));
+    const pmode = MAP_MODES[mode] && MAP_MODES[mode].province;
+    const pcol = provinces.map(pr => (pmode ? pmode(pr) : ccol[pr.owner]));
 
     const SEL = [255, 255, 255], PLY = [255, 214, 90], BORDER = [28, 24, 34];
     for (let y = 0; y < H; y++) {
@@ -85,7 +89,7 @@ class MapRenderer {
           for (let s = 0; s < 4; s++) if (nbr[s] >= 0 && provOf[nbr[s]] >= 0) et[s] = 4;
         } else {
           const o = owner[p];
-          const col = ccol[o];
+          const col = pcol[p];
           const sh = 1.08 - height[t] * 0.32;
           const bright = o === selected ? 1.12 : 1;
           base = [col[0] * sh * bright, col[1] * sh * bright, col[2] * sh * bright];

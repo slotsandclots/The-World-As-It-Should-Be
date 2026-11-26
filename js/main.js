@@ -85,7 +85,7 @@ const App = {
       UI.toast(`Loaded game from ${gameDate(this.game)}.`, 'good');
     } catch (e) {
       console.error(e);
-      UI.toast('The saved game could not be loaded.', 'bad');
+      UI.toast(e.message && e.message.includes('older version') ? e.message : 'The saved game could not be loaded.', 'bad');
     }
   },
 };

@@ -86,7 +86,7 @@ function describeEffects(fx) {
   }).join('');
 }
 
-const TABS = [['overview', 'Nation'], ['politics', 'Politics'], ['economy', 'Economy'], ['military', 'Military'], ['diplomacy', 'Diplomacy'], ['world', 'World'], ['news', 'News']];
+const TABS = [['overview', 'Nation'], ['politics', 'Politics'], ['economy', 'Economy'], ['market', 'Market'], ['pops', 'Pops'], ['military', 'Military'], ['diplomacy', 'Diplomacy'], ['world', 'World'], ['news', 'News']];
 const SAVE_KEY = 'twaisb-save-v1';
 
 const UI = {
@@ -208,7 +208,7 @@ const UI = {
     else {
       const c = this.player();
       if (!c) { body.innerHTML = '<p class="muted">No nation selected.</p>'; return; }
-      const views = { overview: this.viewOverview, politics: this.viewPolitics, economy: this.viewEconomy, military: this.viewMilitary, diplomacy: this.viewDiplomacy, world: this.viewWorld, news: this.viewNews };
+      const views = { overview: this.viewOverview, politics: this.viewPolitics, economy: this.viewEconomy, market: this.viewMarket, pops: this.viewPops, military: this.viewMilitary, diplomacy: this.viewDiplomacy, world: this.viewWorld, news: this.viewNews };
       body.innerHTML = views[this.tab].call(this, c, g);
     }
     body.scrollTop = st;
@@ -252,6 +252,8 @@ const UI = {
       <div class="kv"><span>Army</span><span>${fmtPop(c.army)}</span></div>
       <div class="kv"><span>Strength</span><span>${strength(c).toFixed(0)}</span></div>
       <div class="kv"><span>Political capital</span><span>${Math.floor(c.pc)} (+${(gv.pcGain * (0.6 + c.stability / 120)).toFixed(1)}/mo)</span></div>
+      <div class="kv"><span>Living standard</span><span style="color:${statColor(c.econ.avgSol * 1.4)}">${c.econ.avgSol.toFixed(0)}</span></div>
+      <div class="kv"><span>Unemployment</span><span class="${c.econ.unemployment > 0.08 ? 'bad' : ''}">${pct(c.econ.unemployment, 1)}</span></div>
       <div class="kv"><span>In power</span><span>${Math.floor((g.playerMonths || 0) / 12)}y ${(g.playerMonths || 0) % 12}m</span></div>
     </div>`;
     h += `<div class="card sparks">
@@ -327,17 +329,19 @@ const UI = {
         `<tr${r.id === res.winner ? ' class="me"' : ''}><td><span class="swatch" style="background:${r.color};width:10px;height:10px"></span> ${esc(r.name)}</td><td>${pct(r.vote, 1)}</td><td>${r.seats}</td></tr>`).join('')}</table>`;
   },
 
-  viewEconomy(c) {
+  viewEconomy(c, g) {
+    const E = c.econ;
     let h = `<div class="card grid2">
       <div class="kv"><span>GDP</span><span>${fmtMoney(c.gdp)}</span></div>
       <div class="kv"><span>Per capita</span><span>$${(c.gdpPerCap * 1000).toFixed(0)}</span></div>
       <div class="kv"><span>Growth</span><span class="${c.growthAvg < 0 ? 'bad' : 'good'}">${fmtSigned(c.growthAvg * 1200)}%/yr</span></div>
-      <div class="kv"><span>Trade partners</span><span>${c.trade.length}</span></div>
-      <div class="kv"><span>Corruption</span><span>${Math.round(c.corruption)}</span></div>
+      <div class="kv"><span>Productivity</span><span>${E.tech.toFixed(2)}×</span></div>
+      <div class="kv"><span>Unemployment</span><span class="${E.unemployment > 0.08 ? 'bad' : ''}">${pct(E.unemployment, 1)}</span></div>
       <div class="kv"><span>Treasury</span><span class="${c.treasury < 0 ? 'bad' : ''}">${fmtMoney(c.treasury)}</span></div>
     </div>`;
     h += `<div class="card" id="budget-preview">${this.budgetHtml(c)}</div>`;
-    h += `<div class="card"><h3>Policy</h3><p class="small muted">Spending is a share of GDP. Changes take effect from next month.</p>`;
+    h += this.industryHtml(c, g);
+    h += `<div class="card"><h3>Policy</h3><p class="small muted">Spending is a share of GDP. Government spending flows into the economy: soldiers, officials and teachers are paid wages, and the state buys arms, fuel, steel, timber and tools on the market.</p>`;
     for (const k of Object.keys(POLICY_LIMITS)) {
       const L = POLICY_LIMITS[k];
       h += `<div class="slider-row"><label><span>${L.label}</span><b id="pv-${k}">${this.policyValue(c, k)}</b></label>
@@ -348,13 +352,98 @@ const UI = {
     return h;
   },
 
-  policyValue(c, k) { return k === 'tax' ? pct(c.policy.tax) : c.policy[k].toFixed(1) + '% GDP'; },
+  industryHtml(c, g) {
+    const E = c.econ;
+    const ind = nationalIndustry(g, c);
+    const pros = buildingProspects(g, c);
+    const communist = !ownersAllowed(c);
+    let h = `<div class="card"><h3>Industry & construction</h3>
+      <p class="small muted">${communist ? 'All enterprises belong to the state: their profits go straight to the treasury, and only the state builds.' : 'Capitalists and landowners reinvest their savings in whatever pays best. The state can build too, from the state investment fund (or the treasury once the fund is empty).'}</p>
+      <div class="grid2 small">
+        <div class="kv"><span>State fund</span><span>${fmtMoney(E.statePool / 1e6)}</span></div>
+        <div class="kv"><span>Private capital</span><span>${communist ? '—' : fmtMoney(E.investPool / 1e6)}</span></div>
+      </div>
+      <label class="small"><input type="checkbox" data-act="autoinvest" ${E.autoInvest ? 'checked' : ''}> Let ministries spend the state fund automatically on whatever is scarcest</label>
+      <table class="list" style="margin-top:8px"><tr><th>Building</th><th>Lvl</th><th>Run</th><th title="Value added per level per month">VA/lvl</th><th title="Expected annual return on a new level">ROI</th><th></th></tr>`;
+    let kind = '';
+    for (const t of BUILDING_KEYS) {
+      const def = BUILDINGS[t], o = ind[t], p = pros.find(x => x.t === t);
+      if (def.kind !== kind) { kind = def.kind; h += `<tr><td colspan="6" class="small muted" style="padding-top:8px">${kind}</td></tr>`; }
+      const ins = Object.keys(def.in).map(x => GOODS[x].name).join(', ');
+      const tip = `${def.name}: makes ${GOODS[Object.keys(def.out)[0]].name} from ${ins}${def.res ? ' · needs ' + RES_INFO[def.res].toLowerCase() : ''}`;
+      h += `<tr title="${esc(tip)}"><td>${esc(def.name)}</td><td>${o.levels || '<span class="muted">0</span>'}</td>
+        <td>${o.levels ? pct(o.active) : ''}</td><td class="${o.va < 0 ? 'bad' : ''}">${o.levels ? fmtMoney(o.va / 1e6) : ''}</td>
+        <td class="${p.roi < 0.1 ? 'bad' : p.roi > 0.3 ? 'good' : ''}">${p.prov ? pct(p.roi) : ''}</td>
+        <td><button class="small" data-act="build" data-t="${t}" ${p.prov ? '' : 'disabled'} title="${esc(p.prov ? 'Build in ' + p.prov.name : p.reason)}">+ ${fmtMoney(p.cost / 1e6)}</button></td></tr>`;
+    }
+    h += '</table>';
+    if (E.projects.length) {
+      h += `<h4>Under construction</h4>`;
+      for (const pr of E.projects.slice().sort((a, b) => a.done - b.done)) {
+        h += `<div class="kv small"><span>${esc(BUILDINGS[pr.t].name)} · ${esc(g.world.provinces[pr.prov].name)} <span class="muted">(${pr.funder})</span></span><span>${Math.max(0, pr.done - g.month)} mo</span></div>`;
+      }
+    }
+    return h + '</div>';
+  },
+
+  viewMarket(c, g) {
+    const E = c.econ, W = g.worldMarket;
+    const fmtQ = q => q >= 10000 ? (q / 1000).toFixed(0) + 'k' : q >= 1000 ? (q / 1000).toFixed(1) + 'k' : q.toFixed(0);
+    let h = `<div class="card small"><p>Every nation has its own market. Prices rise when demand outstrips supply and fall when goods pile up. Surpluses and shortages are traded on the world market: trade openness is <b>${pct(E.tau)}</b> (raised by trade agreements; lowered by tariffs, war and planned economies).</p>
+      <div class="grid2"><div class="kv"><span>Trade balance</span><span class="${E.tradeBalance < 0 ? 'bad' : 'good'}">${fmtMoney(E.tradeBalance)}/mo</span></div>
+      <div class="kv"><span>Tariff income</span><span>${fmtMoney(E.tariffRev)}/mo</span></div></div></div>
+      <table class="list"><tr><th>Good</th><th title="Local price vs. base price">Price</th><th title="World price vs. base">World</th><th>Supply</th><th>Demand</th><th>Trade</th><th title="Share of demand actually met">Met</th></tr>`;
+    let cat = '';
+    for (const gk of GOOD_KEYS) {
+      const G = GOODS[gk];
+      if (G.cat !== cat) { cat = G.cat; h += `<tr><td colspan="7" class="small muted" style="padding-top:8px">${cat}</td></tr>`; }
+      const r = E.prices[gk] / G.base, wr = W.prices[gk] / G.base;
+      const tr = E.exports[gk] > E.imports[gk] ? `<span class="good">+${fmtQ(E.exports[gk])}</span>` : E.imports[gk] > 0.5 ? `<span class="warn">−${fmtQ(E.imports[gk])}</span>` : '';
+      const f = E.fulfill[gk];
+      h += `<tr><td>${G.name}</td><td style="color:${r > 1.4 ? 'var(--bad)' : r < 0.75 ? 'var(--good)' : 'inherit'}">${pct(r)}</td><td class="muted">${pct(wr)}</td>
+        <td>${fmtQ(E.S[gk])}</td><td>${fmtQ(E.D[gk])}</td><td>${tr}</td><td class="${f < 0.95 ? 'bad' : ''}">${pct(f)}</td></tr>`;
+    }
+    h += '</table><p class="small muted">Price 100% = base price. Shortages ("Met" below 100%) ration goods for everyone: pops go without, factories stall, and the army runs short of arms.</p>';
+    return h;
+  },
+
+  viewPops(c, g) {
+    const E = c.econ;
+    let h = `<div class="card">
+      ${bar('Average standard of living', E.avgSol, { tip: 'How well pops meet their basic, everyday and luxury needs.' })}
+      ${bar('Contentment', 50 + E.contentment, { text: fmtSigned(E.contentment, 0), tip: 'Standard of living compared with what each class expects. Drives approval.' })}
+      <div class="grid2" style="margin-top:6px">
+        <div class="kv"><span>Population</span><span>${fmtPop(c.pop)}</span></div>
+        <div class="kv"><span>Literacy</span><span>${pct(E.literacy)}</span></div>
+        <div class="kv"><span>Unemployment</span><span class="${E.unemployment > 0.08 ? 'bad' : ''}">${pct(E.unemployment, 1)}</span></div>
+        <div class="kv"><span>Peasantry</span><span>${pct(E.popType.peasants / Math.max(1, c.pop))}</span></div>
+      </div></div>`;
+    h += `<div class="card"><h3>Social classes</h3><table class="list"><tr><th>Class</th><th>Pop</th><th>Share</th><th title="Standard of living (0-100)">SoL</th><th title="Net income per person per month">Income</th><th>Jobless</th></tr>`;
+    for (const t of POP_KEYS) {
+      const n = E.popType[t];
+      if (n < 1) continue;
+      const exp = SOL_EXPECT[POP_TYPES[t].strata];
+      const sol = E.solType[t];
+      h += `<tr title="${esc(POP_TYPES[t].desc)} Expected standard of living: ${exp}."><td>${POP_TYPES[t].name}</td><td>${fmtPop(n)}</td><td>${pct(n / c.pop, 1)}</td>
+        <td style="color:${sol >= exp ? 'var(--good)' : sol < exp - 15 ? 'var(--bad)' : 'var(--warn)'}">${sol.toFixed(0)}</td>
+        <td>$${(E.incType[t] * 1000).toFixed(0)}</td><td>${t === 'peasants' ? '' : n > 0 ? pct(E.unempType[t] / n) : ''}</td></tr>`;
+    }
+    h += `</table><p class="small muted">Green: living as well as the class expects (lower ${SOL_EXPECT.lower}, middle ${SOL_EXPECT.middle}, upper ${SOL_EXPECT.upper}). Workers come from the peasantry as new jobs open; clerks and capitalists also need literacy.</p></div>`;
+    h += `<div class="card"><h3>By stratum</h3>${bar('Lower classes', E.strataSol.lower)}${bar('Middle classes', E.strataSol.middle)}${bar('Upper classes', E.strataSol.upper)}</div>`;
+    h += `<div class="card"><h3>Needs</h3><p class="small">Pops spend their income in order: <b>basic needs</b> (grain, fish or meat, clothes, coal or fuel), then <b>everyday goods</b> (more food and clothes, furniture, appliances, fuel), then <b>luxuries</b>. Whatever is left is saved; capitalists and landowners invest their savings. Hunger shrinks the population; comfort grows it.</p></div>`;
+    h += `<div class="card"><h3>Class politics</h3><p class="small">Weighted by wealth and influence, the classes pull public opinion toward <b>${ideologyText(E.popIdeo)}</b>. Poverty radicalizes: miserable pops drift left and toward strongmen, while literacy makes people more liberal.</p></div>`;
+    return h;
+  },
+
+  policyValue(c, k) { return k === 'tax' || k === 'tariff' ? pct(c.policy[k]) : c.policy[k].toFixed(1) + '% GDP'; },
 
   budgetHtml(c) {
     const b = projectBudget(c);
     const debt = -c.treasury / c.gdp;
     return `<h3>Monthly budget</h3>
-      <div class="kv"><span>Tax revenue</span><span class="good">${fmtMoney(b.revenue)}</span></div>
+      <div class="kv"><span>Income tax</span><span class="good">${fmtMoney(b.taxes)}</span></div>
+      ${b.tariffs > 0.0001 ? `<div class="kv"><span>Tariffs</span><span class="good">${fmtMoney(b.tariffs)}</span></div>` : ''}
+      ${Math.abs(b.stateProfit) > 0.0001 ? `<div class="kv"><span>State enterprises</span><span class="${b.stateProfit < 0 ? 'bad' : 'good'}">${fmtMoney(b.stateProfit)}</span></div>` : ''}
       <div class="kv"><span>Spending (${b.spendPct.toFixed(1)}% of GDP incl. ${ADMIN_COST}% administration)</span><span class="bad">−${fmtMoney(b.spend)}</span></div>
       ${b.interest ? `<div class="kv"><span>Debt interest</span><span class="bad">−${fmtMoney(b.interest)}</span></div>` : ''}
       <div class="kv" style="border-top:1px solid var(--line);margin-top:4px;padding-top:4px"><span><b>Balance</b></span><span class="${b.net < 0 ? 'bad' : 'good'}"><b>${b.net >= 0 ? '+' : ''}${fmtMoney(b.net)}</b></span></div>
@@ -524,6 +613,8 @@ const UI = {
       case 'dom': { const r = performDomestic(g, ds.id); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }
       case 'appease': { const r = appeaseFaction(g, ds.f); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }
       case 'regime': this.showRegimeModal(); return;
+      case 'build': { const r = orderBuilding(g, ds.t); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }
+      case 'autoinvest': { const c = this.player(); c.econ.autoInvest = !c.econ.autoInvest; this.renderTab(); return; }
       case 'diplo': {
         if (ds.id === 'war') { this.confirmWar(+ds.target); return; }
         const r = performDiplo(g, ds.id, +ds.target);
@@ -550,7 +641,10 @@ const UI = {
     }
     tip.innerHTML = `<b>${esc(pr.name)}</b>${pr.id === c.capital ? ' <span class="warn">★ capital</span>' : ''} <span class="muted">· ${fmtPop(pr.pop)}</span><br>
       ${swatch(c)} ${esc(formalName(c))}<br><span class="muted">${GOVS[c.gov].name} · ${esc(leaderLine(c))}</span><br>
-      Stability <b style="color:${statColor(c.stability)}">${Math.round(c.stability)}</b> · Approval ${Math.round(c.approval)}${rel}`;
+      Stability <b style="color:${statColor(c.stability)}">${Math.round(c.stability)}</b> · Approval ${Math.round(c.approval)}${rel}
+      <br><span class="muted">Living standard ${provinceSol(pr).toFixed(0)} · literacy ${pct(pr.lit)} · peasants ${pct(pr.pops.peasants / Math.max(1, pr.pop))}</span>
+      ${pr.buildings.length ? '<br><span class="muted">' + pr.buildings.slice().sort((a, b) => b.level - a.level).slice(0, 3).map(b => esc(BUILDINGS[b.t].name) + ' ' + b.level).join(', ') + '</span>' : ''}
+      ${Object.entries(pr.res).filter(([, v]) => v > 0 && v !== undefined).length ? '<br><span class="muted small">Resources: ' + Object.entries(pr.res).filter(([, v]) => v > 0).map(([k, v]) => RES_INFO[k] + ' ' + v).join(', ') + '</span>' : ''}`;
     const wrap = $('#map-wrap').getBoundingClientRect();
     let x = e.clientX - wrap.left + 14, y = e.clientY - wrap.top + 14;
     tip.classList.remove('hidden');
@@ -831,8 +925,11 @@ const UI = {
       <p class="small">${GOV_ORDER.map(k => `${govBadge(k)} ${GOVS[k].desc}`).join('<br><br>')}</p>
       <h4>Elections</h4>
       <p class="small">Democracies and constitutional monarchies vote every 4 years. Parties poll according to how close they are to public opinion, and the governing party gains or loses votes with approval. Lose, and you can concede or refuse to leave (if the army backs you). Campaigns, snap elections, ballot rigging and states of emergency are all on the table.</p>
-      <h4>Economy</h4>
-      <p class="small">Set the tax rate and spending in the Economy tab. Deficits build debt; above 150% of GDP the state defaults. Education and infrastructure drive growth; welfare buys approval; police suppress unrest at the cost of freedom.</p>
+      <h4>Pops & the economy</h4>
+      <p class="small">Every province is home to nine social classes (peasants, laborers, workers, soldiers, clerks, officials, clergy, capitalists, landowners), each with its own income, savings, standard of living and politics. Farms, mines and factories employ them and turn inputs into goods: iron and coal into steel, steel into tools, arms and appliances, fiber into clothes, and so on. Raw producers need the right land or deposits, so resources are scarce.</p>
+      <p class="small">Each nation has a market where prices follow supply and demand, and shortages and surpluses are traded on the world market. Pops buy basic needs first, then everyday goods, then luxuries. Their standard of living against what their class expects drives approval, unrest and which way they vote, and the poor radicalize. Capitalists invest profits in whatever pays best; the state builds from its investment fund. Watch the <b>Market</b> and <b>Pops</b> tabs, and build in the <b>Economy</b> tab.</p>
+      <h4>Budget</h4>
+      <p class="small">Set taxes, tariffs and spending in the Economy tab. Spending flows back into the economy as wages and purchases. Deficits build debt; above 150% of GDP the state defaults. Education raises literacy and productivity; infrastructure makes every building more productive; welfare supports the poor; police suppress unrest at the cost of freedom.</p>
       <h4>War & diplomacy</h4>
       <p class="small">Click any nation to improve relations, trade, ally, fund rebels or declare war. You can only invade nations that share a border or a narrow strait. Battles capture provinces; take the enemy capital after a third of their land is gone, or take 60%, and they capitulate. Lose all your provinces and the game is over.</p>
       <h4>Political capital (★ PC)</h4>
