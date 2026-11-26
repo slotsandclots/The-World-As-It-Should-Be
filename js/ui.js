@@ -141,6 +141,7 @@ const UI = {
       App.redraw();
       this.renderMapModes();
     });
+    this.initZoom();
     const legend = document.createElement('div');
     legend.id = 'map-legend';
     $('#map-wrap').appendChild(legend);
@@ -152,6 +153,66 @@ const UI = {
       else if (e.key === 'n' || e.key === 'N') App.step(true);
     });
   },
+
+  // ------------------------------------------------------------ map zoom & pan
+
+  view: { z: 1, x: 0, y: 0 },
+
+  initZoom() {
+    const wrap = $('#map-wrap'), inner = $('#map-inner');
+    this.labels = new LabelLayer($('#labels'), wrap, App.renderer);
+    App.renderer.onRender = () => this.drawLabels();
+    const apply = () => { inner.style.transform = `translate(${this.view.x}px, ${this.view.y}px) scale(${this.view.z})`; this.drawLabels(); };
+    this.applyView = apply;
+    const zoomAt = (px, py, factor) => {
+      const z = clamp(this.view.z * factor, 1, 10);
+      const k = z / this.view.z;
+      this.view.x = px - (px - this.view.x) * k;
+      this.view.y = py - (py - this.view.y) * k;
+      this.view.z = z;
+      if (z === 1) { this.view.x = 0; this.view.y = 0; }
+      apply();
+    };
+    wrap.addEventListener('wheel', e => {
+      if (!App.game) return;
+      e.preventDefault();
+      const r = wrap.getBoundingClientRect();
+      zoomAt(e.clientX - r.left, e.clientY - r.top, Math.exp(-e.deltaY * 0.0015));
+    }, { passive: false });
+    let drag = null;
+    wrap.addEventListener('pointerdown', e => {
+      if (e.button !== 0 || !e.target.closest('#map')) return;
+      drag = { x: e.clientX, y: e.clientY, vx: this.view.x, vy: this.view.y, moved: false };
+    });
+    window.addEventListener('pointermove', e => {
+      if (!drag) return;
+      const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+      if (!drag.moved && Math.hypot(dx, dy) < 5) return;
+      drag.moved = true;
+      wrap.classList.add('panning');
+      this.view.x = drag.vx + dx; this.view.y = drag.vy + dy;
+      apply();
+    });
+    window.addEventListener('pointerup', () => {
+      if (drag && drag.moved) { this.suppressClick = true; setTimeout(() => { this.suppressClick = false; }, 0); }
+      drag = null;
+      wrap.classList.remove('panning');
+    });
+    document.querySelectorAll('[data-zoom]').forEach(b => b.addEventListener('click', () => {
+      const r = wrap.getBoundingClientRect();
+      if (b.dataset.zoom === 'reset') { this.view = { z: 1, x: 0, y: 0 }; apply(); }
+      else zoomAt(r.width / 2, r.height / 2, b.dataset.zoom === 'in' ? 1.5 : 1 / 1.5);
+    }));
+    window.addEventListener('resize', () => this.drawLabels());
+  },
+
+  drawLabels() {
+    const g = App.game;
+    if (!this.labels) return;
+    this.labels.draw(g, this.selected, g && !this.choosing ? g.player : -1);
+  },
+
+  resetView() { this.view = { z: 1, x: 0, y: 0 }; if (this.applyView) this.applyView(); },
 
   // ------------------------------------------------------------ rendering
 
@@ -195,6 +256,8 @@ const UI = {
     if (!lg) return;
     if (this.mapMode === 'government') {
       lg.innerHTML = GOV_ORDER.map(k => `<div class="row"><span class="swatch" style="background:${GOVS[k].color}"></span>${GOVS[k].name}</div>`).join('');
+    } else if (this.mapMode === 'resources') {
+      lg.innerHTML = Object.entries(RESOURCE_COLORS).map(([k, c]) => `<div class="row"><span class="swatch" style="background:rgb(${c.join(',')})"></span>${RES_INFO[k]}</div>`).join('');
     } else if (this.mapMode === 'political') {
       lg.innerHTML = '<span class="muted">Click a nation for details · ● capital</span>';
     } else lg.innerHTML = MAP_MODES[this.mapMode].legend;
@@ -779,7 +842,7 @@ const UI = {
 
   onMapClick(e) {
     const g = App.game;
-    if (!g) return;
+    if (!g || this.suppressClick) return;
     const p = App.renderer.provinceAt(e.clientX, e.clientY);
     if (p < 0) { this.select(null); return; }
     const owner = g.world.provinces[p].owner;

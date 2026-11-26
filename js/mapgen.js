@@ -199,8 +199,21 @@ const WORLD_MODELS = {
     tileScale: 1.5, minIsland: 8, provinceSize: 60, countries: 30,
     build(ctx) { return buildEarth(ctx); },
   },
+  earthRegions: {
+    name: 'Earth: Historical Regions', desc: 'Earth, with fictional nations founded in the heartlands of real regions: borders that loosely echo history.', aspect: 2.65,
+    tileScale: 1.5, minIsland: 8, provinceSize: 60, countries: 36,
+    build(ctx) { return buildEarth(ctx); },
+    // [lon, lat] of regional heartlands, most important first.
+    regionSeeds: [
+      [-98, 39], [10, 51], [37, 55], [105, 34], [78, 22], [-47, -15], [2, 47], [-2, 53], [138, 36], [-102, 22],
+      [12, 43], [35, 39], [-64, -34], [135, -25], [30, 27], [44, 32], [53, 32], [8, 9], [24, -29], [-122, 45],
+      [-75, 45], [101, 15], [113, 24], [-4, 40], [20, 52], [24, 45], [110, -7], [45, 24], [68, 47], [90, 58],
+      [38, 9], [23, -3], [-74, 4], [-72, -36], [70, 30], [128, 37], [130, 62], [122, 12], [16, 62], [-77, -10],
+      [36, -2], [-6, 13], [103, 47], [88, 24], [95, 20], [174, -41], [47, -19], [-66, 8], [17, -12], [-85, 14],
+    ],
+  },
 };
-const WORLD_MODEL_ORDER = ['continents', 'pangaea', 'archipelago', 'twin', 'inlandSea', 'shattered', 'earth'];
+const WORLD_MODEL_ORDER = ['continents', 'pangaea', 'archipelago', 'twin', 'inlandSea', 'shattered', 'earth', 'earthRegions'];
 
 // ------------------------------------------------------------------ Earth
 
@@ -479,7 +492,22 @@ function generateWorld(seed, opts) {
   // ---- 5. Nations: spread-out capitals, then grow outward over province adjacency.
   const nCountries = clamp(opts.countries || 14, 2, Math.max(2, Math.floor(nProv / 3)));
   const caps = [];
-  caps.push(rng.weighted(provinces, P => P.tiles * (provCompSize[P.id] > 300 ? 1 : 0.2)).id);
+  if (model.regionSeeds) {
+    // Seed nations at real-world regional centers, in priority order.
+    const V = EARTH_VIEW;
+    for (const [lon, lat] of model.regionSeeds) {
+      if (caps.length >= nCountries) break;
+      const x = ((lon - V.lon0 + 720) % 360) / 360 * W, y = (V.latTop - lat) / V.latSpan * H;
+      let best = -1, bd = Infinity;
+      for (const P of provinces) {
+        if (caps.includes(P.id)) continue;
+        const d = Math.hypot(P.lx - x, P.ly - y);
+        if (d < bd) { bd = d; best = P.id; }
+      }
+      if (best >= 0 && bd < 12) caps.push(best);
+    }
+  }
+  if (!caps.length) caps.push(rng.weighted(provinces, P => P.tiles * (provCompSize[P.id] > 300 ? 1 : 0.2)).id);
   while (caps.length < nCountries) {
     let best = -1, bs = -1;
     for (const P of provinces) {
@@ -496,7 +524,7 @@ function generateWorld(seed, opts) {
     caps.push(best);
   }
 
-  const rates = caps.map(() => rng.range(0.5, 1.7));
+  const rates = caps.map(() => (model.regionSeeds ? rng.range(0.85, 1.15) : rng.range(0.5, 1.7)));
   const fronts = caps.map(c => [c]);
   caps.forEach((c, i) => { provinces[c].owner = i; });
   const active = () => fronts.map((f, i) => i).filter(i => fronts[i].length > 0);

@@ -20,6 +20,8 @@ const MAP_MODES = {
   government: { name: 'Government', legend: 'Form of government' },
   stability: { name: 'Stability', legend: 'Red = collapsing, green = stable' },
   ideology: { name: 'Public Opinion', legend: 'Red = left, blue = right; darker = authoritarian' },
+  terrain: { name: 'Terrain', legend: 'Lowlands green, highlands brown, peaks white', tile: true },
+  resources: { name: 'Resources', legend: 'Each province\'s richest resource', province: p => resourceColor(p), key: true },
   sol: { name: 'Living Standard', legend: 'Standard of living by province: red = destitute, green = prosperous', province: p => rampRgb((provinceSol(p) - 15) / 50 * 100) },
   industry: { name: 'Industry', legend: 'Share of each province working in factories: grey = rural, orange = industrial', province: p => mixRgb([75, 78, 92], [240, 130, 40], clamp(provinceIndustry(p) / 0.4, 0, 1)) },
   relations: { name: 'Relations', legend: 'Your relations: red = hostile, green = friendly' },
@@ -72,6 +74,7 @@ class MapRenderer {
     const ccol = game.countries.map(c => this.countryColor(game, c, mode, player));
     const pmode = MAP_MODES[mode] && MAP_MODES[mode].province;
     const pcol = provinces.map(pr => (pmode ? pmode(pr) : ccol[pr.owner]));
+    const tileMode = !!(MAP_MODES[mode] && MAP_MODES[mode].tile);
 
     const SEL = [255, 255, 255], PLY = [255, 214, 90], BORDER = [28, 24, 34];
     for (let y = 0; y < H; y++) {
@@ -89,8 +92,8 @@ class MapRenderer {
           for (let s = 0; s < 4; s++) if (nbr[s] >= 0 && provOf[nbr[s]] >= 0) et[s] = 4;
         } else {
           const o = owner[p];
-          const col = pcol[p];
-          const sh = 1.08 - height[t] * 0.32;
+          const col = tileMode ? terrainRgb(height[t]) : pcol[p];
+          const sh = tileMode ? 1 : 1.08 - height[t] * 0.32;
           const bright = o === selected ? 1.12 : 1;
           base = [col[0] * sh * bright, col[1] * sh * bright, col[2] * sh * bright];
           for (let s = 0; s < 4; s++) {
@@ -131,7 +134,7 @@ class MapRenderer {
     const ctx = this.ctx;
     ctx.putImageData(this.img, 0, 0);
     this.drawWarFronts(game, player);
-    this.drawLabels(game, selected, player);
+    if (this.onRender) this.onRender();
   }
 
   // Diagonal hatching over provinces of nations at war with the player.
@@ -152,11 +155,26 @@ class MapRenderer {
     }
   }
 
-  drawLabels(game, selected, player) {
-    const ctx = this.ctx, S = this.S;
+  drawCapitals(game, player) {
+    const ctx = this.ctx, S = this.S, provs = this.world.provinces;
+    for (const c of game.countries) {
+      if (!c.alive) continue;
+      const cap = provs[c.capital];
+      if (!cap) continue;
+      ctx.beginPath();
+      ctx.arc((cap.lx + 0.5) * S, (cap.ly + 0.5) * S, S * 0.7, 0, Math.PI * 2);
+      ctx.fillStyle = c.id === player ? '#ffd24a' : '#fff';
+      ctx.fill();
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = '#222';
+      ctx.stroke();
+    }
+  }
+
+  // Where each nation's name goes, in map tile coordinates, and how big its land is.
+  labelAnchors(game) {
     const provs = this.world.provinces;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
+    const out = [];
     for (const c of game.countries) {
       if (!c.alive) continue;
       let sx = 0, sy = 0, n = 0;
@@ -169,27 +187,9 @@ class MapRenderer {
         const d = (p.lx - cx) ** 2 + (p.ly - cy) ** 2 - p.tiles * 0.5;
         if (d < bd) { bd = d; best = p; }
       }
-      const size = clamp(Math.sqrt(n) * 0.5, 9, 24) * S / 5;
-      ctx.font = `${c.id === selected ? 'bold ' : '600 '}${size.toFixed(0)}px Georgia, 'Times New Roman', serif`;
-      ctx.lineWidth = 3;
-      ctx.strokeStyle = 'rgba(10,10,20,0.75)';
-      ctx.fillStyle = c.id === player ? '#ffe08a' : '#f4f1ea';
-      const lx = (best.lx + 0.5) * S, ly = (best.ly + 0.5) * S;
-      ctx.strokeText(c.name, lx, ly);
-      ctx.fillText(c.name, lx, ly);
-      // capital marker
-      const cap = provs[c.capital];
-      if (cap) {
-        const x = (cap.lx + 0.5) * S, y = (cap.ly + 0.5) * S + (cap === best ? size * 0.85 : 0);
-        ctx.beginPath();
-        ctx.arc(x, y, S * 0.7, 0, Math.PI * 2);
-        ctx.fillStyle = c.id === player ? '#ffd24a' : '#fff';
-        ctx.fill();
-        ctx.lineWidth = 1.5;
-        ctx.strokeStyle = '#222';
-        ctx.stroke();
-      }
+      out.push({ c, x: best.lx + 0.5, y: best.ly + 0.5, tiles: n });
     }
+    return out.sort((a, b) => b.tiles - a.tiles);
   }
 
   provinceAt(clientX, clientY) {
@@ -199,5 +199,77 @@ class MapRenderer {
     const y = Math.floor((clientY - rect.top) / rect.height * this.world.H);
     if (x < 0 || y < 0 || x >= this.world.W || y >= this.world.H) return -1;
     return this.world.provOf[y * this.world.W + x];
+  }
+}
+
+function terrainRgb(h) {
+  if (h < 0.15) return mixRgb([92, 150, 78], [128, 165, 88], h / 0.15);
+  if (h < 0.45) return mixRgb([128, 165, 88], [168, 150, 96], (h - 0.15) / 0.3);
+  if (h < 0.75) return mixRgb([168, 150, 96], [128, 98, 72], (h - 0.45) / 0.3);
+  return mixRgb([128, 98, 72], [235, 235, 240], clamp((h - 0.75) / 0.25, 0, 1));
+}
+
+const RESOURCE_COLORS = {
+  arable: [214, 196, 82], pasture: [140, 200, 110], forest: [40, 120, 60], coal: [70, 70, 78], iron: [178, 90, 60], oil: [120, 60, 150], fish: [70, 150, 210],
+};
+const RESOURCE_TYPICAL = { arable: 22, pasture: 8, forest: 12, coal: 24, iron: 20, oil: 30, fish: 16 };
+function resourceColor(p) {
+  if (!p.res) return [120, 120, 120];
+  let best = null, bv = 0;
+  for (const k in RESOURCE_COLORS) { const v = (p.res[k] || 0) / RESOURCE_TYPICAL[k]; if (v > bv) { bv = v; best = k; } }
+  if (!best) return [110, 110, 115];
+  return mixRgb([110, 110, 115], RESOURCE_COLORS[best], clamp(0.45 + bv * 0.4, 0, 1));
+}
+
+// Crisp nation names drawn on an overlay at screen resolution, so they stay
+// sharp at any zoom. Smaller nations' names appear as you zoom in; names that
+// would overlap a bigger nation's are skipped.
+class LabelLayer {
+  constructor(canvas, wrap, renderer) {
+    this.canvas = canvas; this.wrap = wrap; this.r = renderer;
+    this.ctx = canvas.getContext('2d');
+  }
+
+  draw(game, selected, player) {
+    const dpr = window.devicePixelRatio || 1;
+    const wr = this.wrap.getBoundingClientRect();
+    if (this.canvas.width !== Math.round(wr.width * dpr) || this.canvas.height !== Math.round(wr.height * dpr)) {
+      this.canvas.width = Math.round(wr.width * dpr); this.canvas.height = Math.round(wr.height * dpr);
+    }
+    const ctx = this.ctx;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, wr.width, wr.height);
+    if (!game || !this.r.world) return;
+    const mr = this.r.canvas.getBoundingClientRect();
+    const sx = mr.width / this.r.world.W, sy = mr.height / this.r.world.H;
+    const placed = [];
+    // Capitals: small crisp dots at any zoom.
+    const provs = this.r.world.provinces;
+    for (const c of game.countries) {
+      if (!c.alive || !provs[c.capital]) continue;
+      const p = provs[c.capital];
+      const x = mr.left - wr.left + (p.lx + 0.5) * sx, y = mr.top - wr.top + (p.ly + 0.5) * sy;
+      ctx.beginPath(); ctx.arc(x, y, c.id === player ? 4 : 3, 0, Math.PI * 2);
+      ctx.fillStyle = c.id === player ? '#ffd24a' : '#fff'; ctx.fill();
+      ctx.lineWidth = 1.5; ctx.strokeStyle = '#1a1a22'; ctx.stroke();
+    }
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    for (const a of this.r.labelAnchors(game)) {
+      const size = clamp(Math.sqrt(a.tiles) * 0.19 * sx, 0, 28);
+      if (size < 8.5 && a.c.id !== selected && a.c.id !== player) continue;
+      const fs = Math.max(size, 9);
+      ctx.font = `${a.c.id === selected ? 'bold ' : '600 '}${fs.toFixed(1)}px Georgia, 'Times New Roman', serif`;
+      const x = mr.left - wr.left + a.x * sx, y = mr.top - wr.top + a.y * sy;
+      const w = ctx.measureText(a.c.name).width;
+      const box = [x - w / 2 - 2, y - fs / 2 - 1, x + w / 2 + 2, y + fs / 2 + 1];
+      if (box[2] < 0 || box[0] > wr.width || box[3] < 0 || box[1] > wr.height) continue;
+      if (placed.some(b => box[0] < b[2] && box[2] > b[0] && box[1] < b[3] && box[3] > b[1])) continue;
+      placed.push(box);
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = 'rgba(10,10,20,0.8)';
+      ctx.fillStyle = a.c.id === player ? '#ffe08a' : '#f4f1ea';
+      ctx.strokeText(a.c.name, x, y);
+      ctx.fillText(a.c.name, x, y);
+    }
   }
 }

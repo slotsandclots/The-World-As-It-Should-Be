@@ -10,6 +10,7 @@ const App = {
     this.setSpeed(0);
     this.game = createGame(seed, opts);
     this.renderer.setWorld(this.game.world);
+    UI.resetView();
     UI.choosing = true;
     UI.selected = null;
     UI.tab = 'overview';
@@ -21,6 +22,7 @@ const App = {
     this.setSpeed(0);
     this.game = startCampaign();
     this.renderer.setWorld(this.game.world);
+    UI.resetView();
     UI.choosing = false;
     UI.selected = null;
     UI.tab = 'overview';
