@@ -62,51 +62,273 @@ function labelComponents(W, H, pred) {
   return { comp, sizes };
 }
 
-function generateWorld(seed, opts) {
-  opts = opts || {};
-  const W = opts.width || 200, H = opts.height || 125, N = W * H;
-  const landFrac = opts.land || 0.42;
-  const rng = makeRng(String(seed) + '|map');
-  const noise = makeValueNoise(rng);
-  const aspect = W / H;
+// ------------------------------------------------------------------ world models
+// Each model builds a raw heightmap. Most then pick a sea level so a set share
+// of the map is land; Earth uses real coastlines instead.
 
-  // ---- 1. Heightmap: fractal noise + a few continental blobs, sunk at the edges.
-  const raw = new Float32Array(N);
-  const blobs = [];
-  const nb = rng.int(3, 6);
-  for (let i = 0; i < nb; i++) {
-    blobs.push({ x: rng.range(0.12, 0.88), y: rng.range(0.15, 0.85), r: rng.range(0.13, 0.28), s: rng.range(0.6, 1) });
+const MAP_SIZES = { small: 16000, medium: 25000, large: 41600 }; // tiles
+
+function worldDims(opts) {
+  if (opts.width && opts.height) return [opts.width, opts.height];
+  const m = WORLD_MODELS[opts.model] || WORLD_MODELS.continents;
+  const n = (MAP_SIZES[opts.size] || MAP_SIZES.medium) * (m.tileScale || 1);
+  const H = Math.round(Math.sqrt(n / m.aspect));
+  return [Math.round(H * m.aspect), H];
+}
+
+// Shared machinery: domain-warped coordinates, gaussian blobs, sunken map edges.
+function blobField(blobs, wx, wy, aspect) {
+  let b = 0;
+  for (const bl of blobs) {
+    const dx = (wx - bl.x) * aspect / (bl.sx || 1), dy = (wy - bl.y) / (bl.sy || 1);
+    const v = Math.exp(-(dx * dx + dy * dy) / (bl.r * bl.r)) * bl.s;
+    if (v > b) b = v;
   }
-  const ox = rng.range(0, 100), oy = rng.range(0, 100);
+  return b;
+}
+
+function fieldLoop(ctx, ox, oy, warp, fn) {
+  const { W, H, noise } = ctx;
+  const raw = new Float32Array(W * H);
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
       const nx = x / W, ny = y / H;
-      const wx = nx + (noise.fbm(nx * 3 + ox, ny * 3 + oy, 3) - 0.5) * 0.22;
-      const wy = ny + (noise.fbm(nx * 3 + oy + 31, ny * 3 + ox + 17, 3) - 0.5) * 0.22;
-      let b = 0;
-      for (const bl of blobs) {
-        const dx = (wx - bl.x) * aspect, dy = wy - bl.y;
-        const v = Math.exp(-(dx * dx + dy * dy) / (bl.r * bl.r)) * bl.s;
-        if (v > b) b = v;
-      }
-      let h = noise.fbm(wx * 5 * aspect + ox, wy * 5 + oy, 5) * 0.55 + b * 0.65;
+      const wx = nx + (noise.fbm(nx * 3 + ox, ny * 3 + oy, 3) - 0.5) * warp;
+      const wy = ny + (noise.fbm(nx * 3 + oy + 31, ny * 3 + ox + 17, 3) - 0.5) * warp;
+      let h = fn(nx, ny, wx, wy);
       const e = Math.min(nx, 1 - nx, ny, 1 - ny);
       if (e < 0.08) h -= (0.08 - e) * 6;
       raw[y * W + x] = h;
     }
   }
+  return raw;
+}
 
-  // ---- 2. Sea level chosen so that a fixed fraction of the map is land.
+const WORLD_MODELS = {
+  continents: {
+    name: 'Continents', desc: 'A few large continents and scattered islands.', land: 0.42, aspect: 1.6,
+    build(ctx) {
+      const { rng, noise, aspect } = ctx;
+      const blobs = [];
+      const nb = rng.int(3, 6);
+      for (let i = 0; i < nb; i++) blobs.push({ x: rng.range(0.12, 0.88), y: rng.range(0.15, 0.85), r: rng.range(0.13, 0.28), s: rng.range(0.6, 1) });
+      const ox = rng.range(0, 100), oy = rng.range(0, 100);
+      return { raw: fieldLoop(ctx, ox, oy, 0.22, (nx, ny, wx, wy) => noise.fbm(wx * 5 * aspect + ox, wy * 5 + oy, 5) * 0.55 + blobField(blobs, wx, wy, aspect) * 0.65) };
+    },
+  },
+  pangaea: {
+    name: 'Supercontinent', desc: 'One vast landmass: long land borders, crowded neighbors and few safe coasts.', land: 0.5, aspect: 1.6,
+    build(ctx) {
+      const { rng, noise, aspect } = ctx;
+      const ox = rng.range(0, 100), oy = rng.range(0, 100);
+      const cx = rng.range(0.42, 0.58), cy = rng.range(0.42, 0.58);
+      const blobs = [{ x: cx, y: cy, r: 0.3, s: 1 }];
+      const nl = rng.int(3, 5);
+      for (let i = 0; i < nl; i++) {
+        const a = rng.range(0, Math.PI * 2), d = rng.range(0.15, 0.27);
+        blobs.push({ x: cx + Math.cos(a) * d / aspect * 1.4, y: cy + Math.sin(a) * d, r: rng.range(0.14, 0.22), s: rng.range(0.75, 1) });
+      }
+      return { raw: fieldLoop(ctx, ox, oy, 0.3, (nx, ny, wx, wy) => noise.fbm(wx * 5 * aspect + ox, wy * 5 + oy, 5) * 0.5 + blobField(blobs, wx, wy, aspect) * 0.8) };
+    },
+  },
+  archipelago: {
+    name: 'Archipelago', desc: 'Countless islands divided by straits: a world of navies and island kingdoms.', land: 0.3, aspect: 1.6, minIsland: 20,
+    build(ctx) {
+      const { rng, noise, aspect } = ctx;
+      const ox = rng.range(0, 100), oy = rng.range(0, 100);
+      const blobs = [];
+      const nb = rng.int(18, 30);
+      for (let i = 0; i < nb; i++) blobs.push({ x: rng.range(0.08, 0.92), y: rng.range(0.1, 0.9), r: rng.range(0.04, 0.11), s: rng.range(0.6, 1) });
+      return { raw: fieldLoop(ctx, ox, oy, 0.18, (nx, ny, wx, wy) => noise.fbm(wx * 8 * aspect + ox, wy * 8 + oy, 5) * 0.6 + blobField(blobs, wx, wy, aspect) * 0.55) };
+    },
+  },
+  twin: {
+    name: 'Twin Continents', desc: 'An Old World and a New World facing each other across a wide ocean.', land: 0.4, aspect: 1.6,
+    build(ctx) {
+      const { rng, noise, aspect } = ctx;
+      const ox = rng.range(0, 100), oy = rng.range(0, 100);
+      const blobs = [];
+      for (const side of [[0.1, 0.38], [0.62, 0.9]]) {
+        const n = rng.int(2, 4);
+        for (let i = 0; i < n; i++) blobs.push({ x: rng.range(side[0], side[1]), y: rng.range(0.18, 0.82), r: rng.range(0.13, 0.2), sx: 0.75, sy: 1.5, s: rng.range(0.7, 1) });
+      }
+      return {
+        raw: fieldLoop(ctx, ox, oy, 0.2, (nx, ny, wx, wy) => {
+          const ocean = Math.exp(-(((nx - 0.5) / 0.07) ** 2)) * 0.6;
+          return noise.fbm(wx * 5 * aspect + ox, wy * 5 + oy, 5) * 0.5 + blobField(blobs, wx, wy, aspect) * 0.7 - ocean;
+        }),
+      };
+    },
+  },
+  inlandSea: {
+    name: 'Inland Sea', desc: 'A ring of lands around a great central sea, its shores crowded with rivals.', land: 0.52, aspect: 1.6,
+    build(ctx) {
+      const { rng, noise, aspect } = ctx;
+      const ox = rng.range(0, 100), oy = rng.range(0, 100);
+      const ringR = rng.range(0.36, 0.44);
+      const isles = [];
+      const ni = rng.int(2, 5);
+      for (let i = 0; i < ni; i++) isles.push({ x: rng.range(0.38, 0.62), y: rng.range(0.38, 0.62), r: rng.range(0.03, 0.06), s: rng.range(0.5, 0.8) });
+      return {
+        raw: fieldLoop(ctx, ox, oy, 0.25, (nx, ny, wx, wy) => {
+          const d = Math.hypot((wx - 0.5) * aspect / 1.6, wy - 0.5);
+          const ring = Math.exp(-(((d - ringR) / 0.2) ** 2));
+          return noise.fbm(wx * 5 * aspect + ox, wy * 5 + oy, 5) * 0.5 + ring * 0.7 + blobField(isles, wx, wy, aspect) * 0.5;
+        }),
+      };
+    },
+  },
+  shattered: {
+    name: 'Shattered Lands', desc: 'Continents cracked apart by long rifts and channels into peninsulas and straits.', land: 0.46, aspect: 1.6,
+    build(ctx) {
+      const { rng, noise, aspect } = ctx;
+      const ox = rng.range(0, 100), oy = rng.range(0, 100), rx = rng.range(0, 100), ry = rng.range(0, 100);
+      const blobs = [];
+      const nb = rng.int(4, 7);
+      for (let i = 0; i < nb; i++) blobs.push({ x: rng.range(0.12, 0.88), y: rng.range(0.15, 0.85), r: rng.range(0.15, 0.28), s: rng.range(0.7, 1) });
+      return {
+        raw: fieldLoop(ctx, ox, oy, 0.2, (nx, ny, wx, wy) => {
+          const ridge = 1 - Math.abs(2 * noise.fbm(wx * 3.5 * aspect + rx, wy * 3.5 + ry, 3) - 1);
+          return noise.fbm(wx * 5 * aspect + ox, wy * 5 + oy, 5) * 0.5 + blobField(blobs, wx, wy, aspect) * 0.7 - Math.max(0, ridge - 0.84) * 4;
+        }),
+      };
+    },
+  },
+  earth: {
+    name: 'Earth', desc: 'Our planet\'s real coastlines and mountain ranges, divided among fictional nations.', aspect: 2.65,
+    tileScale: 1.5, minIsland: 8, provinceSize: 60, countries: 30,
+    build(ctx) { return buildEarth(ctx); },
+  },
+};
+const WORLD_MODEL_ORDER = ['continents', 'pangaea', 'archipelago', 'twin', 'inlandSea', 'shattered', 'earth'];
+
+// ------------------------------------------------------------------ Earth
+
+const EARTH_VIEW = { lon0: -169, latTop: 80, latSpan: 136 }; // cut at the Bering Strait; no Antarctica
+
+// Mountain ranges as lon/lat polylines: [points, width in degrees, strength].
+const EARTH_MOUNTAINS = [
+  [[[68, 37], [74, 35], [80, 32], [86, 28], [92, 28], [97, 28]], 4, 1.0], // Himalaya / Hindu Kush
+  [[[80, 35], [88, 33], [96, 33]], 7, 0.65], // Tibetan plateau
+  [[[70, 41], [80, 42], [88, 44], [96, 47], [102, 49]], 3, 0.55], // Tian Shan / Altai
+  [[[-75, 10], [-77, 0], [-77, -10], [-70, -18], [-69, -28], [-71, -38], [-72, -48], [-73, -54]], 2.5, 0.9], // Andes
+  [[[-150, 62], [-135, 58], [-122, 50], [-112, 43], [-107, 37], [-105, 30], [-100, 20], [-97, 17]], 4, 0.7], // Rockies / Sierra Madre
+  [[[-84, 34], [-78, 39], [-72, 43], [-68, 46]], 2.5, 0.35], // Appalachians
+  [[[6, 45], [11, 47], [15, 47]], 2, 0.6], // Alps
+  [[[-1, 43], [2, 42.5]], 1.5, 0.45], // Pyrenees
+  [[[22, 47], [26, 46], [24, 45]], 1.5, 0.35], // Carpathians
+  [[[40, 43], [47, 42]], 2, 0.6], // Caucasus
+  [[[45, 36], [52, 31], [58, 28]], 3, 0.5], // Zagros
+  [[[59, 48], [60, 55], [60, 62], [63, 67]], 2, 0.35], // Urals
+  [[[-8, 31], [0, 34], [8, 36]], 2.5, 0.5], // Atlas
+  [[[38, 13], [39, 8], [37, 2], [35, -4], [34, -9]], 4, 0.55], // East African highlands
+  [[[6, 59], [12, 63], [17, 68], [22, 70]], 2.5, 0.4], // Scandinavian mountains
+  [[[146, -38], [150, -30], [147, -20], [145, -15]], 2, 0.3], // Great Dividing Range
+  [[[135, 36], [139, 37], [142, 41]], 1.5, 0.45], // Japanese Alps
+  [[[-48, -12], [-45, -18], [-43, -21]], 5, 0.25], // Brazilian highlands
+];
+
+let EARTH_MASK = null;
+function earthMask() {
+  if (EARTH_MASK) return EARTH_MASK;
+  const MW = 720, MH = 360;
+  const m = new Uint8Array(MW * MH);
+  EARTH_MASK_RLE.split(';').forEach((row, y) => {
+    let x = 0, v = 0;
+    for (const r of row.split(',')) { const n = parseInt(r, 36); if (v) m.fill(1, y * MW + x, y * MW + x + n); x += n; v ^= 1; }
+  });
+  EARTH_MASK = { m, MW, MH };
+  return EARTH_MASK;
+}
+
+function distToPolyline(lon, lat, pts) {
+  let best = Infinity;
+  const k = Math.cos(lat * Math.PI / 180);
+  for (let i = 0; i + 1 < pts.length; i++) {
+    const [ax, ay] = pts[i], [bx, by] = pts[i + 1];
+    const dx = (bx - ax) * k, dy = by - ay;
+    const px = (lon - ax) * k, py = lat - ay;
+    const t = clamp((px * dx + py * dy) / (dx * dx + dy * dy || 1), 0, 1);
+    const d = Math.hypot(px - t * dx, py - t * dy);
+    if (d < best) best = d;
+  }
+  return best;
+}
+
+function buildEarth(ctx) {
+  const { W, H, N, rng, noise, aspect } = ctx;
+  const { m, MW, MH } = earthMask();
+  const ox = rng.range(0, 100), oy = rng.range(0, 100);
+  const V = EARTH_VIEW;
+  const sample = (lon, lat) => {
+    const fx = ((lon + 180) / 360 * MW - 0.5 + MW) % MW, fy = clamp((90 - lat) / 180 * MH - 0.5, 0, MH - 1.001);
+    const x0 = Math.floor(fx), y0 = Math.floor(fy), x1 = (x0 + 1) % MW, tx = fx - x0, ty = fy - y0;
+    const a = m[y0 * MW + x0], b = m[y0 * MW + x1], c = m[(y0 + 1) * MW + x0], d = m[(y0 + 1) * MW + x1];
+    return a + (b - a) * tx + (c - a) * ty + (a - b - c + d) * tx * ty;
+  };
+  const landness = new Float32Array(N), elev = new Float32Array(N);
+  for (let y = 0; y < H; y++) {
+    const lat = V.latTop - (y + 0.5) / H * V.latSpan;
+    for (let x = 0; x < W; x++) {
+      let lon = V.lon0 + (x + 0.5) / W * 360;
+      if (lon > 180) lon -= 360;
+      const nx = x / W, ny = y / H;
+      const i = y * W + x;
+      landness[i] = sample(lon, lat) + (noise.fbm(nx * 14 * aspect + ox, ny * 14 + oy, 3) - 0.5) * 0.3;
+      let mtn = 0;
+      for (const [pts, w, s] of EARTH_MOUNTAINS) {
+        const d = distToPolyline(lon, lat, pts);
+        if (d < w * 3) mtn = Math.max(mtn, Math.exp(-(d * d) / (w * w)) * s);
+      }
+      elev[i] = clamp(0.06 + noise.fbm(nx * 6 * aspect + ox, ny * 6 + oy, 4) * 0.3 + mtn * 0.7 + Math.abs(lat) / 400, 0, 1);
+    }
+  }
+  // Water depth: shallow shelves near land, deep ocean far away (box blur of the land mask).
+  let blur = Float32Array.from(landness, v => (v > 0.5 ? 1 : 0));
+  const tmp = new Float32Array(N), R = 4;
+  for (let pass = 0; pass < 2; pass++) {
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      let s = 0, n = 0;
+      for (let k = -R; k <= R; k++) { const xx = (x + k + W) % W; s += blur[y * W + xx]; n++; }
+      tmp[y * W + x] = s / n;
+    }
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      let s = 0, n = 0;
+      for (let k = -R; k <= R; k++) { const yy = y + k; if (yy < 0 || yy >= H) continue; s += tmp[yy * W + x]; n++; }
+      blur[y * W + x] = s / n;
+    }
+  }
+  const raw = new Float32Array(N);
+  for (let i = 0; i < N; i++) raw[i] = landness[i] > 0.5 ? 0.501 + elev[i] * 0.5 : clamp(blur[i] * 1.6, 0, 0.98) * 0.5;
+  return { raw, sea: 0.5 };
+}
+
+function generateWorld(seed, opts) {
+  opts = opts || {};
+  const modelId = WORLD_MODELS[opts.model] ? opts.model : 'continents';
+  const model = WORLD_MODELS[modelId];
+  const [W, H] = worldDims(opts);
+  const N = W * H;
+  const landFrac = opts.land || model.land || 0.42;
+  const rng = makeRng(String(seed) + '|map');
+  const noise = makeValueNoise(rng);
+  const aspect = W / H;
+
+  // ---- 1. Heightmap from the chosen world model.
+  const { raw, sea: fixedSea } = model.build({ W, H, N, rng, noise, aspect });
+
+  // ---- 2. Sea level: fixed by the model, or chosen so a set fraction is land.
   const sorted = Float32Array.from(raw).sort();
-  const sea = sorted[Math.floor(N * (1 - landFrac))];
+  const sea = fixedSea !== undefined ? fixedSea : sorted[Math.floor(N * (1 - landFrac))];
   const minH = sorted[0], maxH = sorted[N - 1];
   const land = new Uint8Array(N);
   for (let i = 0; i < N; i++) land[i] = raw[i] > sea ? 1 : 0;
 
   // Remove specks of land and fill tiny lakes.
   {
+    const minIsland = model.minIsland || 35;
     const { comp, sizes } = labelComponents(W, H, i => land[i] === 1);
-    for (let i = 0; i < N; i++) if (comp[i] >= 0 && sizes[comp[i]] < 35) land[i] = 0;
+    for (let i = 0; i < N; i++) if (comp[i] >= 0 && sizes[comp[i]] < minIsland) land[i] = 0;
     const water = labelComponents(W, H, i => land[i] === 0);
     for (let i = 0; i < N; i++) if (water.comp[i] >= 0 && water.sizes[water.comp[i]] < 25) land[i] = 1;
   }
@@ -119,7 +341,7 @@ function generateWorld(seed, opts) {
   // ---- 3. Provinces: scatter seeds over land and grow them with a randomized flood fill.
   const landTiles = [];
   for (let i = 0; i < N; i++) if (land[i]) landTiles.push(i);
-  const targetProv = opts.provinces || Math.round(clamp(landTiles.length / 72, 30, 500));
+  const targetProv = opts.provinces || Math.round(clamp(landTiles.length / (model.provinceSize || 72), 30, 500));
   const minD = Math.sqrt(landTiles.length / targetProv) * 0.85;
   const seeds = [];
   for (let a = 0; a < targetProv * 40 && seeds.length < targetProv; a++) {
@@ -313,5 +535,5 @@ function generateWorld(seed, opts) {
     return { name, adj: adjectiveOf(name), rgb, color: rgbToHex(rgb), capital: cap };
   });
 
-  return { seed: String(seed), W, H, height, land, provOf, provinces, seaLinks, countrySeeds };
+  return { seed: String(seed), model: modelId, W, H, height, land, provOf, provinces, seaLinks, countrySeeds };
 }

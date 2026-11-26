@@ -878,13 +878,13 @@ const UI = {
     const body = `<p class="setup-title">The World As It Should Be</p>
       <p class="muted">A political simulator. Generate a world, take the helm of any nation, and steer it through elections, coups, revolutions and wars. Turn it into a democracy, a monarchy, a junta, a communist or fascist state, or a theocracy, and try to survive.</p>
       <div class="form-row"><label>World seed</label><input type="text" id="setup-seed" value="${seed}"><button id="setup-dice" title="Random seed">🎲</button></div>
-      <div class="form-row"><label>Nations</label><input type="range" id="setup-n" min="6" max="24" value="14" style="flex:1"><b id="setup-n-v" style="width:24px">14</b></div>
-      <div class="form-row"><label>Map size</label><select id="setup-size"><option value="160x100">Small</option><option value="200x125" selected>Medium</option><option value="260x160">Large</option></select></div>
-      <div class="form-row"><label>Geography</label><select id="setup-land"><option value="0.32">Archipelago</option><option value="0.42" selected>Continents</option><option value="0.55">Supercontinent</option></select></div>`;
+      <div class="form-row"><label>World</label><select id="setup-model" style="flex:1">${WORLD_MODEL_ORDER.map(k => `<option value="${k}">${WORLD_MODELS[k].name}</option>`).join('')}</select></div>
+      <p class="small muted" id="setup-model-desc" style="margin:-4px 0 6px 140px">${WORLD_MODELS.continents.desc}</p>
+      <div class="form-row"><label>Nations</label><input type="range" id="setup-n" min="4" max="40" value="14" style="flex:1"><b id="setup-n-v" style="width:24px">14</b></div>
+      <div class="form-row"><label>Map size</label><select id="setup-size"><option value="small">Small</option><option value="medium" selected>Medium</option><option value="large">Large</option></select></div>`;
     const buttons = [{
       label: 'Generate world', cls: 'primary', fn: () => {
-        const [w, h] = $('#setup-size').value.split('x').map(Number);
-        App.newWorld($('#setup-seed').value || 'world', { countries: +$('#setup-n').value, width: w, height: h, land: +$('#setup-land').value });
+        App.newWorld($('#setup-seed').value || 'world', { model: $('#setup-model').value, size: $('#setup-size').value, countries: +$('#setup-n').value });
       },
     }];
     if (hasSave) buttons.push({ label: 'Load saved game', fn: () => { App.load(); } });
@@ -893,6 +893,13 @@ const UI = {
       title: '', body, buttons, row: true,
       onOpen: el => {
         el.querySelector('#setup-n').addEventListener('input', e => { el.querySelector('#setup-n-v').textContent = e.target.value; });
+        el.querySelector('#setup-model').addEventListener('change', e => {
+          const m = WORLD_MODELS[e.target.value];
+          el.querySelector('#setup-model-desc').textContent = m.desc;
+          const n = m.countries || 14;
+          el.querySelector('#setup-n').value = n;
+          el.querySelector('#setup-n-v').textContent = n;
+        });
         el.querySelector('#setup-dice').addEventListener('click', () => { el.querySelector('#setup-seed').value = Math.random().toString(36).slice(2, 8); });
       },
     });
@@ -904,7 +911,7 @@ const UI = {
     App.setSpeed(0);
     this.openModal({
       title: 'Menu', dismiss: true,
-      body: g ? `<p class="small muted">World seed: <b>${esc(g.seed)}</b> · ${gameDate(g)}</p>` : '',
+      body: g ? `<p class="small muted">World: <b>${esc(WORLD_MODELS[g.world.model].name)}</b> · seed <b>${esc(g.seed)}</b> · ${gameDate(g)}</p>` : '',
       buttons: [
         { label: 'Save game', disabled: !playing, fn: () => { App.save(); } },
         { label: 'Load saved game', fn: () => { App.load(); } },

@@ -134,7 +134,7 @@ function provincesOf(game, id) { return game.world.provinces.filter(p => p.owner
 // ------------------------------------------------------------------ creation
 
 function createGame(seed, opts) {
-  opts = Object.assign({ countries: 14, width: 200, height: 125 }, opts || {});
+  opts = Object.assign({ countries: (WORLD_MODELS[opts && opts.model] || {}).countries || 14 }, opts || {});
   const world = generateWorld(seed, opts);
   const game = {
     seed: String(seed), opts, world, rng: makeRng(String(seed) + '|sim'),

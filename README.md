@@ -14,7 +14,19 @@ Then visit http://localhost:8000. It can also be hosted as-is on GitHub Pages.
 
 ## What's in it
 
-**A randomly generated world.** Each seed builds its own continents, islands and provinces, plus 6–24 nations with procedural names, leaders and political histories. Nations border each other by land or across narrow straits.
+**Seven world models**, each with random nations, leaders and histories (4–40 nations, three map sizes, any seed):
+
+| Model | What you get |
+|---|---|
+| Continents | A few large continents and scattered islands |
+| Supercontinent | One vast landmass: long land borders and crowded neighborhoods |
+| Archipelago | Countless islands and straits |
+| Twin Continents | An Old World and a New World across a wide ocean |
+| Inland Sea | A ring of lands around a great central sea |
+| Shattered Lands | Continents cracked by long rifts into peninsulas and channels |
+| Earth | Our planet's real coastlines and mountain ranges, carved into fictional nations |
+
+Nations border each other by land or across narrow straits.
 
 **Seven forms of government**, each with its own rules:
 
@@ -63,7 +75,8 @@ The game saves to your browser's local storage (Menu → Save game).
 | `js/rng.js` | Seeded random numbers |
 | `js/names.js` | Procedural names for nations, people and provinces |
 | `js/governments.js` | Government types, factions, parties, leader traits |
-| `js/mapgen.js` | Heightmap → land/sea → provinces → nations |
+| `js/mapgen.js` | World models (heightmaps) → land/sea → provinces → nations |
+| `js/earth-data.js` | Earth's land mask at 0.5° resolution (run-length encoded) |
 | `js/economy.js` | Pops, goods, buildings, markets, world trade, investment |
 | `js/sim.js` | The monthly simulation: economy, factions, elections, regime change, war, diplomacy, player actions, save/load |
 | `js/events.js` | Player events and their choices |
@@ -78,3 +91,7 @@ The simulation has no DOM dependencies, so you can run it headless with Node for
 ```bash
 node tools/simtest.js myseed 50
 ```
+
+## Credits
+
+The Earth model's coastlines come from [Natural Earth](https://www.naturalearthdata.com/) 1:50m land data (public domain), via the [world-atlas](https://github.com/topojson/world-atlas) package (ISC). The polygons are rasterized into a 0.5° land mask in `js/earth-data.js`. Mountain ranges are hand-placed approximations.

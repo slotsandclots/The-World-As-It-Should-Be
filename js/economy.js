@@ -689,7 +689,7 @@ function runConstruction(game, c) {
     if (def.res && resourceFree(p, def.res) <= 0) return false;
     addBuilding(p, pr.t, 1);
     E.built++;
-    done.push(def.name);
+    if (pr.funder === 'you') done.push(def.name);
     return false;
   });
   if (done.length && c.id === game.player) {
@@ -711,7 +711,7 @@ function orderBuilding(game, t) {
   if (c.treasury - fromTreasury < -c.gdp) return { ok: false, msg: 'The treasury cannot borrow any more.' };
   E.statePool -= fromPool;
   c.treasury -= fromTreasury;
-  startProject(game, c, t, o.prov, o.cost, 'state');
+  startProject(game, c, t, o.prov, o.cost, 'you');
   return { ok: true, msg: `Construction of a ${BUILDINGS[t].name} begins in ${o.prov.name} (${fmtBillions(costB)}). Ready in ${ECON.BUILD_MONTHS} months.` };
 }
 
