@@ -4,10 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 
-const ctx = vm.createContext({ console, Math, JSON });
-for (const f of ['rng', 'names', 'governments', 'earth-data', 'mapgen', 'economy', 'sim', 'characters', 'tech', 'movements', 'events', 'campaign']) {
-  vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'js', f + '.js'), 'utf8'), ctx, { filename: f + '.js' });
-}
+const { ctx } = require('./load').loadGame();
 
 const seed = process.argv[2] || 'test';
 const years = +(process.argv[3] || 50);

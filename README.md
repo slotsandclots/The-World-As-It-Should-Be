@@ -12,9 +12,21 @@ python3 -m http.server 8000
 
 Then visit http://localhost:8000. It can also be hosted as-is on GitHub Pages.
 
+**New to the game?** Choose **Play the campaign: The First Republic** on the start screen. It's a short story campaign that teaches every system as you go.
+
 ## What's in it
 
-**Seven world models**, each with random nations, leaders and histories (4–40 nations, three map sizes, any seed):
+**The First Republic: a story campaign and tutorial.** Lead the young Republic of Velmora after its king abdicates, guided by your chief of staff through six chapters:
+- forming a cabinet
+- balancing the budget, plus markets, construction and pops
+- a first election against the opposition leader
+- a general's ultimatum
+- a hostile junta next door
+- research and a dockyard strike
+
+Briefings are written as dialogue with portraits. Objectives are checked against the live simulation and highlight the part of the screen to use. The ending depends on what kind of state you built.
+
+**Eight world models**, each with random nations, leaders and histories (4–40 nations, three map sizes, any seed):
 
 | Model | What you get |
 |---|---|
@@ -25,6 +37,7 @@ Then visit http://localhost:8000. It can also be hosted as-is on GitHub Pages.
 | Inland Sea | A ring of lands around a great central sea |
 | Shattered Lands | Continents cracked by long rifts into peninsulas and channels |
 | Earth | Our planet's real coastlines and mountain ranges, carved into fictional nations |
+| Earth: Historical Regions | Earth with nations founded at the heartlands of real regions, so borders loosely echo history |
 
 Nations border each other by land or across narrow straits.
 
@@ -40,12 +53,24 @@ Nations border each other by land or across narrow straits.
 | Fascist State | None | Military, business | Maximum mobilization and aggression |
 | Theocracy | None | Clergy | Rule by sacred law |
 
+**Characters.** Every nation has a cast with skills (administration, diplomacy, military, charisma), traits, loyalty, ambition and procedurally drawn portraits:
+- **Leader:** their skills and traits shape approval, corruption, relations and the army.
+- **Cabinet:** a chief of staff plus ministers of the interior, finance, foreign affairs and defense, each running a department and bringing their faction's goodwill.
+- **Generals:** they lead the army, and disloyal, ambitious ones stage coups.
+- **Opposition:** party leaders and dissidents campaign against you; election winners and coup leaders come from this cast.
+- **Royals:** monarchies have heirs and successions.
+- **Foreign leaders:** they have personalities that drive their diplomacy.
+
+Characters are managed from the Leader tab: appoint and dismiss ministers, honor, retire, arrest, smear or co-opt.
+
 **Politics.**
 - Five factions (military, workers, business, clergy, intelligentsia) react to your policies. Each regime's power base keeps it standing.
 - Public opinion moves on a two-axis political compass. The gap between people and regime breeds unrest.
 - Multi-party elections use proportional seats, polling and incumbency effects.
 - Actions: campaigns, snap elections, ballot rigging, states of emergency, crackdowns, propaganda, purges and reforms.
 - Lose an election and you can concede, or refuse and gamble on the army.
+- **Political movements** (labor, agrarian, liberal, nationalist, religious, monarchist) grow out of aggrieved pops. They make demands, radicalize when ignored, and can rise up behind their own leaders. Meet their demands, suppress them, or co-opt their leaders.
+- **Events** come in chains: scandals that break months later, ultimatums with follow-ups, election debates decided by charisma, dissident manifestos leading to round-table talks, and summits with foreign leaders.
 - Below 30 stability (or above 55 unrest), coups and revolutions can topple any regime. A starving workforce turns communist and a humiliated nationalist one turns fascist. You can also attempt your own regime change.
 
 **Pops and economy.**
@@ -57,14 +82,17 @@ Nations border each other by land or across narrow straits.
 - **The state is part of the economy:** taxes come from pop incomes; soldiers, officials and teachers draw state wages; the army buys arms (shortages weaken it); infrastructure spending buys steel, timber and tools.
 - **Budget:** set taxes, tariffs and spending on the military, welfare, education, police, infrastructure and state investment. Deficits pile up debt, and at 150% of GDP the state defaults.
 
+**Technology.** 19 technologies across industry, land, society, military and statecraft. They're researched with points from education, literacy and the economy, and each gives specific bonuses: more productive buildings, a stronger army or defense, less corruption, better tax collection.
+
 **War & diplomacy.**
-- Relations follow ideological distance.
+- Relations follow ideological distance and leaders' diplomatic skill.
 - Diplomatic actions: trade deals, defensive alliances (allies get called in), funding rebels to topple rival regimes, wars of conquest.
 - Provinces change hands at the front. Take an enemy's capital (or most of its land) and it capitulates.
+- **Peace terms:** demand provinces, reparations or a change of regime. Each costs war score; a winning enemy will demand terms from you.
 
 **Events.** Strikes, scandals, plotting colonels, student protests, booms, disasters, border incidents, opposition firebrands and more, each with choices.
 
-**Map modes.** Political, government type, stability, public opinion, living standard, industrialization and your relations. Hover a province to see its classes, buildings and resources.
+**Map.** Scroll to zoom and drag to pan; smaller nations' names appear as you zoom in. Modes: political, government, stability, public opinion, terrain, resources, living standard, industry and your relations. Hover a province to see its classes, buildings and resources.
 
 The game saves to your browser's local storage (Menu → Save game).
 
@@ -74,23 +102,49 @@ The game saves to your browser's local storage (Menu → Save game).
 |---|---|
 | `js/rng.js` | Seeded random numbers |
 | `js/names.js` | Procedural names for nations, people and provinces |
-| `js/governments.js` | Government types, factions, parties, leader traits |
-| `js/mapgen.js` | World models (heightmaps) → land/sea → provinces → nations |
+| `js/governments.js` | Government types, factions, parties, traits |
 | `js/earth-data.js` | Earth's land mask at 0.5° resolution (run-length encoded) |
+| `js/mapgen.js` | World models (heightmaps) → land/sea → provinces → nations |
 | `js/economy.js` | Pops, goods, buildings, markets, world trade, investment |
-| `js/sim.js` | The monthly simulation: economy, factions, elections, regime change, war, diplomacy, player actions, save/load |
-| `js/events.js` | Player events and their choices |
-| `js/render.js` | Canvas map renderer |
-| `js/ui.js` | Panels, modals, tooltips |
+| `js/sim.js` | The monthly simulation: politics, elections, regime change, war, peace, diplomacy, actions, save/load |
+| `js/characters.js` | Leaders, cabinets, generals, opposition, heirs; loyalty and succession |
+| `js/portrait.js` | Procedural SVG portraits |
+| `js/tech.js` | Technology tree and research |
+| `js/movements.js` | Political movements, demands and uprisings |
+| `js/events.js` | Event engine (chains, flags, scheduled follow-ups) and the events themselves |
+| `js/campaign.js` | The First Republic campaign: setup, story steps, endings |
+| `js/render.js` | Canvas map renderer and label overlay |
+| `js/ui.js`, `js/ui-views.js`, `js/ui-dialogs.js` | Interface core and map interaction, tab views, dialogs |
 | `js/main.js` | Game clock and wiring |
-| `tools/simtest.js` | Headless politics/war balance test: `node tools/simtest.js <seed> <years>` |
-| `tools/econtest.js` | Headless economy diagnostics (prices, living standards, jobs): `node tools/econtest.js <seed> <years>` |
 
-The simulation has no DOM dependencies, so you can run it headless with Node for balancing:
+## Tests and tools
 
 ```bash
-node tools/simtest.js myseed 50
+npm test
 ```
+
+`npm test` runs the headless test suite (`tools/test.js`) with no dependencies. It checks:
+- every world model, and that generation is deterministic
+- 25-year simulations for NaNs, bounded prices and non-negative populations
+- save/load round-trips
+- every event option and peace terms
+- a full campaign playthrough
+
+```bash
+npm install
+```
+
+```bash
+npx playwright install chromium
+```
+
+```bash
+npm run test:browser
+```
+
+The browser smoke test (`tools/browser-test.js`) plays in headless Chromium and fails on any page error. GitHub Actions runs both suites on every push.
+
+For balancing, `node tools/simtest.js <seed> <years>` reports politics and war, and `node tools/econtest.js <seed> <years>` reports prices, living standards and jobs.
 
 ## Credits
 

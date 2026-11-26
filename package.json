@@ -1,0 +1,17 @@
+{
+  "name": "the-world-as-it-should-be",
+  "version": "0.5.0",
+  "private": true,
+  "description": "A political simulator in the browser: random worlds, governments, elections, pops and markets, characters, wars and a story campaign.",
+  "scripts": {
+    "start": "python3 -m http.server 8000",
+    "test": "node tools/test.js",
+    "test:browser": "node tools/browser-test.js",
+    "balance": "node tools/simtest.js",
+    "econ": "node tools/econtest.js"
+  },
+  "devDependencies": {
+    "playwright": "1.49.1"
+  },
+  "license": "UNLICENSED"
+}
