@@ -98,6 +98,40 @@ The biggest multiplier for political depth. Governments become combinations of l
 
 **Goal:** inflation, booms, recessions and depressions that come out of the simulation (money, credit, confidence and wages) rather than from scripted events, and that feed straight into politics.
 
+### Starting point: what the economy does today
+The economy is already dynamic: goods prices move with supply and demand every month, buildings run or go idle on profitability, investors build where it pays, pop incomes and living standards follow what each class can afford, and markets trade nationally, in blocs and with the world. But it settles back to normal: after a shock it drifts back toward a stable state. Nothing accumulates (no private debt or credit), there is no money or price level (prices are relative to fixed bases and capped at 0.25–4× base, so economy-wide inflation is impossible), and there are few delays and no expectations. Milestone 4 adds the missing ingredients. Before starting, measure today's behavior (GDP and price swings over 50 years across many seeds) as a baseline to compare against.
+
+### Design rules
+1. **Emergence comes from four ingredients:**
+   - *accumulating quantities* (debt, money, confidence)
+   - *delays* (construction time, sticky wages, lagging expectations)
+   - *tipping points* (defaults, bank runs, broken pegs, hyperinflation)
+   - *coupling* (across classes, politics and nations)
+
+   Every feature in this milestone should add at least one of them.
+2. **Real causes, not bonuses.** No "inflation: −5 approval". Every new quantity either *is* a pop or goods quantity (prices, wages, savings, jobs, orders) or changes one directly. Approval, stability and the political systems move only because pops' living standards and employment change, through the existing pop → ideology → politics chain.
+3. **Everything goes through pops and goods:**
+   - **Inflation is measured from what pops buy.** The price level is built from goods weighted by each class's consumption, so each class has its own inflation rate.
+   - **Incomes lag prices.** Wages adjust slowly, so inflation pushes pops down the needs tiers (luxury, then everyday, then basic).
+   - **Savings are money.** Pops' wealth is held in money: inflation erodes savers (clerks, officials), and deflation makes debtors' burdens heavier (peasants, landowners).
+   - **Credit funds real buildings.** Capitalist and landowner pops and the state borrow to build, so a boom is a wave of real construction projects in real provinces.
+   - **Busts close real buildings.** Plants whose profits fall below their debt payments go idle or bankrupt, their workers become unemployed pops, and the lending classes lose wealth.
+   - **Interest is income.** It goes to the wealthy classes, so rate decisions shift who can afford luxury goods.
+   - **Confidence decides expansion, hiring and orders.** Falling orders for steel, tools and construction goods drop their prices and lay off their producers, which is how a slump spreads from sector to sector.
+   - **Sticky wages mean layoffs.** Each building keeps its pay and sheds jobs when revenue falls, so unemployment lands in specific classes and provinces and feeds unrest and movements there.
+   - **The world economy works through the world market.** Import prices follow exchange rates, and foreign recessions show up as falling demand for your exports.
+   - **War uses the same chain.** Arms production bids up steel and fuel, mobilization takes workers out of buildings, and the resulting inflation and shortages hit specific classes. No war-only modifiers.
+4. **Emergent must also be interesting.** Avoid a dead steady state, constant noise and runaway collapse. Each layer is tuned with balance runs across many seeds before the next one is added. Targets: cycles every 7–10 years, depressions rare but possible, hyperinflation only under reckless policy.
+5. **The AI plays the same economy.** AI central banks and governments respond plausibly (raise rates against inflation, stimulate in a slump) and make mistakes for political reasons: a populist government that won't raise rates before an election. Different nations should end up with different economic stories.
+6. **You have to be able to see why.**
+   - breakdowns for inflation (money growth, expectations, wages, imports)
+   - a confidence index
+   - a cycle marker
+   - Ledger charts
+
+   A crash the player can't explain feels random, not emergent.
+7. **Build one layer at a time:** 4a, measure, then 4b, measure, and so on. Never all at once.
+
 ### 4a. Money, inflation and the central bank
 - **A currency per nation:** a money supply and a price level. Today's goods prices become relative prices, multiplied by the national price level.
 - **What drives inflation:** money growth beyond real output (especially printing to cover deficits), expectations (people who expect rising prices raise them now), import prices and the exchange rate, and a wage-price spiral when unions are strong and labor is scarce.
