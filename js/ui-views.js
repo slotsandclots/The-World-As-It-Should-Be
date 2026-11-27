@@ -86,11 +86,11 @@ Object.assign(UI, {
 
   // ------------------------------------------------------------------ money
 
-  // Closed-loop economy, phase 1: who funds the state, and who holds its debt (fiscal.js).
+  // Closed-loop economy, phase 2: reserves, foreign debts and the exchange rate (payments.js).
   paymentsHtml(c, g) {
     const E = c.econ;
     if (E.reserves == null) return '';
-    const months = E.reserves / Math.max(1e-6, E.avgBill || 0);
+    const months = Math.max(0, E.reserves) / Math.max(1e-6, E.avgBill || 0);
     const P = foreignPositions(g, c);
     const list = arr => arr.slice(0, 3).map(([n, v]) => `${esc(n)} ${fmtMoney(v)}`).join(', ');
     return `<div class="card"><h3>Balance of payments</h3>
@@ -102,12 +102,14 @@ Object.assign(UI, {
         <div class="kv"><span>Lent abroad</span><span>${fmtMoney(extAssetsOf(g, c))}</span></div>
         <div class="kv"><span>Interest paid abroad</span><span>${fmtMoney(E.interestOut || 0)}/mo at ${(extRate(c) * 100).toFixed(1)}%</span></div>
         <div class="kv"><span>Borrowed this month</span><span>${fmtMoney(E.borrowed || 0)}</span></div>
+        ${c.extDefaulted != null && g.month - c.extDefaulted < PAY.DEFAULT_MEMORY ? `<div class="kv" title="Lenders abroad remember a default for five years."><span>Credit abroad</span><span class="bad">None for ${Math.ceil((PAY.DEFAULT_MEMORY - (g.month - c.extDefaulted)) / 12)} more year(s): we defaulted</span></div>` : ''}
         <div class="kv" title="The currency's value abroad. It falls as reserves run short: exports sell better, imports cost more at home."><span>Exchange rate</span><span class="${(E.fx || 1) < 0.9 ? 'warn' : ''}">${(E.fx || 1).toFixed(2)}×</span></div>
       </div>
       ${P.owe.length ? `<div class="small">We owe: ${list(P.owe)}</div>` : ''}${P.owed.length ? `<div class="small">Owe us: ${list(P.owed)}</div>` : ''}
       ${E.importSqueeze > 0.02 ? `<div class="alert bad small">Out of foreign currency: imports are cut by ${pct(E.importSqueeze)}.</div>` : ''}</div>`;
   },
 
+  // Closed-loop economy, phase 1: who funds the state, and who holds its debt (fiscal.js).
   debtHtml(c, g) {
     const D = ensureDebt(c), tr = debtTrust(g, c);
     const owed = Math.max(0, -c.treasury), gN = c.gdpNom || c.gdp, YN = gN / 12;

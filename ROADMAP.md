@@ -417,8 +417,8 @@ The rule: no goods or money created from nothing. Every unit of money has a sour
 
 **Phase 2, layer 1 ✅ (first pass): payments, lending and exchange rates** (`js/payments.js`).
 - **Reserves:** earned by exports, spent on imports (world trade balances, so they only move between nations); reparations are paid out of them.
-- **Foreign lending:** the owners' capital that used to leak abroad (0.5% of the investment pool a month) is lent to nations short of reserves, from nations with reserves to spare, and funds investment there. Interest and repayment flow back to the lenders' owners; debts past 120% of GDP are defaulted on (halved). Every foreign debt is someone's asset.
-- **Exchange rates:** a currency falls as reserves drain and rises as they pile up (0.3× to 1.3×). A weak currency makes the nation buy less abroad (world and bloc trade), raises import prices at home (half the fall passes through) and pays exporters more at home.
+- **Foreign lending:** the owners' capital that used to leak abroad (0.5% of the investment pool a month) is lent to nations short of reserves, from nations with reserves to spare, and funds investment there. Interest and repayment flow back to the lenders' owners; debts past 120% of GDP are defaulted on (halved), and no one lends to the defaulter for five years. When a borrower ceases to exist, its lenders lose what it owed. Every foreign debt is someone's asset.
+- **Exchange rates:** a currency falls as reserves drain and rises as they pile up (0.3× to 1.6×). A weak currency makes the nation buy less abroad (world and bloc trade), a strong one more, though never more of a good than it lacks at home, raises import prices at home (half the fall passes through) and pays exporters more at home.
 - **Rationing:** a nation in arrears (reserves below −10% of GDP, no one left to lend) must cut imports outright.
 - **Interface:** a Balance of payments card in the Economy tab (reserves, trade, debts and lenders, interest, exchange rate, rationing) and alerts.
 - **What we learned tuning it:**
@@ -440,7 +440,8 @@ The rule: no goods or money created from nothing. Every unit of money has a sour
   | Banking crises per world | 6.2 | 5.2 |
 
   New: about 5 balance-of-payments crises per world; imports rationed (by more than 10%) in 18% of nation-months, mostly resource-poor nations that now pay for their imports; foreign debt about 0.5% of GDP.
-- **Side effects to watch:** frequent rationing in import-dependent nations; foreign lending is small because only 0.5% of private capital looks abroad each month.
+- **Review fixes** (re-measured on 24 worlds × 40 years; every measure within the noise of the first pass): a strong currency could import up to twice a nation's shortfall in open economies; a foreign default's mark on credit was erased the next month; debts of annexed nations stayed on their lenders' books forever.
+- **Side effects to watch:** frequent rationing in import-dependent nations; no foreign default has happened yet in the measured worlds, because new borrowing stops at 60% of GDP; foreign lending is small because only 0.5% of private capital looks abroad each month.
 - **Still to do in phase 2:** recycling surpluses without the debt pile-up (lending at market rates by banks), tariffs that cut imports without cutting exports (with 4d), currency crises and pegs, foreign ownership (with phase 3).
 - Note: tariffs here cut openness both ways, so they cannot defend reserves until 4d makes them asymmetric. The AI's tariff reflex was left out for that reason.
 

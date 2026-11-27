@@ -10,13 +10,16 @@
 // fewer sales for the exporters abroad. Long before that, the currency falls,
 // which wins exporters sales and makes imports dearer at home.
 //
-// Still to come: exchange rates (the reserves are in world money, and every
-// currency is treated as worth the same), import prices that follow them,
-// and currency crises.
+// Reserves are held in world money. Each currency has an exchange rate
+// (c.econ.fx) that falls as reserves drain: imports grow dearer at home and the
+// nation buys less abroad, while exporters earn more at home.
 //
-// c.econ.reserves (billions, world money) · c.extDebt = { lenderId: billions } · c.econ.importSqueeze (0-0.8)
+// Still to come: currency crises and pegs, bank lending at market rates.
+//
+// c.econ.reserves (billions, world money) · c.econ.fx (0.3-1.6) · c.extDebt = { lenderId: billions }
+// c.econ.importSqueeze (0-0.6) · c.extDefaulted (month of the last foreign default)
 
-const PAY = { RESERVE_MONTHS: 3, LEND_LIMIT: 0.6, BASE_RATE: 0.04, FX_MIN: 0.3, FX_MAX: 1.6 };
+const PAY = { RESERVE_MONTHS: 3, LEND_LIMIT: 0.6, BASE_RATE: 0.04, FX_MIN: 0.3, FX_MAX: 1.6, DEFAULT_MEMORY: 60 };
 
 // The exchange rate: a currency falls as reserves run short and rises as they pile up.
 // A weak currency makes imports dearer, so the nation buys less abroad; a strong one
@@ -33,10 +36,12 @@ function importBill(game, c) {
 
 function reserveTarget(c) { return Math.max(c.econ.avgBill * PAY.RESERVE_MONTHS, c.gdp * 0.02); }
 function extDebtOf(c) { let d = 0; for (const k in c.extDebt || {}) d += c.extDebt[k]; return d; }
-function extAssetsOf(game, c) { let a = 0; for (const o of game.countries) if (o.extDebt && o.extDebt[c.id]) a += o.extDebt[c.id]; return a; }
+function extAssetsOf(game, c) { let a = 0; for (const o of game.countries) if (o.alive && o.extDebt && o.extDebt[c.id]) a += o.extDebt[c.id]; return a; }
 function extRate(c) { return PAY.BASE_RATE + 0.02 + extDebtOf(c) / Math.max(0.01, c.gdp) * 0.1; }
 
 function tickPayments(game) {
+  // A nation that no longer exists pays no one: its lenders lose what it owed them.
+  for (const o of game.countries) if (!o.alive && o.extDebt) o.extDebt = null;
   const alive = game.countries.filter(c => c.alive && c.econ);
   const bill = {};
   // 1. Trade settles in reserves; interest on foreign debt is paid to the lenders.
@@ -63,7 +68,8 @@ function tickPayments(game) {
     const E = c.econ;
     const target = reserveTarget(c);
     const room = c.gdp * PAY.LEND_LIMIT - extDebtOf(c);
-    const trusted = !(c.debt && c.debt.crisis > 0);
+    // No one lends to a state in a debt crisis, or to one that defaulted abroad in the last five years.
+    const trusted = !(c.debt && c.debt.crisis > 0) && !(c.extDefaulted != null && game.month - c.extDefaulted < PAY.DEFAULT_MEMORY);
     need[c.id] = E.reserves < target && room > 0 && trusted ? Math.min(target - E.reserves, room) : 0;
     // Capital goes abroad only from nations with reserves to spare: a nation short of them keeps its savings home.
     offer[c.id] = Math.max(0, (E.capitalOffer || 0) / 1e6) * clamp((E.reserves - target) / Math.max(1e-6, target), 0, 1);
@@ -127,14 +133,14 @@ function foreignDefault(game, c) {
     c.extDebt[k] *= 0.5;
     if (L && L.alive) addRel(game, c.id, L.id, -20);
   }
-  if (c.debt) c.debt.trust = Math.min(c.debt.trust || 1, 0.4);
+  c.extDefaulted = game.month;
   logNews(game, `${c.name} defaults on its foreign debts; its creditors abroad take heavy losses.`, 'econ', [c.id, ...Object.keys(c.extDebt).map(Number)]);
-  if (isPlayer(game, c)) notify(game, 'Default on Foreign Debts', 'We could not pay what we owe abroad. Half of our foreign debt is written off, but lenders and their governments will not forget.');
+  if (isPlayer(game, c)) notify(game, 'Default on Foreign Debts', 'We could not pay what we owe abroad. Half of our foreign debt is written off, but lenders and their governments will not forget: no one abroad will lend to us for five years.');
 }
 
 // Who we owe and who owes us, for the interface.
 function foreignPositions(game, c) {
   const owe = Object.entries(c.extDebt || {}).filter(([, v]) => v > 1e-4).map(([k, v]) => [game.countries[k].name, v]).sort((a, b) => b[1] - a[1]);
-  const owed = game.countries.filter(o => o.extDebt && o.extDebt[c.id] > 1e-4).map(o => [o.name, o.extDebt[c.id]]).sort((a, b) => b[1] - a[1]);
+  const owed = game.countries.filter(o => o.alive && o.extDebt && o.extDebt[c.id] > 1e-4).map(o => [o.name, o.extDebt[c.id]]).sort((a, b) => b[1] - a[1]);
   return { owe, owed };
 }

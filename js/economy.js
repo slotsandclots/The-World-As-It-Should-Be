@@ -695,7 +695,7 @@ function clearMarkets(game, alive) {
       let ex = 0, need = 0, SS = 0, DD = 0;
       // The exchange rate shifts trade inside a bloc too (payments.js).
       const fw = c => (typeof fxWeights === 'function' ? fxWeights(c) : [1, 1]);
-      for (const c of ms) { const r = res[c.id], [wE, wI] = fw(c); SS += r.S; DD += r.D; if (r.S > r.D) ex += (r.S - r.D) * tb * wE; else need += (r.D - r.S) * tb * wI * (1 - (c.econ.importSqueeze || 0)); }
+      for (const c of ms) { const r = res[c.id], [wE, wI] = fw(c); SS += r.S; DD += r.D; if (r.S > r.D) ex += (r.S - r.D) * tb * wE; else need += (r.D - r.S) * Math.min(1, tb * wI) * (1 - (c.econ.importSqueeze || 0)); }
       const traded = Math.min(ex, need);
       const rE = ex > 0 ? traded / ex : 0, rI = need > 0 ? traded / need : 0;
       const bpT = base * clamp(Math.pow((DD + 1e-6) / (SS + 1e-6), ECON.ELASTICITY), ECON.PRICE_MIN, ECON.PRICE_MAX);
@@ -704,7 +704,7 @@ function clearMarkets(game, alive) {
         const r = res[c.id];
         const [wE, wI] = fw(c);
         r.exB = r.S > r.D ? (r.S - r.D) * tb * wE * rE : 0;
-        r.imB = r.D > r.S ? (r.D - r.S) * tb * wI * rI * (1 - (c.econ.importSqueeze || 0)) : 0;
+        r.imB = r.D > r.S ? (r.D - r.S) * Math.min(1, tb * wI) * rI * (1 - (c.econ.importSqueeze || 0)) : 0;
       }
     }
     let exportable = 0, need = 0, SS = 0, DD = 0;
@@ -714,7 +714,8 @@ function clearMarkets(game, alive) {
       SS += E.S[g]; DD += E.D[g];
       // A nation out of foreign currency can only buy what it can pay for (payments.js).
       const [wE, wI] = typeof fxWeights === 'function' ? fxWeights(c) : [1, 1];
-      if (S > D) exportable += (S - D) * E.tau * wE; else need += (D - S) * E.tau * wI * (1 - (E.importSqueeze || 0));
+      // A strong currency buys more abroad, but never more than the nation lacks.
+      if (S > D) exportable += (S - D) * E.tau * wE; else need += (D - S) * Math.min(1, E.tau * wI) * (1 - (E.importSqueeze || 0));
     }
     const traded = Math.min(exportable, need);
     const rE = exportable > 0 ? traded / exportable : 0, rI = need > 0 ? traded / need : 0;
@@ -726,7 +727,7 @@ function clearMarkets(game, alive) {
       const S2 = r.S - r.exB, D2 = r.D - r.imB;
       const [wE, wI] = typeof fxWeights === 'function' ? fxWeights(c) : [1, 1];
       const ex = S2 > D2 ? (S2 - D2) * E.tau * wE * rE : 0;
-      const im = D2 > S2 ? (D2 - S2) * E.tau * wI * rI * (1 - (E.importSqueeze || 0)) : 0;
+      const im = D2 > S2 ? (D2 - S2) * Math.min(1, E.tau * wI) * rI * (1 - (E.importSqueeze || 0)) : 0;
       const avail = S - r.exB - ex + r.imB + im;
       E.exports[g] = ex + r.exB; E.imports[g] = im + r.imB;
       E.blocEx[g] = r.exB; E.blocIm[g] = r.imB;
