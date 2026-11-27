@@ -127,6 +127,8 @@ The game saves to your browser's local storage (Menu → Save game).
 
 **Ideas and kin.** Liberalism, socialism, fascism and traditionalism spread between nations through borders, trade and alliances; a revolution next door inspires your own radicals. Related peoples can unite peacefully, and universities speed research and staff the state.
 
+**Every debt is someone's asset.** The state pays from cash. Deficits are lent by savers (crowding out private investment), banks or foreign nations, who earn the interest. When lenders lose trust, yields climb, and if they refuse, bills go unpaid and spending is cut: a sovereign debt crisis. Defaulting hits the bondholders, the banks and your foreign creditors.
+
 **Slumps hurt like real ones.** Wages are slow to fall, so a drop in demand becomes layoffs, and unemployment insurance cushions the jobless. AI governments spend, cut or bail out banks through the cycle, according to their politics.
 
 **Warnings before it's too late.** An alert bar under the top bar shows coup and revolution risk building up, and flags trouble in politics, the economy, society and war, plus decisions waiting for you.
@@ -153,6 +155,7 @@ The game saves to your browser's local storage (Menu → Save game).
 | `js/laws.js` | Laws, bills, interest groups and their leaders, hybrid regime labels |
 | `js/warfare.js` | Fronts, occupation, terrain and supply, posture, mobilization |
 | `js/money.js` | Currency, price level, inflation, wages, interest rates, monetary systems |
+| `js/fiscal.js` | State budget and debt: lenders, holders, debt crises, default |
 | `js/credit.js` | Private credit, confidence, defaults and bankruptcies, banking crises |
 | `js/peoples.js` | Cultures, faiths, assimilation, grievance, migration, nationalist claims |
 | `js/society.js` | Cities, housing and rents, slums, births and deaths, aging |

@@ -83,6 +83,8 @@ function tickCoalition(game, c) {
   if (!C || GOVS[c.gov].elections !== 'free') { if (C && GOVS[c.gov].elections !== 'free') c.coalition = null; return; }
   const lead = rulingPartyObj(c);
   for (const pt of C.partners.slice()) {
+    // A partner quitting can bring the government down mid-loop.
+    if (c.coalition !== C) break;
     const party = c.parties.find(p => p.id === pt.id);
     if (!party) { C.partners = C.partners.filter(x => x !== pt); continue; }
     const holdsPost = POST_KEYS.some(k => c.cabinet[k] && c.cabinet[k].id === pt.ministerId);
@@ -103,6 +105,7 @@ function tickCoalition(game, c) {
 
 function partnerQuits(game, c, pt) {
   const C = c.coalition;
+  if (!C) return;
   const party = c.parties.find(p => p.id === pt.id);
   C.partners = C.partners.filter(x => x !== pt);
   const post = POST_KEYS.find(k => c.cabinet[k] && c.cabinet[k].id === pt.ministerId);

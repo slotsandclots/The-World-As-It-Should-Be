@@ -184,11 +184,12 @@ function tipHtml(key) {
       h += money(`Running the state (${ADMIN_COST}% of GDP)`, -gN * ADMIN_COST / 1200);
       const NAMES = { military: 'Military', welfare: 'Welfare and pensions', health: 'Healthcare', education: 'Education', police: 'Police', infrastructure: 'Infrastructure', investment: 'State investment' };
       for (const k of SPEND_KEYS) if (c.policy[k] > 0) h += money(`${NAMES[k]} (${c.policy[k]}% of GDP)`, -gN * c.policy[k] / 1200);
-      if (B.interest > 0) h += money(`Interest on debt (${((c.econ.rate || 0) * 100).toFixed(1)}%)`, -B.interest);
+      if (B.interest > 0) h += money(`Interest to bondholders (${((c.debt ? c.debt.yield : c.econ.rate || 0) * 100).toFixed(1)}%)`, -B.interest);
+      if (B.payFrac < 0.999) h += `<div class="tt-note bad">Lenders won't fund the deficit: only ${pct(B.payFrac)} of spending is being paid.</div>`;
       if (c.econ.printed > 0) h += money('Printed money covering the deficit', c.econ.printed);
       h += `<div class="tt-row tt-sum"><span>Balance</span><span class="${B.net >= 0 ? 'good' : 'bad'}">${B.net >= 0 ? '+' : '−'}${fmtMoney(Math.abs(B.net)).replace('−', '')}</span></div>`;
       const debt = Math.max(0, -c.treasury) / Math.max(1e-6, c.gdpNom || c.gdp);
-      if (debt > 0) h += `<div class="tt-note">Debt is ${pct(debt)} of GDP. Above 60% it hurts approval; above 150% the state defaults.</div>`;
+      if (debt > 0) h += `<div class="tt-note">Debt is ${pct(debt)} of GDP, held by ${debtHolders(g, c).slice(0, 3).map(r => r[0].toLowerCase()).join(', ')}. Lenders demand more as it grows; above 150% the state defaults.</div>`;
       return h;
     }
     case 'alert:coup': case 'alert:revolution': case 'alert:politics': case 'alert:economy': case 'alert:society': case 'alert:war': case 'alert:decisions':
@@ -488,6 +489,7 @@ const UI = {
       case 'press': { const r = pressAction(g, +ds.i, ds.a); this.track('press:' + ds.a, r.ok); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }
       case 'posture': { const r = setPosture(g, +ds.war, ds.p); this.toast(r.msg, r.ok ? 'info' : 'bad'); App.afterAction(); return; }
       case 'mobilize': { const r = setMobilized(g, this.player(), ds.on === '1'); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }
+      case 'default': { const r = playerDefault(g); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }
       case 'bailout': { const r = bailoutBanks(g); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }
       case 'monetize': { const c = this.player(); c.policy.monetize = !c.policy.monetize; this.renderTab(); return; }
       case 'lawact': { const r = lawAction(g, ds.a); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }

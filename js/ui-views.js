@@ -86,6 +86,32 @@ Object.assign(UI, {
 
   // ------------------------------------------------------------------ money
 
+  // Closed-loop economy, phase 1: who funds the state, and who holds its debt (fiscal.js).
+  debtHtml(c, g) {
+    const D = ensureDebt(c), tr = debtTrust(g, c);
+    const owed = Math.max(0, -c.treasury), gN = c.gdpNom || c.gdp, YN = gN / 12;
+    const rows = debtHolders(g, c);
+    const L = D.last || {};
+    const COL = { 'Domestic savers': '#d9b45a', Banks: '#8fb0dc', 'Unpaid wages and suppliers': '#e2705f' };
+    let h = `<div class="card"><h3>${icon('coin', 16)} State debt</h3>
+      <p class="small muted" style="margin-top:0">The state pays from cash. A deficit has to be lent by someone: domestic savers (money that would otherwise build factories), banks (which create deposits, so it adds to inflation), or foreign lenders, unless the law lets us print money. Interest goes to whoever holds the debt. If lenders won't cover the deficit, bills go unpaid and spending is cut to what we can fund.</p>`;
+    if (D.crisis > 0) h += `<div class="alert bad"><b>Sovereign debt crisis:</b> lenders won't cover our deficit. We are paying ${pct(D.payFrac)} of planned spending and owe ${fmtMoney(D.arrears)} in unpaid bills. Cut spending, raise taxes, print money if the law allows it, or default. <button class="danger" data-act="default" ${c.pc < DEFAULT_PC ? 'disabled' : ''} style="margin-left:6px">Default on the debt (${DEFAULT_PC} PC)</button></div>`;
+    h += `<div class="grid2">
+        <div class="kv"><span>Debt</span><span class="${owed / gN > 0.9 ? 'bad' : owed / gN > 0.6 ? 'warn' : ''}">${fmtMoney(owed)} (${pct(owed / gN)} of GDP)</span></div>
+        <div class="kv"><span>Yield lenders demand</span><span class="${D.yield > 0.1 ? 'bad' : ''}">${(D.yield * 100).toFixed(1)}%</span></div>
+        <div class="kv" title="${tr.parts.map(p => `${p[0]}: ${p[1] >= 0 ? '+' : ''}${p[1].toFixed(2)}`).join(' · ')}"><span>Lenders' trust</span><span class="${tr.value < 0.6 ? 'bad' : tr.value < 0.9 ? 'warn' : 'good'}">${Math.round(tr.value * 100)}</span></div>
+        <div class="kv"><span>Interest a year</span><span>${pct(debtInterest(c) * 12 / gN, 1)} of GDP</span></div>
+      </div>`;
+    if (owed > 0) {
+      h += `<h4 style="margin:10px 0 4px">Who holds it</h4><div class="bar-stack" style="display:flex;height:10px;border-radius:3px;overflow:hidden;margin-bottom:4px">`;
+      for (const r of rows) h += `<div title="${esc(r[0])}: ${fmtMoney(r[1])}" style="width:${(r[1] / owed * 100).toFixed(2)}%;background:${COL[r[0]] || (r[2] != null && g.countries[r[2]] ? g.countries[r[2]].color : '#9a8f7a')}"></div>`;
+      h += `</div><div class="grid2">${rows.slice(0, 6).map(r => `<div class="kv"><span>${esc(r[0])}</span><span>${pct(r[1] / owed)}</span></div>`).join('')}</div>`;
+    }
+    const src = [['Savers lent', L.savers], ['Banks lent', L.banks], ['Foreign lenders lent', L.foreign], ['Printed', L.printed], ['Left unpaid', L.shortfall], ['Repaid to lenders', -(L.repaid || 0)]].filter(x => Math.abs(x[1] || 0) > 1e-7);
+    if (src.length) h += `<h4 style="margin:10px 0 4px">Last month's funding</h4><div class="grid2">${src.map(x => `<div class="kv"><span>${x[0]}</span><span class="${x[0] === 'Left unpaid' ? 'bad' : ''}">${fmtMoney(Math.abs(x[1]))} (${pct(Math.abs(x[1]) / YN, 1)} of a month's GDP)</span></div>`).join('')}</div>`;
+    return h + `</div>`;
+  },
+
   moneyHtml(c, g) {
     const E = ensureMoney(c), law = c.laws.monetary, inf = inflationYoY(c);
     let h = `<div class="card"><h3>${icon('coin', 16)} Money and prices</h3><p class="small muted" style="margin-top:0"><b>${esc(LAW_CATS.monetary.opts[law].name)}</b>: ${MONETARY_INFO[law]} (Change it in the Constitution, Politics tab.)</p>
@@ -433,7 +459,7 @@ Object.assign(UI, {
 
   viewEconomy(c, g) {
     const E = c.econ;
-    let h = this.moneyHtml(c, g) + this.creditHtml(c, g) + `<div class="card grid2">
+    let h = this.moneyHtml(c, g) + this.creditHtml(c, g) + this.debtHtml(c, g) + `<div class="card grid2">
       <div class="kv"><span>GDP</span><span>${fmtMoney(c.gdp)}</span></div>
       <div class="kv"><span>Per capita</span><span>$${(c.gdpPerCap * 1000).toFixed(0)}</span></div>
       <div class="kv"><span>Growth</span><span class="${c.growthAvg < 0 ? 'bad' : 'good'}">${fmtSigned(c.growthAvg * 1200)}%/yr</span></div>
@@ -547,9 +573,10 @@ Object.assign(UI, {
       ${b.tariffs > 0.0001 ? `<div class="kv"><span>Tariffs</span><span class="good">${fmtMoney(b.tariffs)}</span></div>` : ''}
       ${Math.abs(b.stateProfit) > 0.0001 ? `<div class="kv"><span>State enterprises</span><span class="${b.stateProfit < 0 ? 'bad' : 'good'}">${fmtMoney(b.stateProfit)}</span></div>` : ''}
       <div class="kv"><span>Spending (${b.spendPct.toFixed(1)}% of GDP incl. ${ADMIN_COST}% administration)</span><span class="bad">−${fmtMoney(b.spend)}</span></div>
-      ${b.interest ? `<div class="kv"><span>Debt interest</span><span class="bad">−${fmtMoney(b.interest)}</span></div>` : ''}
+      ${b.interest ? `<div class="kv"><span>Debt interest (${((c.debt ? c.debt.yield : 0) * 100).toFixed(1)}%, paid to the holders)</span><span class="bad">−${fmtMoney(b.interest)}</span></div>` : ''}
+      ${b.payFrac < 0.999 ? `<p class="small bad">Lenders won't cover the deficit: only ${pct(b.payFrac)} of planned spending can be paid.</p>` : ''}
       <div class="kv" style="border-top:1px solid var(--line);margin-top:4px;padding-top:4px"><span><b>Balance</b></span><span class="${b.net < 0 ? 'bad' : 'good'}"><b>${b.net >= 0 ? '+' : ''}${fmtMoney(b.net)}</b></span></div>
-      ${debt > 0.6 ? `<p class="small bad">Debt is ${pct(debt)} of GDP. Above 60% it hurts approval; above 150% the state defaults.</p>` : ''}`;
+      ${debt > 0.6 ? `<p class="small bad">Debt is ${pct(debt)} of GDP. Lenders grow wary and demand more interest; above 150% the state defaults.</p>` : ''}`;
   },
 
   updatePolicyLabels() {

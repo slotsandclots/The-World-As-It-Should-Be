@@ -258,12 +258,12 @@ function projectBudget(c) {
   // Unemployment benefits are paid on top of the budget, as a share of output (economy.js).
   const ui = E && E.uiShare ? gN * E.uiShare / 12 : 0;
   const uiContrib = E && E.uiAvg ? gN * E.uiAvg / 12 : 0;
-  const spend = gN * spendPct / 100 / 12 + ui;
-  // Interest follows the money system's rate, plus a premium as debt piles up.
-  const debtR = Math.max(0, -c.treasury) / Math.max(1e-6, gN);
-  const rate = (E && E.rate != null ? E.rate : 0.048) + Math.max(0, debtR - 0.6) * 0.05;
-  const interest = c.treasury < 0 ? -c.treasury * rate / 12 : 0;
-  return { revenue, taxes, tariffs, stateProfit, spend, ui, interest, uiContrib, net: revenue + uiContrib - spend - interest, spendPct };
+  // The state can only spend what it can fund (fiscal.js): in a debt crisis, payFrac < 1.
+  const payFrac = c.debt && c.debt.payFrac != null ? c.debt.payFrac : 1;
+  const spend = (gN * spendPct / 100 / 12) * payFrac + ui;
+  // Interest is paid to whoever holds the debt, at the yield lenders demand.
+  const interest = c.treasury < 0 ? debtInterest(c) : 0;
+  return { revenue, taxes, tariffs, stateProfit, spend, ui, interest, uiContrib, payFrac, net: revenue + uiContrib - spend - interest, spendPct };
 }
 
 function tickCountry(game, c) {
@@ -292,8 +292,11 @@ function tickCountry(game, c) {
   recomputeCountry(game, c);
 
   // --- Budget
+  ensureDebt(c);
   c.budget = projectBudget(c);
+  payInterest(game, c, c.budget.interest);
   c.treasury += c.budget.net;
+  financeBudget(game, c);
   if (-c.treasury / c.gdpNom > 1.5) sovereignDefault(game, c);
 
   // --- Public opinion drifts
@@ -416,10 +419,8 @@ function pcIncome(c) {
 }
 
 function sovereignDefault(game, c) {
-  c.treasury = -c.gdpNom * 0.9;
-  adjust(c, { stability: -15, approval: -10, business: -25 });
-  addMod(c, 'growth', -0.002, 12, 'Debt default');
-  logNews(game, `${c.name} defaults on its national debt. Markets panic.`, 'econ', [c.id]);
+  // Debts past any hope of repayment: the holders take the loss (fiscal.js).
+  defaultOnDebt(game, c, 0.45);
   if (isPlayer(game, c)) notify(game, 'Sovereign Default', 'Our debts have become unpayable and the state has defaulted. Creditors have written down part of the debt, but the economy will suffer for a year and business is furious.');
 }
 
@@ -1052,6 +1053,8 @@ function econLean(c) {
 // boom, prudent governments cool things down.
 function fiscalStance(c, debt) {
   const E = c.econ, gap = (E && E.gap) || 0, lean = econLean(c);
+  // Lenders have shut the door: there is nothing to spend but what comes in.
+  if (c.debt && c.debt.crisis > 0) return 'austerity';
   const crisis = E && E.bankCrisis > 0;
   if (gap < -0.035 || crisis) {
     if (lean > 0.35 && debt > 0.35) return 'austerity';
@@ -1079,12 +1082,22 @@ function aiBailout(game, c) {
 function aiPolicy(game, c) {
   aiMoney(game, c);
   aiBailout(game, c);
+  aiDebt(game, c);
   const rng = game.rng;
   if (!rng.chance(0.35)) return;
   const p = c.policy, d = defaultPolicy(c.gov), g = GOVS[c.gov];
   const debt = -c.treasury / (c.gdpNom || c.gdp);
   const stance = fiscalStance(c, debt);
   c.fiscalStance = stance;
+  // The bond market's limit: a deficit beyond what lenders will fund gets closed with taxes and cuts.
+  const deficit = c.budget ? -c.budget.net * 12 / Math.max(1e-6, c.gdpNom || c.gdp) : 0;
+  const over = deficit - deficitRoom(c, stance);
+  if (over > 0) {
+    p.tax += Math.min(0.01, over * 0.3);
+    const cut = 1 - Math.min(0.05, over * 0.8);
+    for (const k of ['welfare', 'infrastructure', 'police', 'health']) p[k] = (p[k] || 0) * cut;
+    if (!isAtWar(game, c.id)) p.military *= cut;
+  }
   if (stance === 'steady') p.infrastructure += (d.infrastructure - p.infrastructure) * 0.05;
   // A stance steers toward a temporary target around the regime's normal budget, and lapses with the slump.
   const toward = (k, t, r) => { p[k] += (t - p[k]) * r; };

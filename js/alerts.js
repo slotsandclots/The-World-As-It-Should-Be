@@ -84,6 +84,8 @@ function gatherAlerts(game, c) {
   if (c.research && !c.research.current && typeof TECH_KEYS !== 'undefined' && TECH_KEYS.some(id => techAvailable(c, id))) add('decisions', 'warn', 'No research project chosen');
   if (c.pc >= 99) add('decisions', 'warn', 'Political capital is full: spend it or lose it');
   if (E.bankCrisis > 0 && typeof bailoutBanks === 'function') add('decisions', 'warn', 'The banks could be bailed out (Economy tab)');
+  if (c.debt && c.debt.crisis > 0) { add('economy', 'bad', `Sovereign debt crisis: paying ${Math.round(c.debt.payFrac * 100)}% of spending`); add('decisions', 'warn', 'Cut, tax, print or default (Economy tab)'); }
+  else if (c.debt && c.debt.trust < 0.7 && c.treasury < 0) add('economy', 'warn', `Lenders are wary: debt yields ${(c.debt.yield * 100).toFixed(1)}%`);
   return A;
 }
 

@@ -337,7 +337,7 @@ function tickEconomy(game, warmup) {
     }
     // Budgets are set on a year's average economy, not last month's.
     E.budgetBase = E.budgetBase == null ? E.gdpM : E.budgetBase + (E.gdpM - E.budgetBase) / 12;
-    const gm = E.budgetBase, pol = c.policy;
+    const gm = E.budgetBase * (c.debt && c.debt.payFrac != null ? c.debt.payFrac : 1), pol = c.policy;
     E.gov = {
       military: gm * pol.military / 100, welfare: gm * pol.welfare / 100, education: gm * pol.education / 100,
       police: gm * pol.police / 100, infrastructure: gm * pol.infrastructure / 100, admin: gm * ADMIN_COST / 100, health: gm * (pol.health || 0) / 100,
@@ -505,6 +505,9 @@ function tickEconomy(game, warmup) {
       const b = U * rr * Math.max(0, (E.incType && E.incType[t]) || 0);
       E.welfarePC[t] += b / N[t]; ui += b;
     }
+    // Interest on state bonds held by savers goes to the owning classes (fiscal.js).
+    const ownN = N.capitalists + N.landowners;
+    E.bondPC = ownN > 0 && ownersAllowed(c) ? (E.bondIncome || 0) / ownN : 0;
     E.uiShare = E.budgetBase > 0 ? Math.min(0.05, ui / E.budgetBase) : 0;
     E.uiRate = rr;
     // Contributions match the long-run cost: a deficit in slumps, a surplus in booms.
@@ -532,6 +535,7 @@ function tickEconomy(game, warmup) {
       let net = grossT * (1 - tax) + (E.welfarePC[t] || 0) * N;
       const rp = rentPaid(p, t, net); net -= rp; rentNew += rp;
       if ((t === 'capitalists' || t === 'landowners') && p.rentIn && ownersN >= 1 && ownersAllowed(c)) net += p.rentIn * N / ownersN;
+      if ((t === 'capitalists' || t === 'landowners') && E.bondPC) net += E.bondPC * N;
       if (N < 1 || !plan) { p.inc[t] = 0; p.sol[t] = 0; continue; }
       const vb = E.vec.basic, ve = E.vec.everyday, vl = E.vec.luxury;
       let spend = 0, bVal = 0, bGot = 0, eVal = 0, eGot = 0, lGot = 0;

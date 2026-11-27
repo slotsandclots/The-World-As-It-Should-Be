@@ -327,6 +327,81 @@ The economy is already dynamic: goods prices move with supply and demand every m
   - *Measured* (16 worlds × 30 years against main): growth per person 1.42 → 1.35%/yr, worst unemployment 15 → 18%, inflation 1.9 → 3.0%, stability 48.5 → 47.6. Bankruptcy waves roughly double (21 → 44 per world), because squeezed profits can't service debts. Debt deflation is real, but it could be toned down in a later pass.
 - **The fiscal multiplier:** government spending moves output much more in a slump than in a boom, so stimulus versus austerity is a real choice. Partly emergent now: state demand restarts idle, squeezed capacity in a slump, but only bids up prices in a boom. It still needs measuring, and showing to the player.
 
+### Closed-loop economy (runs across 4c–4e)
+
+The rule: no goods or money created from nothing. Every unit of money has a source and an owner, and every debt is someone's asset. This is how Victoria-style economies stay honest: when the numbers balance, the interesting things (crowding out, debt crises, contagion, inflation that robs savers) fall out on their own instead of being scripted.
+
+**Audit (3 worlds × 20 years, before phase 1).** Where money or goods appeared from nothing or vanished:
+
+| Leak | Size | Realistic if modeled? |
+|---|---|---|
+| State spending set from GDP, not paid from cash: the economy got the spending whatever the treasury held | ~27% of GDP | Yes. Fixed in phase 1: spending is cut to what can be funded |
+| Deficits as a negative number with no lender | deficits ~4.3% of GDP; debt ~25% | Yes. Phase 1: savers, banks and foreign lenders hold it |
+| Interest on state debt paid to nobody | ~1.5% of GDP | Yes. Phase 1: it's income for the holders |
+| Money printing for deficits | ~0.5% of GDP | Already explicit (money.js). Now listed as a funding source |
+| Bailouts | episodic | Already treasury to bank capital; now funded like any other spending |
+| Output paid for but unsold (firms are paid for all their output at the clearing price, even goods nobody bought) | ~18% of GDP, ¾ of it peasants' subsistence grain | Partly. Subsistence is self-consumption, imputed like national accounts do; the rest should become inventories or price cuts. Later pass |
+| Pop wealth capped at 24 months of income (savings above the cap vanish) | ~8% of people at the cap | No. Should flow to the investment pool or assets (4e) |
+| Corruption: a share of taxes disappears | ~3.7% of GDP | Should become income for officials and the connected. Later pass |
+| Idle investment capital leaking abroad (0.5% a month) | ~0.3% of GDP | Should become foreign lending and assets (phase 2) |
+| World market: imports and exports by good, valued at world prices, never paid for | net 0, gross imbalances ~1.5% of GDP | Phase 2: every import is someone's export, paid in reserves, debt or currency |
+
+**Phase 1 ✅ (first pass): the state's budget and debt.** New `js/fiscal.js`.
+- **The state pays from cash.** A deficit is lent by:
+  - domestic savers, out of the owners' investment pool, so it crowds out private investment (most in a boom, when firms want that money; little in a slump, when it sits idle)
+  - banks, up to a share of their deposits; buying bonds creates deposits, so bank-funded deficits add to inflation
+  - foreign lenders, out of other nations' investment pools, more readily from friendly nations
+  - or the printing press, if the monetary law allows it
+- **Bondholders are real:**
+  - savers' interest is income for capitalists and landowners
+  - banks' interest becomes bank capital
+  - foreign interest goes to the lending nation's investment pool
+  - inflation erodes them all, since bonds are nominal
+- **Lenders can refuse.**
+  - Trust falls with debt, a recent default, war, inflation and unpaid bills.
+  - The yield rises as trust falls.
+  - When lenders won't cover the deficit, the state runs up arrears (unpaid wages and suppliers are also creditors), and next month it can only spend what it can fund. That is a **sovereign debt crisis**.
+- **Default** writes holdings down by half:
+  - savers lose wealth and business is furious
+  - banks lose capital, which can tip them into a banking crisis (the doom loop)
+  - foreign lenders' relations sour
+  - trust stays low for years
+- **The AI plays under the same limits.**
+  - It closes deficits beyond what lenders will fund (about 4% of GDP, 6% in a slump stimulus, less as trust falls) with taxes and cuts, sparing education and state investment.
+  - In a crisis it imposes austerity.
+  - It defaults when interest eats its revenue.
+- **Interface:**
+  - a State debt card in the Economy tab: debt, yield, lenders' trust with its causes, a bar of who holds the debt, and last month's funding by source
+  - a default button in a crisis
+  - alert-bar entries
+  - budget lines showing interest paid to bondholders
+- **Measured** (16 worlds × 30 years against main):
+
+  | Measure | Main | Phase 1 |
+  |---|---|---|
+  | Growth per person (%/yr) | 1.35 | 1.34 |
+  | Inflation (%/yr) | 3.0 | 3.7 |
+  | Stability | 47.6 | 47.3 |
+  | Share of nation-months in crisis | 0.063 | 0.068 |
+  | Banking crises per world | 2.4 | 2.1 |
+  | Depressions per world | 5.1 | 4.5 |
+
+  New: about 9 sovereign debt crises and 0.9 defaults per world; state debt ends near 17% of GDP. Inflation is higher because bank-bought bonds create money.
+- **Later in phase 1:**
+  - bondholders as an interest-group demand: rentiers oppose default and inflation, and their clout grows with their holdings
+  - war bonds
+  - a central bank that buys bonds (quantitative easing) as a distinct tool
+  - IMF-style bailouts with conditions, from blocs and great powers (lending as diplomatic leverage)
+
+**Phase 2 (folds into 4d): balanced trade.** Every import is someone's export. A trade deficit is paid with reserves, foreign borrowing or a falling currency. This is the base for contagion, exchange rates, capital flows and currency crises. The investment pool's leak abroad becomes real foreign lending and ownership.
+
+**Phase 3 (folds into 4e): owning assets.** Shares, land and mortgages are held by specific pops and banks, so the wealth cap goes away (savings become assets), crashes destroy real wealth, and foreclosures move land between classes.
+
+**Politics and gameplay that fall out of it:**
+- Debt becomes a political issue: bondholders oppose default and inflation, debtors (farmers, the indebted state) want inflation.
+- Lending is diplomatic leverage: a creditor nation can demand terms, refuse rollovers, or seize collateral.
+- **A sources-and-uses panel in the Ledger:** where every unit of money comes from (taxes, borrowing by lender, printing) and where it goes (spending by category, interest by holder), plus who holds the debt over time. The Economy tab's debt card is the first piece of it.
+
 ### 4d. The world economy
 - **Contagion:** a recession in a big economy cuts world-market demand, and its trading partners feel it.
 - **Exchange rates and capital flows:** money moves toward high interest rates and strong currencies. Devaluation helps exports, makes imports pricier and adds inflation.
@@ -628,7 +703,7 @@ Ideas for after (or alongside) the milestones. They follow the same design philo
 5. ✅ **Foundations:** consolidation, balance report, economy baseline and noise fix, campaign chapter VIII. Still to do: a play-test by a human. The Web Worker is deferred until weekly war turns arrive.
 6. ✅ **Milestone 4a–4b:** money, inflation, credit and the business cycle (first pass).
 7. ✅ **Milestone 3** (first pass), with ideas spreading through the world folded in: 3a peoples, 3b cities and demographics, 3c aging, inequality, minority movements and healthcare, 3d universities, kinship and unification, idea spread, 3e secondary schools, the minorities interest group, unification by force. Also done: **the alert bar** (see Quality of life).
-8. **Milestone 4c–4e:** labor relations and fiscal policy (including AI governments responding to the cycle), the world economy (with distance that matters, from World scale), and the stock and land markets.
+8. **Milestone 4c–4e:** labor relations and fiscal policy (including AI governments responding to the cycle), the world economy (with distance that matters, from World scale), and the stock and land markets, with the **closed-loop economy** running through all three (phase 1, the state's budget and debt, is done).
 9. **AI ambitions and personalities, with the graphics-card map**, plus the first art commissions: an art direction document, map textures and an icon set. The war layer needs the new map for army counters, fronts, plan arrows and supply routes.
 10. **Milestone 5:** the war layer, an operational layer.
 11. **The world newspaper and history book.** This can move earlier.

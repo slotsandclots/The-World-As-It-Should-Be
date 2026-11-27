@@ -375,6 +375,48 @@ test('4c: sticky wages, unemployment insurance and the AI fiscal stance', () => 
   assert(r.bad.length === 0, r.bad.join('; '));
 });
 
+test('closed loop: state debt has real holders, lenders can refuse, default hits them', () => {
+  const r = run(`(() => { const g = createGame('debt1', { size: 'small', countries: 6 });
+    for (let i = 0; i < 120; i++) { tick(g); g.pending.length = 0; }
+    const c = g.countries.find(x => x.alive && ownersAllowed(x)); setPlayer(g, c.id);
+    c.treasury = Math.min(c.treasury, 0); financeBudget(g, c);
+    // Every unit of debt is someone's asset.
+    const mism = g.countries.filter(x => x.alive && x.debt && Math.abs(debtTotal(x.debt) - Math.max(0, -x.treasury)) > 1e-6 * (1 + Math.abs(x.treasury))).length;
+    const E = c.econ, D = ensureDebt(c);
+    // A new deficit is lent by savers, out of the pool that funds private investment.
+    E.investPool = Math.max(E.investPool, E.gdpM * 3); E.conf = 0.7;
+    const pool0 = E.investPool, sav0 = D.savers;
+    c.treasury -= c.gdpNom * 0.01; financeBudget(g, c);
+    const saversLent = D.savers > sav0, crowded = E.investPool < pool0;
+    // Interest on foreign-held debt reaches the lender.
+    const l = g.countries.find(x => x.alive && x.id !== c.id && ownersAllowed(x));
+    D.foreign[l.id] = (D.foreign[l.id] || 0) + c.gdpNom * 0.1; c.treasury -= c.gdpNom * 0.1;
+    const lp0 = l.econ.investPool; payInterest(g, c, debtInterest(c)); const lenderPaid = l.econ.investPool > lp0;
+    // No one will lend: the bills go unpaid and spending is cut.
+    E.investPool = 0; E.money = 0; for (const x of g.countries) if (x.econ) { x.econ.investPool = 0; x.econ.statePool = 0; }
+    c.budget = projectBudget(c);
+    c.treasury -= c.gdpNom * 0.05; financeBudget(g, c);
+    const refused = D.arrears > 0 && D.payFrac < 1 && D.crisis > 0;
+    const spendCut = projectBudget(c).payFrac < 1;
+    // Default: holders lose, banks lose capital, the foreign lender resents it.
+    const rel0 = relation(g, c.id, l.id), debt0 = Math.max(0, -c.treasury), cap0 = E.bankCap, banks0 = D.banks;
+    c.pc = 100; const res = playerDefault(g);
+    const ok2 = Math.abs(debtTotal(D) - Math.max(0, -c.treasury)) < 1e-6 * (1 + debt0);
+    const h = deserializeGame(serializeGame(g));
+    return { mism, saversLent, crowded, lenderPaid, refused, spendCut, defOk: res.ok, lower: Math.max(0, -c.treasury) < debt0, bankHit: banks0 <= 0 || E.bankCap < cap0 || E.bankCrisis > 0,
+      soured: relation(g, c.id, l.id) < rel0, ok2, kept: h.countries[c.id].debt && Math.abs(debtTotal(h.countries[c.id].debt) - debtTotal(D)) < 1e-5 * (1 + debtTotal(D)), bad: __sane(g) }; })()`);
+  assert(r.mism === 0, r.mism + ' nations whose debt holders do not add up to their debt');
+  assert(r.saversLent && r.crowded, 'savers should fund the deficit out of the investment pool');
+  assert(r.lenderPaid, 'interest should reach the foreign lender');
+  assert(r.refused && r.spendCut, 'with no lenders, bills go unpaid and spending is cut');
+  assert(r.defOk && r.lower, 'default should write the debt down');
+  assert(r.bankHit, 'default should hit bank capital');
+  assert(r.soured, 'the foreign lender should resent the default');
+  assert(r.ok2, 'holders should still add up after a default');
+  assert(r.kept, 'debt holders lost on save/load');
+  assert(r.bad.length === 0, r.bad.join('; '));
+});
+
 test('credit: an over-borrowed economy defaults, closes buildings, and can trigger a banking crisis', () => {
   const r = run(`(() => { const g = createGame('credit1', { size: 'small', countries: 6 }); setPlayer(g, 0); const c = g.countries[0];
     for (let i = 0; i < 24; i++) { tick(g); g.pending.length = 0; }
