@@ -385,6 +385,21 @@ Visuals serve philosophy rule 7: the best graphics are the ones that show *why* 
 - **Do now:** the shared look (theme, map, top bar, tooltips).
 - **Do after:** redesign a screen only once the systems behind it have settled. The Politics, Pops and Military tabs will change again in Foundations, Milestone 3 and Milestone 5.
 
+**The graphics-card map (scheduled with AI ambitions, before Milestone 5)**
+
+The map moves to WebGL 2, which works in every current browser, including when the game is opened as a file. The province layout, height and terrain are uploaded once per world; each month only a small color-per-province table changes; a shader does relief, borders, glows, stripes and the coastline for every pixel.
+- **What it gives:** smooth 60-fps zoom and pan, instant map modes, and a base for rivers, roads, railways, city icons, animated fronts, plan arrows and trade routes. The current renderer stays as a fallback.
+- **Expected quality:**
+  - *procedural textures only:* about 70% of Victoria 3's zoomed-out political map
+  - *with a handful of artist textures* (terrain set, surface relief, paper, ocean): about 85%
+  - *true 3D close-ups* (city models, forests, trains) would need 3D assets and a 3D scene, decided later
+- **Known limit:** world resolution (about 300×150 cells on a large map) makes close zoom blocky, so the shader adds generated fine detail.
+- **Prototype first:** build it behind a toggle, compare screenshots side by side, then decide on textures.
+
+**Engines:** no engine change is needed for a stylized 2D map plus ornate panels. If we ever want true 3D close-ups, Godot (or three.js in the browser) is the option. The simulation is already separate from rendering (it runs headless), so a later move would mean a port, not a rewrite. A desktop release can wrap the web game with Tauri or Electron.
+
+**Art is the real gap, not technology:** consistent icon sets, panel and frame artwork, layered 2D portraits, and an event art library. Sources: commissioned artists, licensed or open asset packs (check licenses, especially for a commercial release), and our own generated art.
+
 **The map**
 - **Natural features:**
   - rivers (generated with the terrain; also defensive lines for Milestone 5)
@@ -455,12 +470,14 @@ Visuals serve philosophy rule 7: the best graphics are the ones that show *why* 
 2. ✅ **Quick wins:** number breakdowns, the ledger, the province panel, save slots, the visual overhaul.
 3. ✅ **Milestone 2:** laws, interest groups and their leaders, constitutional crises, regional elections, referendums, the press.
 4. ✅ **Consolidation and war on the map (first pass).**
-5. **Foundations:** finish the consolidation (fewer meters, movements folded into interest groups), balance report, economy baseline, Web Worker, play-test and campaign chapters.
-6. **Milestone 4a–4b:** money, inflation, credit and the business cycle. The economic foundation the social layer builds on.
-7. **Milestone 3:** society, peoples and culture, built on wages, savings and debt.
+5. ✅ **Foundations:** consolidation, balance report, economy baseline and noise fix, campaign chapter VIII. Still to do: a play-test by a human. The Web Worker is deferred until weekly war turns arrive.
+6. ✅ **Milestone 4a–4b:** money, inflation, credit and the business cycle (first pass).
+7. **Milestone 3:** society, peoples and culture. ✅ 3a peoples (first pass). Next is 3b: cities and housing, demographics, then schools and public services.
 8. **Milestone 4c–4d:** labor relations and fiscal policy, then the world economy.
-9. **AI ambitions and personalities.**
+9. **AI ambitions and personalities, alongside the graphics-card map** (see the visuals track). The war layer needs that map for army counters, fronts, plan arrows and supply routes, and by then cities (3b) and trade routes (4d) exist to be drawn.
 10. **Milestone 5:** military strategy as an operational layer.
 11. **Milestones 6 and 8:** eras and scenarios, intrigue and dynasties. National goals from Milestone 6 can be pulled forward for pacing.
+
+If we want to show the game to other people sooner (screenshots, a playable link, recruiting an artist), the graphics-card map can move earlier, because the map is most of the first impression.
 
 Throughout: each milestone follows the design philosophy, the AI uses every new system as it's built, and each big milestone ships with a campaign chapter and its share of the visuals track (cities with Milestone 3, infrastructure and economy screens with Milestone 4, war on the map with Milestone 5, era styling with Milestone 6).
