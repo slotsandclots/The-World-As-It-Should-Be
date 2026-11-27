@@ -495,6 +495,87 @@ The map moves to WebGL 2, which works in every current browser, including when t
 
 ---
 
+## Beyond the milestones
+
+Ideas for after (or alongside) the milestones. They follow the same design philosophy: real causes through pops and goods, emergence over scripting, and the AI playing the same game. ★ marks priorities that are scheduled in the Order below.
+
+### Priorities
+
+- ★ **The world newspaper and a generated history book.** This brings together the monthly newspaper (quality of life), the history book (Milestone 6) and the newspapers in the visuals track.
+  - **The newspaper:** a front page every month, with foreign headlines alongside our own: wars far away, great-power rivalries, revolutions, crashes, elections. It's built from the game's event log and statistics, with headlines chosen by importance, so the world feels alive rather than revolving around the player.
+  - **The history book:** a world-history view, a chronicle of your reign, and a "verdict of history" at an optional end date.
+- ★ **Ideas spreading through the world.**
+  - **The mechanism:** ideologies (liberalism, socialism, fascism, nationalism, later environmentalism) are currents with a strength in each nation. They travel along trade links, migrant flows, the press barons and bloc ties.
+  - **Revolutions inspire neighbors:** a revolution or a striking success in one country boosts the matching current next door.
+  - **Where it lands:** currents feed movements, party polls and interest-group radicalism, so 1848-style waves and domino effects emerge from the simulation.
+- ★ **A desktop release:** the web game wrapped with Tauri or Electron, saves to disk, bundled fonts for offline play, and a store-ready package later. Planned together with eras, toward a public release.
+
+### Deeper simulation
+
+- **Environment and climate:**
+  - pollution from industry
+  - resource depletion
+  - droughts and famines
+  - later, climate change as a slow global crisis that needs international cooperation
+- **Technology as diffusion, not a tree:** inventions spread from where they're made, through trade, students abroad, spies and foreign investment. Rich nations pull ahead, and catch-up growth becomes a strategy.
+- **Corporations as actors:** large companies with owners and leaders that lobby, bribe, buy newspapers, move factories abroad and get nationalized.
+- **Organized crime and the black economy:** smuggling under tariffs and price controls, black markets in shortages, and corruption as a network rather than a meter.
+
+### Deeper politics
+
+- **Global institutions:**
+  - a League of Nations or UN-style body
+  - world courts
+  - sanctions votes
+  - a global reserve currency
+  - development banks with strings attached
+- **Spheres of influence and a hierarchy of powers** (see World scale).
+
+### World scale
+
+**Why the world feels small:**
+- **Few actors:** 14 nations by default (40 at most) and a few hundred provinces, against hundreds of countries and thousands of provinces in Victoria, and thousands of counties and characters in CK.
+- **One flat level of geography:** no named states, regions, subcontinents, seas, mountain ranges or rivers.
+- **Everything fits on one screen,** so there's nothing beyond the horizon.
+- **Nations are all one size class.**
+- **Distance barely matters.**
+- **The news is mostly about you.**
+
+**What would make it feel bigger:**
+1. **More nations and provinces:** a larger default world, with hundreds of nations and thousands of provinces on large maps. *Depends on the graphics-card map and the Web Worker.*
+2. **A hierarchy of geography:** named states, regions and subcontinents; named seas, straits, mountain ranges and rivers on the map; labels that change with zoom level. *Independent; could come any time.*
+3. **A hierarchy of powers:** great power, major and minor ranks with different diplomatic weight; spheres of influence; microstates and unclaimed land at the edges. *Independent.*
+4. **Distance that matters:** trade costs and routes, slower migration and influence across oceans, supply and power projection that weaken with distance, regional markets before a single world market. *Fits Milestone 4d.*
+5. **Far-off places worth noticing:** distant continents you rarely deal with until you do, and regional crises and wars that ripple to you through trade and ideas. *Fits idea spread.*
+6. **A living world feed:** the world newspaper above. *Fits the newspaper.*
+7. **Density at close zoom:** cities, roads, railways, rivers and province names appearing as you zoom in. *Depends on the graphics-card map.*
+
+### Ways to play
+
+- **Play as a character** (from Milestone 8): an opposition leader, an exiled general or a press baron, so losing power doesn't end the game.
+- **Story campaigns** (from Milestone 6), and national goals that come from the simulation.
+
+### Living histories
+
+- **The newspaper and history book** (priority above).
+- **The past stays alive:** in the news, in nationalist claims, and in the memory of old wars and revolutions, which feeds diplomacy and movements.
+
+### Community and release
+
+- **The desktop release** (priority above).
+- **Modding and editors** (from Platform): a mod loader for events, campaigns, governments and world models; a scenario and map editor.
+- **Multiplayer:** hotseat first (the simulation is deterministic), later asynchronous online play.
+- **Art direction and commissions:** an art direction document, map textures, an icon set, then panels, portraits and event art (see the visuals track).
+
+### Under the hood
+
+- **The Web Worker:** the simulation runs in a background thread. Needed for world scale and weekly war turns.
+- **Data-driven content:** goods, buildings, laws, events and campaigns defined in JSON.
+- **Save compression and versioning,** so saves keep loading across updates.
+- **Balance reports for every change** (exists: `npm run report`), widened as systems are added.
+
+---
+
 ## Order
 
 1. ✅ **Milestone 1:** empires, blocs, coalitions.
@@ -503,11 +584,14 @@ The map moves to WebGL 2, which works in every current browser, including when t
 4. ✅ **Consolidation and war on the map (first pass).**
 5. ✅ **Foundations:** consolidation, balance report, economy baseline and noise fix, campaign chapter VIII. Still to do: a play-test by a human. The Web Worker is deferred until weekly war turns arrive.
 6. ✅ **Milestone 4a–4b:** money, inflation, credit and the business cycle (first pass).
-7. **Milestone 3:** society, peoples and culture. ✅ 3a peoples (first pass). Next is 3b: cities and housing, demographics, then schools and public services.
-8. **Milestone 4c–4d:** labor relations and fiscal policy, then the world economy.
-9. **AI ambitions and personalities, alongside the graphics-card map** (see the visuals track). The war layer needs that map for army counters, fronts, plan arrows and supply routes, and by then cities (3b) and trade routes (4d) exist to be drawn.
-10. **Milestone 5:** military strategy as an operational layer.
-11. **Milestones 6 and 8:** eras and scenarios, intrigue and dynasties. National goals from Milestone 6 can be pulled forward for pacing.
+7. **Finish Milestone 3**, with ideas spreading through the world folded in or right after. ✅ 3a peoples, 3b cities and demographics, 3c aging, inequality, minority movements and healthcare (first passes). Remaining: schooling as a service with levels, interest groups for large minorities and faiths, unification movements.
+8. **Milestone 4c–4d:** labor relations and fiscal policy, then the world economy (with distance that matters, from World scale).
+9. **AI ambitions and personalities, with the graphics-card map**, plus the first art commissions: an art direction document, map textures and an icon set. The war layer needs the new map for army counters, fronts, plan arrows and supply routes.
+10. **Milestone 5:** the war layer, an operational layer.
+11. **The world newspaper and history book.** This can move earlier.
+12. **Eras and scenarios (Milestone 6) and the desktop release,** together toward a public release.
+
+Later: Milestone 8 (intrigue and dynasties), world scale (as the map and Web Worker allow), and the rest of Beyond the milestones.
 
 If we want to show the game to other people sooner (screenshots, a playable link, recruiting an artist), the graphics-card map can move earlier, because the map is most of the first impression.
 
