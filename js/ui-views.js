@@ -538,6 +538,26 @@ Object.assign(UI, {
     return h + '</div>';
   },
 
+  // Our trade with one nation, both ways, and how much each side depends on the other (tradeflows.js).
+  tradeWithHtml(c, g, t) {
+    if (typeof tradeOf !== 'function') return '';
+    const me = tradeOf(g, c.id), them = tradeOf(g, t.id);
+    const out = me.to[t.id] || { v: 0, goods: {} }, inn = me.from[t.id] || { v: 0, goods: {} };
+    const top = gs => goodsShares(gs) || '—';
+    if (!out.v && !inn.v) return `<div class="card small"><h3>Trade</h3><p class="muted">We do not trade with ${esc(t.name)}${t.trade.includes(c.id) ? '' : ': there is no trade agreement, and neither of us sells what the other buys on the world market'}.</p></div>`;
+    // Goods where one side relies on the other for a large share of its imports.
+    const dep = (who, from) => Object.entries(from.goods).map(([k, v]) => [k, v / Math.max(1e-9, who.goodsIn[k] || 0)]).filter(x => x[1] >= 0.25).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([k, s]) => `${pct(s)} of ${esc(GOODS[GOOD_KEYS[k]].name.toLowerCase())}`).join(', ');
+    const ours = dep(me, inn), theirs = dep(them, out);
+    return `<div class="card"><h3>Trade with ${esc(t.name)}</h3>
+      <div class="kv small"><span>We sell them</span><span>${fmtFlow(out.v)}/mo · ${pct(out.v / Math.max(1e-9, me.out))} of our exports</span></div>
+      <div class="small muted" style="margin:-2px 0 4px">${top(out.goods)}</div>
+      <div class="kv small"><span>We buy from them</span><span>${fmtFlow(inn.v)}/mo · ${pct(inn.v / Math.max(1e-9, me.in))} of our imports</span></div>
+      <div class="small muted" style="margin:-2px 0 4px">${top(inn.goods)}</div>
+      <div class="kv small"><span>They get from us</span><span>${pct(out.v / Math.max(1e-9, them.in))} of their imports</span></div>
+      ${ours ? `<p class="small warn" style="margin:4px 0 0">We depend on them for ${ours} we import.</p>` : ''}${theirs ? `<p class="small" style="margin:4px 0 0">They depend on us for ${theirs} they import.</p>` : ''}
+      <p class="small muted" style="margin-top:6px">12-month averages at world prices. Trade inside a bloc comes first; the rest goes through the world market, shared out by each exporter's share of world sales. See the Trade map mode.</p></div>`;
+  },
+
   viewMarket(c, g) {
     const E = c.econ, W = g.worldMarket;
     const fmtQ = q => q >= 10000 ? (q / 1000).toFixed(0) + 'k' : q >= 1000 ? (q / 1000).toFixed(1) + 'k' : q.toFixed(0);
@@ -556,6 +576,17 @@ Object.assign(UI, {
         <td>${fmtQ(E.S[gk])}</td><td>${fmtQ(E.D[gk])}</td><td>${tr}</td><td class="${f < 0.95 ? 'bad' : ''}">${pct(f)}</td></tr>`;
     }
     h += '</table><p class="small muted">Price 100% = base price. Shortages ("Met" below 100%) ration goods for everyone: pops go without, factories stall, and the army runs short of arms.</p>';
+    if (typeof goodPartners === 'function') {
+      const fmtP = all => { const list = all.filter(x => x[2] >= 0.01), more = all.length - Math.min(3, list.length); return list.slice(0, 3).map(([id, , s]) => `${swatch(g.countries[id])} ${esc(g.countries[id].name)} ${pct(s)}`).join(', ') + (more > 0 ? ` <span class="muted">+${more} more</span>` : ''); };
+      let rows = '';
+      GOOD_KEYS.forEach((k, gi) => {
+        const gp = goodPartners(g, c.id, gi);
+        if (!gp.buy.length && !gp.sell.length) return;
+        rows += `<tr><td>${GOODS[k].name}</td><td class="small">${gp.buy.length ? fmtP(gp.buy) : '<span class="muted">—</span>'}</td><td class="small">${gp.sell.length ? fmtP(gp.sell) : '<span class="muted">—</span>'}</td></tr>`;
+      });
+      h += `<div class="card"><h3>Trading partners</h3><p class="small muted">Who we buy each good from and sell it to, as shares of our imports and exports of that good (12-month average). Bloc partners trade first; the rest is shared out on the world market by each exporter's share of world sales. A large share means we depend on that partner, or it on us.</p>
+        ${rows ? `<table class="list"><tr><th>Good</th><th>We buy from…</th><th>We sell to…</th></tr>${rows}</table>` : '<p class="small muted">We have not traded with anyone yet.</p>'}</div>`;
+    }
     return h;
   },
 
@@ -701,6 +732,7 @@ Object.assign(UI, {
       <div class="kv"><span>Provinces</span><span>${t.provinceCount}</span></div>
     </div>
     <div class="card small">Their public is ${ideologyText(t.ideo)}.</div>`;
+    h += this.tradeWithHtml(c, g, t);
     if (t.overlord === c.id) {
       const T = SUBJECT_TYPES[t.subjectType];
       h += `<div class="card"><h3>♜ Our ${T.name}</h3><p class="small muted">${T.desc}</p>

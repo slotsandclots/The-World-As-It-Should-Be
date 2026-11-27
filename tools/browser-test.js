@@ -50,6 +50,14 @@ const { chromium } = require('playwright');
   for (let i = 0; i < 3; i++) { await drain(); await page.click('#btn-next'); }
   await drain();
   await page.click('#tabs [data-tab="world"]');
+  // The trade map mode: filter by a good, then hover a trade line.
+  await page.click('[data-mode="trade"]');
+  await page.selectOption('#trade-good', '0');
+  await page.selectOption('#trade-good', '-1');
+  const seg = await page.evaluate(() => { const s = (UI._tradeSegs || [])[0]; if (!s) return null; const wr = document.querySelector('#map-wrap').getBoundingClientRect(); const t = 0.5; return { x: wr.left + (1 - t) * (1 - t) * s.x1 + 2 * (1 - t) * t * s.cx + t * t * s.x2, y: wr.top + (1 - t) * (1 - t) * s.y1 + 2 * (1 - t) * t * s.cy + t * t * s.y2 }; });
+  if (seg) { await page.mouse.move(seg.x, seg.y); const tipText = await page.textContent('#map-tooltip'); if (!/Trade:/.test(tipText)) errors.push('Hovering a trade line shows no trade tooltip: ' + tipText.slice(0, 80)); }
+  else errors.push('The trade map mode drew no trade lines.');
+  await page.click('#tabs [data-tab="market"]');
   const modes = await page.$$eval('#map-modes [data-mode]', els => els.map(e => e.dataset.mode));
   for (const m of modes) { await page.click(`[data-mode="${m}"]`); }
   await page.mouse.move(500, 400);

@@ -110,7 +110,7 @@ Characters are managed from the Leader tab: appoint and dismiss ministers, honor
 
 **Events.** Strikes, scandals, plotting colonels, student protests, booms, disasters, border incidents, opposition firebrands and more, each with choices.
 
-**Map.** Scroll to zoom and drag to pan; smaller nations' names appear as you zoom in. Modes: political, government, stability, public opinion, terrain, resources, living standard, industry and your relations. Hover a province to see its classes, buildings and resources.
+**Map.** Scroll to zoom and drag to pan; smaller nations' names appear as you zoom in. Modes: political, government, stability, public opinion, terrain, resources, living standard, industry, your relations and trade. Hover a province to see its classes, buildings and resources.
 
 The game saves to your browser's local storage (Menu → Save game).
 
@@ -151,6 +151,8 @@ The game saves to your browser's local storage (Menu → Save game).
 - **It ends at a peace conference.** The victors keep the occupied land where their people live, free the peoples the losers had conquered, and impose ten years of reparations and fifteen years of disarmament (a cap on military spending) on the great powers that lost. A beaten aggressor regime is replaced by the victors' system. The victors draw together in an alliance to guard the peace.
 - **The next war grows out of the last peace.** The losers carry the wound, revanchist governments tear up the disarmament clauses once the victors look beatable, and a nation that has bled is slow to fight again. In balance runs, about half of the worlds see a world war within 40 years, and some see a second one.
 
+**Who trades with whom.** Trade clears through each bloc's shared market and then the world market. The game splits it into flows between nations each month. The Trade map mode draws a line between trading partners, thicker for more trade, with a filter by good; hover a line to see what each side sells the other and what share of its imports it gets from the other. The Market tab lists who we buy each good from and sell it to, and the Diplomacy tab shows our trade with the selected nation and where either side depends on the other.
+
 **Warnings before it's too late.** An alert bar under the top bar shows coup and revolution risk building up, and flags trouble in politics, the economy, society and war, plus decisions waiting for you.
 
 **Seeing why.** Hover approval, stability, unrest, political capital or the treasury for a breakdown of what drives it. The Ledger tab charts your nation over time, compares you with your rivals, and tracks world market prices.
@@ -180,6 +182,7 @@ The game saves to your browser's local storage (Menu → Save game).
 | `js/credit.js` | Private credit, confidence, defaults and bankruptcies, banking crises |
 | `js/peoples.js` | Cultures, faiths, assimilation, grievance, migration, nationalist claims |
 | `js/society.js` | Cities, housing and rents, slums, births and deaths, aging |
+| `js/tradeflows.js` | Bilateral trade flows split from the pooled markets (accounting only), with a 12-month average |
 | `js/ideas.js` | Universities, kinship and unification, ideas spreading between nations |
 | `js/alerts.js` | Alert bar: coup and revolution risk, alerts by category |
 | `js/arena.js` | Crises for AI nations, regional elections, referendums, press barons |
