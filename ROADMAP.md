@@ -109,17 +109,29 @@ The biggest multiplier for political depth. Governments become combinations of l
 - **Business cycles:** booms, recessions and depressions that emerge from investment, debt and prices instead of being scripted. Governments respond with stimulus or austerity.
 - **Economic statistics:** GDP by sector, inflation, unemployment and trade balance in a ledger, and price history charts per good.
 
-## Milestone 5: Military strategy (L)
+## Milestone 5: Military strategy, an operational layer (L)
 
-- **Casus belli and claims:** you need a justification to declare war, which can be fabricated (by spies, or by inventing border incidents). Declaring war without one costs legitimacy and relations.
-- **War goals and occupation:** declare war goals up front. Provinces are occupied during the war and transferred at peace, and a war score built from war goals replaces raw province counts.
-- **Armies and fronts:** armies sit on fronts between nations, led by your generals (using their skill and traits). Mobilization draws soldiers from the pops and hurts the economy.
-- **Navies:** fleets, naval invasions across straits and oceans, blockades that cut trade (plugging into the world market), and convoys.
-- **Supply and attrition:** arms and fuel shortages already weaken armies, so this makes supply lines and front-line attrition explicit too.
-- **War exhaustion politics:** casualty reports, anti-war movements, draft riots.
-- **War economy:** converting factories to arms production, rationing, war bonds and price controls. These link the war to the economic and social model.
-- **Military doctrine and branches:** army, air force and navy budgets; doctrines unlocked by technology; officer corps quality linked to education and the military interest group.
-- **Strategic deterrence and proxy wars** for later eras: arming rebels and backing sides in other nations' civil wars.
+**Design principle:** war should be an economic and political act, not a separate game. We take the parts of Hearts of Iron that make war about places and timing (fronts, breakthroughs, supply, encirclement) and skip the parts that demand constant micromanagement (division templates, combat width, daily ticks). The war layer runs itself; the player steps in for the big decisions and goes back to running the country.
+
+Already in place (first pass): occupation until peace, fighting along the front by province, terrain, encirclement and sea supply, postures, general mobilization.
+
+**Build:**
+
+- **Armies on the map:** a few army counters per nation (roughly one per front), not dozens of divisions. Each has strength (men and equipment) and organization (cohesion that battles drain first; at zero it retreats). Armies hold their front and follow their last order until told otherwise.
+- **Orders:** *hold* (dig in, entrenchment builds over weeks), *advance* (push the whole line), and *spearhead* (draw an arrow to a target: the army concentrates, breaks through and drives deep). Optional: move an army yourself to plug a gap.
+- **Supply and encirclement:** supply flows from the capital and ports along held provinces and fades with distance and poor infrastructure. Out-of-supply armies lose organization; encircled ones surrender. Overseas fronts depend on controlling the sea route.
+- **Generals lead armies:** the existing general characters command, gain experience and traits ("Defensive Genius", "Blitz Commander"), and win popularity. A victorious, ambitious general is a coup risk.
+- **Armies come from the economy and the pops:** manpower is drawn from soldier and peasant pops (and leaves the workforce); equipment from arms, steel and fuel bought on the market. Shortages at home become shortages at the front; a blockade starves both.
+- **War economy:** converting factories to arms, rationing, war bonds and price controls, each with its own interest-group winners and losers.
+- **The home front:** casualty reports, anti-war movements, draft riots, a hostile press. Losing a war can bring down the government.
+- **Casus belli and war goals:** a justification is needed to declare war, which can be fabricated. War goals come from politics (reconquest, nationalism from Milestone 3, interest-group demands) and drive war score.
+- **The seas and the skies, abstracted:** fleets contest control of sea routes (landings, blockades that cut world-market trade, convoy raiding); air power is a regional superiority modifier, not units.
+- **Time:** the game runs in weekly steps while a war is on, and monthly in peace. On the map: army counters, battle markers, the front line between the sides, plan arrows, and highlighted encircled pockets.
+- **AI:** fights with the same fronts and orders, so it can spearhead and encircle too.
+
+**Skip on purpose:** division templates, combat width, daily ticks, unit-level air and naval combat, a production line for every weapon.
+
+**Later:** military doctrines in the tech tree, officer quality tied to education and the military interest group, proxy wars and arming rebels for later eras.
 
 ## Milestone 6: Eras and scenarios (M each)
 
@@ -181,5 +193,5 @@ The biggest multiplier for political depth. Governments become combinations of l
 3. **Milestone 2:** laws and interest groups (first pass done).
 4. **Milestone 3:** society, peoples and culture.
 5. **Milestone 4:** deeper economy.
-6. **Milestone 5:** military strategy. It builds on everything above: war economy, mobilization from pops, war goals from nationalism.
+6. **Milestone 5:** military strategy as an operational layer (armies, orders, supply, encirclement, generals), built on everything above: war economy, mobilization from pops, war goals from nationalism.
 7. **Milestones 6–8** as we go. Each big milestone ships with a new campaign chapter or campaign, and the AI improves alongside every system.
