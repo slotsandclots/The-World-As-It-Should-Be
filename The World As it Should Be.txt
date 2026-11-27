@@ -1,0 +1,5 @@
+The World: As it Should Be
+
+Thesis: 
+
+This is an attempt at creating a CK, Victoria, HOI4 game with the help of AI. I want to model deep economic and political simulations while retaining the core concept of the "pop" in every design decision. This is a world that can live and breathe without the input of a player. A personal pet project of mine, I hope that anyone playing this can get *something* out of it. And if you hate it? Well, I simply want to thank you for taking the time to play my vibe coded game.
