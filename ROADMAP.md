@@ -39,6 +39,7 @@ New features should plug into these quantities rather than add their own meters 
 | **Money and credit** (`money.js`, `credit.js`) | Money growth, printing, bank lending, confidence | Price level and inflation, interest rates, construction, defaults, banking crises, unemployment |
 | **State budget and debt** (`fiscal.js`) | Taxes on pop incomes, tariffs, state enterprises; lenders (savers, banks, foreign nations) | State spending into the economy, crowding out, interest to bondholders, debt crises |
 | **Payments** (`payments.js`, draft) | Trade balances, reparations, owners' capital looking abroad | Reserves, foreign debts and lenders, exchange rates, import prices and rationing |
+| **Trade flows** (`tradeflows.js`, accounting only) | Each month's bloc and world trade | Who trades with whom: the Trade map mode, trading partners per good, trade dependence between nations; read next by spheres of influence |
 | **Society and peoples** (`society.js`, `peoples.js`) | Pops, laws (citizenship, immigration), wars and occupation | Housing and slums, births and aging, grievance, migration, nationalist claims |
 | **Ideas and notable people** (`ideas.js`, `figures.js`) | Neighbors, trade and bloc ties, revolutions, the press, literacy and universities | Idea currents → public opinion and movements; research |
 | **Politics** (interest groups, movements, laws, parties, characters) | Pops' living standards and beliefs, demands met or not, leaders | The four meters (legitimacy, support, unrest, stability) → elections, coups, revolutions, reforms |
@@ -46,7 +47,7 @@ New features should plug into these quantities rather than add their own meters 
 | **War** (`warfare.js`, `revanchism.js`, `worldwar.js`) | Army size (military spending, population), arms, technology, generals, alliances | Occupation, peace terms (land, reparations, regime change), the memory of defeat → movements and AI aims; mobilization and war production; war weariness |
 | **Technology** (`tech.js`) | Education, literacy, universities, inventors | Productivity, army strength, tax collection, corruption |
 
-**Known gaps where systems don't mesh yet:** wars are financed only by printing and borrowing (no war bonds); the war dead are not taken out of the pops; tariffs cut trade both ways; world trade is pooled, so there is no bilateral trade to measure dependence; great-power status is a fixed ranking; government types still differ mostly by flat numbers (see "Governments that play differently"); several AI paths found blocs and sign up the partner on a relations threshold alone, while the player's partner weighs the offer (fix next: one founding path where every partner decides, show the acceptance chance on the Blocs tab, re-measure world wars).
+**Known gaps where systems don't mesh yet:** wars are financed only by printing and borrowing (no war bonds); the war dead are not taken out of the pops; tariffs cut trade both ways; great-power status is a fixed ranking; government types still differ mostly by flat numbers (see "Governments that play differently"); several AI paths found blocs and sign up the partner on a relations threshold alone, while the player's partner weighs the offer (fix next: one founding path where every partner decides, show the acceptance chance on the Blocs tab, re-measure world wars).
 
 ## Done
 
@@ -592,7 +593,7 @@ Formal control exists (puppets, vassals, protectorates, colonies), and so do blo
 
 - **Influence over a nation** is the sum of real ties to a great power:
   - the foreign debt it holds (payments.js already records every loan by lender)
-  - the share of trade that goes through that power or its bloc (needs bilateral trade, with 4d)
+  - the share of its trade that goes through that power or its bloc, read from the bilateral trade flows (`tradeflows.js`)
   - the factories its investors own (with phase 3, owning assets)
   - pacts and guarantees
   - shared ideas and kinship
@@ -853,7 +854,7 @@ Ideas for after (or alongside) the milestones. They follow the same design philo
 7. ✅ **Milestone 3** (first pass), with ideas spreading through the world folded in: 3a peoples, 3b cities and demographics, 3c aging, inequality, minority movements and healthcare, 3d universities, kinship and unification, idea spread, 3e secondary schools, the minorities interest group, unification by force. Also done: **the alert bar** (see Quality of life).
 8. ✅ **History makers (first pass):** notable people, the memory of defeat and its demagogues, world wars and peace conferences. Pulled forward at the player's request; it uses the existing war layer and leaves the operational war layer to Milestone 5.
 9. **Milestone 4c–4e,** with step 1 of "Governments that play differently" (mechanisms instead of flat per-type numbers) in 4c: labor relations and fiscal policy (including AI governments responding to the cycle), the world economy (with distance that matters, from World scale), and the stock and land markets, with the **closed-loop economy** running through all three (phase 1, the state's budget and debt, is done).
-10. **Spheres of influence,** once payments, foreign ownership and bilateral trade exist.
+10. **Spheres of influence,** once payments and foreign ownership exist (bilateral trade flows already do).
 11. **AI ambitions and personalities, with the graphics-card map**, plus the first art commissions: an art direction document, map textures and an icon set. The war layer needs the new map for army counters, fronts, plan arrows and supply routes.
 12. **Milestone 5:** the war layer, an operational layer.
 13. **The world newspaper and history book.** This can move earlier. World wars, treaties and the figures of the age are natural headlines and chapters.
