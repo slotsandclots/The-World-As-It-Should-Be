@@ -151,6 +151,7 @@ function productivity(game, c) {
   let prod = c.econ.tech * (0.85 + p.infrastructure * 0.05) * (c.id === game.player ? 1 : 1 + difficulty(game).aiProd);
   if (c.stability < 35) prod *= 1 - (35 - c.stability) * 0.006;
   if (isAtWar(game, c.id)) prod *= 0.96;
+  if (c.mobilized) prod *= 0.9; // reservists leave the factories
   return Math.max(0.05, prod);
 }
 

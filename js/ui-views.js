@@ -461,11 +461,13 @@ Object.assign(UI, {
       <div class="kv"><span>Occupied land</span><span>${pct(occupiedShare(g, c))} of pop</span></div>
       <div class="kv"><span>Allies</span><span>${c.allies.length}</span></div>
     </div>
-    <div class="card">${bar('Military loyalty', c.factions.military)}<p class="small muted">Conquest has a price: every war of aggression and every province taken adds <b>infamy</b>, which sours relations and, above ${INFAMY.coalitionAt}, can unite your neighbors in a coalition against you. Conquered land is <b>occupied</b> for five years (half output, unrest, possible revolts) and stays <b>non-core</b> for twenty (less tax and fewer soldiers, more unrest).</p><p class="small muted">Strength depends on army size (set by military spending and population), wealth, stability and the loyalty of the officers. Defenders fight with a 30% bonus.</p>
+    <div class="card">${bar('Military loyalty', c.factions.military)}<p class="small muted">Conquest has a price: every war of aggression and every province taken adds <b>infamy</b>, which sours relations and, above ${INFAMY.coalitionAt}, can unite your neighbors in a coalition against you. In war, captured land is <b>occupied</b> (half output, unrest) and only changes hands at the peace. Annexed land stays unsettled for five years.</p><p class="small muted">Strength depends on army size (set by military spending and population), wealth, stability and the loyalty of the officers. Defenders fight with a 30% bonus.</p>
       <button data-act="tab" data-tab="economy">Adjust military spending →</button></div>`;
     const wars = warsOf(g, c.id);
     h += `<h4>Wars</h4>`;
     if (!wars.length) h += '<p class="muted small">We are at peace.</p>';
+    if (isAtWar(g, c.id) || c.mobilized) h += `<div class="card"><h3>${icon('military', 16)} Mobilization</h3><p class="small" style="margin-top:0">${c.mobilized ? `<b class="warn">The nation is mobilized</b> since ${gameDate(g, c.mobilized - 1)}: the army grows toward 160% of its peacetime size, but factories lose 10% of their output, approval suffers and war exhaustion builds faster.` : 'Call up the reserves: the army grows toward 160% of its peacetime size, at the cost of 10% of industrial output, approval and faster war exhaustion.'}</p>
+      <button class="${c.mobilized ? '' : 'danger'}" data-act="mobilize" data-on="${c.mobilized ? 0 : 1}">${c.mobilized ? 'Demobilize' : `General mobilization (${MOBILIZE_PC} PC)`}</button></div>`;
     for (const w of wars) {
       const mine = w.a.includes(c.id) ? 'a' : 'b', theirs = mine === 'a' ? 'b' : 'a';
       const us = w[mine].map(id => g.countries[id]), them = w[theirs].map(id => g.countries[id]);
@@ -474,7 +476,10 @@ Object.assign(UI, {
         <div class="small muted">Since ${gameDate(g, w.start)} · ${g.month - w.start} months</div>
         <div class="kv"><span>Our side</span><span>${us.map(x => swatch(x) + ' ' + esc(x.name)).join(', ')}</span></div>
         <div class="kv"><span>Enemy</span><span>${them.map(x => swatch(x) + ' ' + esc(x.name)).join(', ')}</span></div>
-        <div class="kv"><span>Provinces taken</span><span><span class="good">${w['gains' + mine.toUpperCase()]}</span> vs <span class="bad">${w['gains' + theirs.toUpperCase()]}</span></span></div>
+        <div class="kv"><span>Occupied</span><span><span class="good">${g.world.provinces.filter(p => them.some(x => x.id === p.owner) && p.occ != null && us.some(x => x.id === p.occ)).length} enemy provinces</span> · <span class="bad">${g.world.provinces.filter(p => us.some(x => x.id === p.owner) && p.occ != null).length} of ours</span></span></div>
+        <div class="kv"><span>Front</span><span>${frontSectors(g, w, w[mine]).length} sectors we can attack · ${frontSectors(g, w, w[theirs]).length} exposed</span></div>
+        <div class="small" style="margin:6px 0 2px">Posture: ${Object.entries(POSTURES).map(([k, P]) => `<button class="${((w.posture && w.posture[c.id]) || 'balanced') === k ? 'active' : ''}" data-act="posture" data-war="${w.id}" data-p="${k}" title="${esc(P.desc)}">${P.name}</button>`).join(' ')}</div>
+        <p class="small muted" style="margin:2px 0">Battles are fought province by province along the front. Hills and mountains favor the defender, half-surrounded provinces fall more easily, and land reached only by sea is hard to supply. Occupied land changes hands only at the peace.</p>
         <div class="kv"><span>Strength</span><span>${sU.toFixed(0)} vs ${sT.toFixed(0)}</span></div>
         <div class="kv"><span>Exhaustion</span><span>${Math.round(w['ex' + mine.toUpperCase()])} vs ${Math.round(w['ex' + theirs.toUpperCase()])}</span></div>
         <div class="kv"><span>War score</span><span class="${warScore(g, w, c.id) >= 0 ? 'good' : 'bad'}">${fmtSigned(warScore(g, w, c.id), 0)}</span></div>

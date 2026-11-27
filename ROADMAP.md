@@ -75,6 +75,13 @@ The biggest multiplier for political depth. Governments become combinations of l
 - **Ideologies inside interest groups:** for example, a reformist or a reactionary clergy, and a moderate or radical labor wing. They shift as the pops underneath them change.
 - **Constitutional crises:** term limits, failed impeachments, succession disputes and states of exception, each with its own event chain.
 
+## Consolidation and war on the map (done, first pass)
+
+- **Interest groups rest on their pops:** loyalty now also follows the living standard of their own classes (soldiers, clergy, workers, the middle and upper classes) and falls while their demanded law is unmet. Stability counts interest-group support weighted by clout, not an equal average.
+- **Regimes inherit institutions:** coups and reforms keep the church, economic system, labor and electoral laws; only revolutions remake everything.
+- **War on the map:** provinces are occupied during a war and change hands only at the peace (or a capitulation). Battles are fought sector by sector along the front: terrain favors the defender, half-surrounded provinces fall more easily, land reached only by sea is poorly supplied. War score comes from occupation. Postures (offensive, balanced, defensive) and general mobilization (bigger army, less industrial output, faster exhaustion) are the player's levers; AI nations choose both. Occupation is drawn on the map in the occupier's colors.
+- **Still to do:** movements folded into radicalized interest groups, fewer meters overall, armies as units you can move, war goals from nationalism, AI long-term ambitions, a balance report across many seeds.
+
 ## Milestone 3: Society, peoples and culture (L)
 
 - **Cultures and religions on pops:** majority and minority groups, with discrimination or acceptance laws, assimilation and religious conversion.

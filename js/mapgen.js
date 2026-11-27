@@ -476,6 +476,7 @@ function generateWorld(seed, opts) {
   for (const P of provinces) {
     P.neighbors = Array.from(nbSets[P.id]);
     const hAvg = P.hsum / P.tiles;
+    P.rough = Math.round(hAvg * 100) / 100;
     const fertility = 1.25 - hAvg * 0.8 + (P.coastal ? 0.2 : 0);
     P.pop = Math.round(P.tiles * fertility * rng.range(0.6, 1.4) * 9000);
     let name;

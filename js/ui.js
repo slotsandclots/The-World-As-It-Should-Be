@@ -462,6 +462,8 @@ const UI = {
       case 'ig': { const r = igAction(g, ds.f, ds.a); this.track('ig:' + ds.a, r.ok); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }
       case 'referendum': { const r = holdReferendum(g, this.player(), ds.cat, ds.opt); this.track('referendum', r.ok); this.toast(r.msg, r.ok && r.passed ? 'good' : 'bad'); if (r.ok) this.lawPick = null; App.afterAction(); return; }
       case 'press': { const r = pressAction(g, +ds.i, ds.a); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }
+      case 'posture': { const r = setPosture(g, +ds.war, ds.p); this.toast(r.msg, r.ok ? 'info' : 'bad'); App.afterAction(); return; }
+      case 'mobilize': { const r = setMobilized(g, this.player(), ds.on === '1'); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }
       case 'lawact': { const r = lawAction(g, ds.a); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }
       case 'ledger': this.ledger = Object.assign(this.ledger || {}, { [ds.k]: ds.v }); this.renderTab(); return;
       case 'newsmine': this.newsMine = !this.newsMine; this.renderTab(); return;
@@ -521,6 +523,8 @@ const UI = {
       const r = relation(g, me.id, c.id);
       rel = `<br>Relations: <span class="${r < 0 ? 'bad' : 'good'}">${Math.round(r)}</span>${atWarWith(g, me.id, c.id) ? ' <span class="bad">· AT WAR</span>' : ''}`;
     }
+    if (pr.occ != null && g.countries[pr.occ]) rel += `<br><span class="bad">Occupied by ${esc(g.countries[pr.occ].name)}</span>`;
+    rel += `<br><span class="muted">Terrain: ${(pr.rough || 0) > 0.55 ? 'mountains' : (pr.rough || 0) > 0.3 ? 'hills' : 'lowlands'} (defense +${Math.round((pr.rough || 0.3) * 90)}%)</span>`;
     const occ = occupationFactor(g, pr);
     const coreNote = occ > 0 ? ` <span class="bad">· occupied (${Math.round(occ * 60)} mo left)</span>` : pr.core !== undefined && pr.core !== pr.owner ? ' <span class="warn">· non-core</span>' : '';
     const subjNote = c.overlord != null ? `<br><span class="warn">${SUBJECT_TYPES[c.subjectType].name} of ${esc(g.countries[c.overlord].name)}</span>` : '';

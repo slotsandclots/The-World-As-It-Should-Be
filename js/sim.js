@@ -231,7 +231,7 @@ function makeParties(game, c) {
 
 function armyTarget(c) {
   // Non-core land supplies half as many soldiers.
-  return c.pop * (1 - (c.nonCoreShare || 0) * 0.5) * (1 - (c.autonomousShare || 0) * 0.5) * c.policy.military * 0.004 * GOVS[c.gov].milMult * (1 + lawFx(c).army);
+  return c.pop * (1 - (c.nonCoreShare || 0) * 0.5) * (1 - (c.autonomousShare || 0) * 0.5) * c.policy.military * 0.004 * GOVS[c.gov].milMult * (1 + lawFx(c).army) * (c.mobilized ? 1.6 : 1);
 }
 
 function strength(c) {
@@ -312,6 +312,12 @@ function tickCountry(game, c) {
     clergy: 48 + g.clergyBonus - (c.freedom - 50) * 0.12 + c.ideo.auth * 10 + (c.flags.clericalSchools ? 10 : 0),
     intelligentsia: 28 - (c.flags.clericalSchools ? 6 : 0) + c.freedom * 0.35 + (p.education - 4) * 3 - p.police * 2.5 - (c.emergency ? 15 : 0) + (E.strataSol.middle - 65) * 0.2,
   };
+  // Interest groups also judge the state by how their own people live, and by whether their demands are met.
+  ft.military += ((E.solType && E.solType.soldiers) || 40) * 0.15 - 6;
+  ft.clergy += ((E.solType && E.solType.clergy) || 50) * 0.12 - 6;
+  const unmet = {};
+  for (const f of FACTION_KEYS) { const d = interestDemand(c, f); unmet[f] = d ? -Math.min(6, lawPreference(c, d.cat, d.opt, f) * 0.35) : 0; ft[f] += unmet[f]; }
+  c._unmet = unmet;
   for (const f of FACTION_KEYS) {
     const target = clamp(ft[f] + (T[f] || 0) + (M[f] || 0) + (CF.factions[f] || 0) + (f === 'military' ? CF.military : 0) + LF[f], 0, 100);
     c.factions[f] += (target - c.factions[f]) * 0.07;
@@ -337,7 +343,7 @@ function tickCountry(game, c) {
     ['Baseline', 50], ['Economic growth', clamp(growthA * 2, -15, 10)], ['Welfare spending', (p.welfare - 8) * 0.6], ['Education spending', (p.education - 4) * 0.5],
     ['Infrastructure spending', (p.infrastructure - 3) * 0.4], ['Taxes', -(p.tax - 0.25) * 60], ['Corruption', -c.corruption * 0.12], ['War exhaustion', -c.warExhaustion * 0.25],
     ['Public opinion vs. the regime', -mismatch * 8], ['Leader\'s traits', T.approval || 0], ['Temporary effects', M.approval || 0], ['National debt', -Math.max(0, debtRatio - 0.6) * 15],
-    ['Contentment of the people', E.contentment * 0.5], ['Unemployment', -E.unemployment * 50], ['Leader\'s charisma', (L.cha - 5) * 0.8], ['Cabinet', CF.approval], ['Laws', LF.approval], ['The press', pressApproval(c)], ['Technology', techSum(c, 'approval')],
+    ['Contentment of the people', E.contentment * 0.5], ['Unemployment', -E.unemployment * 50], ['Leader\'s charisma', (L.cha - 5) * 0.8], ['Cabinet', CF.approval], ['Laws', LF.approval], ['The press', pressApproval(c)], ['Mobilization', c.mobilized ? -3 : 0], ['Technology', techSum(c, 'approval')],
   ];
   const apT = sumParts(apParts);
   c.approval = clamp(c.approval + (clamp(apT, 0, 100) - c.approval) * 0.1 + rng.normal() * 0.6, 0, 100);
@@ -353,7 +359,7 @@ function tickCountry(game, c) {
   const baseLoy = weightedLoyalty(c, g.base);
   const stParts = [
     ['Baseline', 8], [`Public approval (weight ${Math.round(aw * 100)}%)`, 0.38 * aw * c.approval], [`Loyalty of the power base (weight ${Math.round((1 - aw) * 100)}%)`, 0.38 * (1 - aw) * baseLoy],
-    ['Legitimacy', 0.25 * c.legitimacy], ['Goodwill of all factions', 0.2 * avgLoyalty(c)], ['Unrest', -0.4 * c.unrest], ['Police', p.police * 1.2 * g.repression],
+    ['Legitimacy', 0.25 * c.legitimacy], ['Support of interest groups (by clout)', 0.2 * cloutLoyalty(c)], ['Unrest', -0.4 * c.unrest], ['Police', p.police * 1.2 * g.repression],
     ['War exhaustion', -c.warExhaustion * 0.1], ['Leader\'s traits', T.stability || 0], ['Cabinet', CF.stability], ['Laws', LF.stability], ['Temporary effects', M.stability || 0], ['Unintegrated conquests', -Math.min(25, (c.nonCoreCount || 0) * 0.6)],
   ];
   const stT = sumParts(stParts);
@@ -525,7 +531,10 @@ function changeGovernment(game, c, newGov, how, opts) {
   const oldFormal = formalName(c);
   c.prevGov = old;
   c.gov = newGov;
+  // Coups and reforms keep society's institutions; revolutions remake them.
+  const oldLaws = c.laws;
   c.laws = presetLaws(newGov);
+  if (oldLaws && how !== 'revolution') for (const k of ['church', 'economy', 'labor', 'electoral']) if (oldLaws[k]) c.laws[k] = oldLaws[k];
   c.reform = null;
   if (g.party === 'multi' && GOVS[old].party === 'multi') {
     // keep the existing party system
@@ -700,6 +709,9 @@ function sideStrength(game, ids) {
 function pickFrontProvince(game, winSide, loseSide) {
   const provs = game.world.provinces;
   const cands = [];
+  // Land the winner already occupies is ceded first.
+  const occ = provs.filter(p => loseSide.includes(p.owner) && p.occ != null && winSide.includes(p.occ));
+  if (occ.length) { const p = game.rng.pick(occ); return [p.id, p.occ]; }
   for (const p of provs) {
     if (!loseSide.includes(p.owner)) continue;
     const takers = [];
@@ -715,6 +727,7 @@ function transferProvince(game, pid, to) {
   const pr = game.world.provinces[pid];
   const fromId = pr.owner;
   if (fromId === to) return;
+  pr.occ = undefined;
   const from = game.countries[fromId], T = game.countries[to];
   pr.owner = to;
   from.flags.lostLand = game.month;
@@ -750,8 +763,8 @@ function capitulate(game, war, loserId, takerId) {
   const loser = game.countries[loserId];
   const side = war.a.includes(loserId) ? 'a' : 'b';
   const enemies = side === 'a' ? war.b : war.a;
-  // Tribute: the victor takes up to two more border provinces.
-  for (let i = 0; i < 2; i++) {
+  // Tribute: the victor takes what it occupies, up to three provinces.
+  for (let i = 0; i < 3; i++) {
     const t = pickFrontProvince(game, [takerId], [loserId]);
     if (!t || !loser.alive) break;
     transferProvince(game, t[0], takerId);
@@ -769,8 +782,9 @@ function capitulate(game, war, loserId, takerId) {
 function endWar(game, war, reason) {
   const idx = game.wars.indexOf(war);
   if (idx < 0) return;
-  if (war.independence) settleIndependence(game, war);
   game.wars.splice(idx, 1);
+  clearOccupation(game, war);
+  if (war.independence) settleIndependence(game, war);
   for (const x of war.a) {
     for (const y of war.b) {
       game.truces[truceKey(x, y)] = game.month + 60;
@@ -789,37 +803,7 @@ function tickWars(game) {
     war.a = war.a.filter(id => game.countries[id].alive);
     war.b = war.b.filter(id => game.countries[id].alive);
     if (!war.a.length || !war.b.length) { endWar(game, war, 'collapse'); continue; }
-    // Defenders fight on home ground and get a bonus.
-    const sA = sideStrength(game, war.a), sB = sideStrength(game, war.b) * (1.3 + war.b.reduce((s, id) => s + techSum(game.countries[id], 'defense'), 0) / war.b.length);
-    const r = sA / (sA + sB);
-    const rr = r * r / (r * r + (1 - r) * (1 - r));
-    const fronts = Math.min(3, 1 + Math.floor((war.a.length + war.b.length - 2) / 2));
-    for (let i = 0; i < fronts; i++) {
-      // Even matchups grind into stalemate; lopsided ones collapse quickly.
-      if (!game.wars.includes(war) || !rng.chance(0.1 + Math.abs(rr - 0.5) * 0.8)) continue;
-      const aWins = rng.chance(rr);
-      const win = aWins ? war.a : war.b, lose = aWins ? war.b : war.a;
-      const t = pickFrontProvince(game, win, lose);
-      if (!t) continue;
-      const [pid, taker] = t;
-      const pr = game.world.provinces[pid];
-      const loserId = pr.owner;
-      const loser = game.countries[loserId], winner = game.countries[taker];
-      const wasCapital = loser.capital === pid;
-      transferProvince(game, pid, taker);
-      for (const id of win) game.countries[id].army *= 0.985;
-      for (const id of lose) game.countries[id].army *= 0.97;
-      if (aWins) { war.gainsA++; war.exB += 3; } else { war.gainsB++; war.exA += 3; }
-      adjust(loser, { approval: -1.5, stability: -1 });
-      adjust(winner, { approval: 0.5 });
-      loser.warExhaustion = clamp(loser.warExhaustion + 3, 0, 100);
-      winner.warMomentum = 3; loser.warMomentum = -3;
-      if (taker === game.player) toastPlayer(game, `Our forces capture ${pr.name} from ${loser.name}.`, 'good');
-      else if (loserId === game.player) toastPlayer(game, `${winner.name} has captured ${pr.name}!`, 'bad');
-      // Losing the capital forces surrender once a real share of the country is gone.
-      const lostShare = 1 - loser.provinceCount / Math.max(1, war.startProv[loserId] || loser.provinceCount);
-      if (loser.alive && (lostShare >= 0.6 || (wasCapital && lostShare >= 0.3))) capitulate(game, war, loserId, taker);
-    }
+    fightFronts(game, war);
     if (!game.wars.includes(war)) continue;
     for (const id of war.a.concat(war.b)) {
       const c = game.countries[id];
@@ -859,7 +843,7 @@ function warScore(game, war, id) {
   const mine = war.a.includes(id) ? 'A' : 'B', th = mine === 'A' ? 'B' : 'A';
   const gains = war['gains' + mine] - war['gains' + th];
   const ex = war['ex' + th] - war['ex' + mine];
-  return clamp(gains * 8 + ex * 0.6, -100, 100);
+  return clamp(occupationScore(game, war, id) + gains * 1.5 + ex * 0.4, -100, 100);
 }
 
 const PEACE_COST = { province: 12, reparations: 15, regime: 40, subjugate: 45 };
@@ -1075,6 +1059,7 @@ function tickPolitics(game, c) {
   tickMovements(game, c);
   tickLaws(game, c);
   tickArena(game, c);
+  tickMobilization(game, c);
   if (!isPlayer(game, c)) { aiPolicy(game, c); aiShock(game, c); }
   checkCrisis(game, c);
 }
@@ -1521,7 +1506,7 @@ function serializeGame(game) {
     owners: game.world.provinces.map(p => p.owner),
     provEcon: game.world.provinces.map(p => ({
       pops: p.pops, inc: p.inc, sol: p.sol, wealth: p.wealth, lit: p.lit, res: p.res,
-      b: p.buildings.map(b => ({ t: b.t, level: b.level, active: b.active, idle: b.idle, va: b.va })), conq: p.conquered || null, core: p.core, des: p.designation || null, st: p.state == null ? null : p.state,
+      b: p.buildings.map(b => ({ t: b.t, level: b.level, active: b.active, idle: b.idle, va: b.va })), conq: p.conquered || null, occ: p.occ == null ? null : p.occ, core: p.core, des: p.designation || null, st: p.state == null ? null : p.state,
     })),
     worldMarket: game.worldMarket,
     lastEvents: game.lastEvents, stats: game.stats, playerMonths: game.playerMonths || 0, nextCharId: game.nextCharId,
@@ -1546,6 +1531,7 @@ function deserializeGame(str) {
     p.pops = e.pops; p.inc = e.inc; p.sol = e.sol; p.wealth = e.wealth; p.lit = e.lit; p.res = e.res;
     p.buildings = e.b;
     p.conquered = e.conq || null;
+    p.occ = e.occ == null ? undefined : e.occ;
     p.core = e.core === undefined ? p.owner : e.core;
     p.designation = e.des || null;
     p.state = e.st == null ? null : e.st;

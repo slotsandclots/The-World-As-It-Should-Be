@@ -234,6 +234,7 @@ class MapRenderer {
     const pmode = MAP_MODES[mode] && MAP_MODES[mode].province;
     const pcol = provinces.map(pr => (pmode ? mixRgb(pmode(pr, game), PAPER, 0.1) : ccol[pr.owner]));
     const tileMode = !!(MAP_MODES[mode] && MAP_MODES[mode].tile);
+    const occCol = provinces.map(pr => (pr.occ != null && game.countries[pr.occ] ? game.countries[pr.occ].rgb : null));
     const enemies = new Set();
     if (player >= 0) for (const w of warsOf(game, player)) for (const id of (w.a.includes(player) ? w.b : w.a)) enemies.add(id);
 
@@ -284,7 +285,9 @@ class MapRenderer {
         if ((px < FW - 1 && pix[i + 1] !== p && pix[i + 1] >= 0 && own[i + 1] === o) || (py < FH - 1 && pix[i + FW] !== p && pix[i + FW] >= 0 && own[i + FW] === o)) {
           r *= 0.8; g *= 0.8; b *= 0.8;
         }
-        if (enemies.has(o) && (px + py) % 9 < 3) { r = r * 0.55 + 200 * 0.45; g *= 0.55; b *= 0.55; }
+        const oc = occCol[p];
+        if (oc && (px - py + 4096) % 10 < 4) { r = r * 0.25 + oc[0] * 0.75; g = g * 0.25 + oc[1] * 0.75; b = b * 0.25 + oc[2] * 0.75; }
+        else if (enemies.has(o) && (px + py) % 9 < 2) { r = r * 0.6 + 200 * 0.4; g *= 0.6; b *= 0.6; }
         if (nb[i]) {
           let o2 = -1;
           if (px > 0 && own[i - 1] >= 0 && own[i - 1] !== o) o2 = own[i - 1];

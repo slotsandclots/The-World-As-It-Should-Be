@@ -162,8 +162,8 @@ test('designations, separatism and federation work', () => {
     const sez = setDesignation(g, home.id, 'sez').ok && home.designation === 'sez';
     const colonyRefused = !setDesignation(g, home.id, 'colonial').ok;
     // Conquered land grows a separatist movement; a referendum can settle it.
-    const n = getNeighbors(g, big)[0];
-    for (const p of provincesOf(g, n).slice(0, 2)) transferProvince(g, p.id, big);
+    const n = getNeighbors(g, big).sort((x, y) => g.countries[y].provinceCount - g.countries[x].provinceCount)[0];
+    for (const p of provincesOf(g, n).filter(p => p.id !== g.countries[n].capital).slice(0, 2)) transferProvince(g, p.id, big);
     for (let i = 0; i < 24; i++) { tick(g); g.pending.length = 0; }
     const sep = Object.values(me.separatists || {}).some(s => s.support > 10);
     // A confederation of like-minded nations federates.
@@ -272,12 +272,35 @@ test('AI nations face crises; regional elections, referendums and the press work
     const barons = g.countries.reduce((s, x) => s + (x.barons || []).length, 0);
     let pressOk = true; if (c.barons && c.barons.length) pressOk = pressAction(g, 0, 'court').ok;
     const h = deserializeGame(serializeGame(g));
-    return { aiCrises, provOk, ref: ref.ok, barons, pressOk, reload: h.countries[0].laws.electoral === 'constituencies', bad: __sane(g) }; })()`);
+    return { aiCrises, provOk, ref: ref.ok, barons, pressOk, reload: JSON.stringify(h.countries[0].laws) === JSON.stringify(c.laws), bad: __sane(g) }; })()`);
   assert(r.aiCrises > 0, 'AI nations never faced a crisis');
   assert(r.provOk, 'regional election results missing or seats do not add to 200');
   assert(r.ref, 'referendum could not be held');
   assert(r.barons > 0 && r.pressOk, 'no press barons');
   assert(r.reload, 'laws lost on reload');
+  assert(r.bad.length === 0, r.bad.join('; '));
+});
+
+test('wars are fought on the map: occupation, fronts, peace, mobilization', () => {
+  const r = run(`(() => { const g = createGame('war2', { size: 'small', countries: 8 }); setPlayer(g, 0); const c = g.countries[0];
+    const t = getNeighbors(g, 0)[0]; g.truces = {};
+    declareWar(g, 0, t); const w = g.wars[g.wars.length - 1];
+    c.pc = 100; const mob = setMobilized(g, c, true).ok; setPosture(g, w.id, 'offensive');
+    const ownBefore = g.world.provinces.filter(p => p.owner === t).length;
+    let occSeen = 0, transferredDuring = false;
+    for (let i = 0; i < 60 && g.wars.includes(w); i++) { tick(g); g.pending.length = 0; occSeen = Math.max(occSeen, g.world.provinces.filter(p => p.occ != null).length); if (g.wars.includes(w) && g.world.provinces.filter(p => p.owner === t).length < ownBefore && !g.log.some(n => /capitulates/.test(n.text))) transferredDuring = true; }
+    const save = serializeGame(g), h = deserializeGame(save);
+    const sameOcc = g.world.provinces.every((p, i) => (p.occ == null) === (h.world.provinces[i].occ == null));
+    const armyUp = c.mobilized ? armyTarget(c) > 0 : true;
+    if (g.wars.includes(w)) endWar(g, w, 'peace');
+    const cleared = g.world.provinces.every(p => p.occ == null || ![0, t].includes(p.owner));
+    return { mob, occSeen, transferredDuring, sameOcc, cleared, armyUp, demob: (tick(g), g.pending.length = 0, !c.mobilized || isAtWar(g, 0)), bad: __sane(g) }; })()`);
+  assert(r.mob, 'could not mobilize');
+  assert(r.occSeen > 0, 'no province was ever occupied');
+  assert(!r.transferredDuring, 'provinces changed owner mid-war without a capitulation');
+  assert(r.sameOcc, 'occupation lost on save/load');
+  assert(r.cleared, 'occupation not cleared at peace');
+  assert(r.demob, 'did not demobilize after the war');
   assert(r.bad.length === 0, r.bad.join('; '));
 });
 

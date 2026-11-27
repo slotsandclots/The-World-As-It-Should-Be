@@ -363,3 +363,11 @@ function igAction(game, f, action) {
   c.factions[f] = clamp(c.factions[f] - 6, 0, 100);
   return { ok: true, msg: `${ch.name} is disgraced. The ${FACTIONS[f].name.toLowerCase()} choose ${c.igLeaders[f].name} (${c.igLeaders[f].stance}) instead.` };
 }
+
+// Interest-group loyalty weighted by each group's clout.
+function cloutLoyalty(c) {
+  const cl = interestClout(c);
+  let s = 0, w = 0;
+  for (const f of FACTION_KEYS) { s += c.factions[f] * cl[f]; w += cl[f]; }
+  return w ? s / w : avgLoyalty(c);
+}

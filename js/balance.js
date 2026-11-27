@@ -35,6 +35,7 @@ function addInfamy(game, id, amount, why) {
 // Occupation: share of the population living in recently conquered land, weighted by how recent.
 const OCCUPATION_MONTHS = 60;
 function occupationFactor(game, p) {
+  if (p.occ != null) return 1;
   if (!p.conquered) return 0;
   const age = game.month - p.conquered.month;
   return age >= OCCUPATION_MONTHS ? 0 : 1 - age / OCCUPATION_MONTHS;
@@ -60,7 +61,7 @@ function refreshCores(game) {
 
 function occupiedShare(game, c) {
   let w = 0;
-  for (const p of game.world.provinces) if (p.owner === c.id && p.conquered) w += p.pop * occupationFactor(game, p);
+  for (const p of game.world.provinces) if (p.owner === c.id && (p.conquered || p.occ != null)) w += p.pop * occupationFactor(game, p);
   return c.pop > 0 ? w / c.pop : 0;
 }
 
