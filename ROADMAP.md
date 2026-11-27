@@ -28,6 +28,26 @@ These rules apply to every milestone. A feature that breaks them should be redes
 7. **You have to be able to see why.** Every important number has a breakdown, every system has a chart or a map mode, and the news explains what happened. A crash the player can't explain feels random, not emergent.
 8. **Build one layer at a time:** build, measure, play-test, then move on.
 
+## How the systems connect
+
+New features should plug into these quantities rather than add their own meters (philosophy rules 2–4). Before building something, check which rows it reads and which it changes; a feature that touches none of them doesn't mesh.
+
+| System | Fed by | Feeds |
+|---|---|---|
+| **Pops** (classes per province: size, income, savings, literacy, culture, faith) | Jobs and wages, prices, welfare and health spending, schooling, housing, migration | Living standards → approval and contentment; class mix → public opinion; interest-group clout; movements; notable people; votes |
+| **Goods and markets** (`economy.js`) | Buildings and their inputs, pops' needs, state purchases, world and bloc trade | Prices, profits and wages; shortages; arms for the army |
+| **Money and credit** (`money.js`, `credit.js`) | Money growth, printing, bank lending, confidence | Price level and inflation, interest rates, construction, defaults, banking crises, unemployment |
+| **State budget and debt** (`fiscal.js`) | Taxes on pop incomes, tariffs, state enterprises; lenders (savers, banks, foreign nations) | State spending into the economy, crowding out, interest to bondholders, debt crises |
+| **Payments** (`payments.js`, draft) | Trade balances, reparations, owners' capital looking abroad | Reserves, foreign debts and lenders, exchange rates, import prices and rationing |
+| **Society and peoples** (`society.js`, `peoples.js`) | Pops, laws (citizenship, immigration), wars and occupation | Housing and slums, births and aging, grievance, migration, nationalist claims |
+| **Ideas and notable people** (`ideas.js`, `figures.js`) | Neighbors, trade and bloc ties, revolutions, the press, literacy and universities | Idea currents → public opinion and movements; research |
+| **Politics** (interest groups, movements, laws, parties, characters) | Pops' living standards and beliefs, demands met or not, leaders | The four meters (legitimacy, support, unrest, stability) → elections, coups, revolutions, reforms |
+| **Diplomacy, blocs and subjects** | Ideological distance, claims, kinship, trade, infamy, leaders' skills | Alliances, pacts, markets, tribute, wars of aggression and independence |
+| **War** (`warfare.js`, `revanchism.js`, `worldwar.js`) | Army size (military spending, population), arms, technology, generals, alliances | Occupation, peace terms (land, reparations, regime change), the memory of defeat → movements and AI aims; mobilization and war production; war weariness |
+| **Technology** (`tech.js`) | Education, literacy, universities, inventors | Productivity, army strength, tax collection, corruption |
+
+**Known gaps where systems don't mesh yet:** wars are financed only by printing and borrowing (no war bonds); the war dead are not taken out of the pops; tariffs cut trade both ways; world trade is pooled, so there is no bilateral trade to measure dependence; great-power status is a fixed ranking; government types still differ mostly by flat numbers (see "Governments that play differently").
+
 ## Done
 
 - World generation: seven procedural models, Earth, and Earth with historical regions
@@ -566,6 +586,28 @@ Today the seven government types differ mostly in numbers: freedom, repression, 
 
 **Kept in mind, not scheduled:** playing as a lawmaker (second to the grand-strategy layer; the parliament screen is its first step) and playing as a corporation or a church.
 
+## Spheres of influence (M)
+
+Formal control exists (puppets, vassals, protectorates, colonies), and so do blocs and a simple great-power ranking. A sphere is informal control, and it should come out of real ties rather than be declared.
+
+- **Influence over a nation** is the sum of real ties to a great power:
+  - the foreign debt it holds (payments.js already records every loan by lender)
+  - the share of trade that goes through that power or its bloc (needs bilateral trade, with 4d)
+  - the factories its investors own (with phase 3, owning assets)
+  - pacts and guarantees
+  - shared ideas and kinship
+- **A sphere** is the set of nations where one power's influence clearly leads.
+- **Effects, through existing systems:**
+  - clients lean toward their patron when choosing wars and blocs (`entryWish`, bloc appeal)
+  - the patron's idea currents and press reach them more strongly
+  - loans can come with conditions (lending as leverage, from the closed-loop plan)
+  - a patron backs coups or rebels when a client drifts away (the existing "fund rebels" action, used by the AI)
+- **Great-power status is earned:** from economy, military and the size of a power's sphere, replacing the fixed "strongest quarter" ranking in `worldwar.js`.
+- **Why it matters:** two great powers competing for the same nations makes rivalries and crises emerge on their own, feeding the alliance systems, so world wars grow from competition between powers, not mainly from old defeats.
+- **The player:** lend, invest, offer protection, sponsor parties and newspapers abroad, and defend clients.
+- **Interface:** a spheres map mode, and each nation's influences in the Diplomacy tab.
+- **Order:** after phase 2 of the closed-loop economy lands, alongside phase 3 (foreign ownership) and 4d (the world economy), and before AI ambitions, so AI goals like "dominate the market" have something to aim at.
+
 ## AI ambitions and personalities (M)
 
 Most AI work happens inside each milestone, because the AI uses every system as it's built. This milestone adds what's left: long-term direction. It must come before the war layer, because a war AI needs aims.
@@ -745,7 +787,7 @@ Ideas for after (or alongside) the milestones. They follow the same design philo
   - sanctions votes
   - a global reserve currency
   - development banks with strings attached
-- **Spheres of influence and a hierarchy of powers** (see World scale).
+- **Spheres of influence and a hierarchy of powers:** now a section of its own (Spheres of influence), with ranks in World scale.
 
 ### World scale
 
@@ -803,10 +845,11 @@ Ideas for after (or alongside) the milestones. They follow the same design philo
 7. ✅ **Milestone 3** (first pass), with ideas spreading through the world folded in: 3a peoples, 3b cities and demographics, 3c aging, inequality, minority movements and healthcare, 3d universities, kinship and unification, idea spread, 3e secondary schools, the minorities interest group, unification by force. Also done: **the alert bar** (see Quality of life).
 8. ✅ **History makers (first pass):** notable people, the memory of defeat and its demagogues, world wars and peace conferences. Pulled forward at the player's request; it uses the existing war layer and leaves the operational war layer to Milestone 5.
 9. **Milestone 4c–4e,** with step 1 of "Governments that play differently" (mechanisms instead of flat per-type numbers) in 4c: labor relations and fiscal policy (including AI governments responding to the cycle), the world economy (with distance that matters, from World scale), and the stock and land markets, with the **closed-loop economy** running through all three (phase 1, the state's budget and debt, is done).
-10. **AI ambitions and personalities, with the graphics-card map**, plus the first art commissions: an art direction document, map textures and an icon set. The war layer needs the new map for army counters, fronts, plan arrows and supply routes.
-11. **Milestone 5:** the war layer, an operational layer.
-12. **The world newspaper and history book.** This can move earlier. World wars, treaties and the figures of the age are natural headlines and chapters.
-13. **Eras and scenarios (Milestone 6) and the desktop release,** together toward a public release.
+10. **Spheres of influence,** once payments, foreign ownership and bilateral trade exist.
+11. **AI ambitions and personalities, with the graphics-card map**, plus the first art commissions: an art direction document, map textures and an icon set. The war layer needs the new map for army counters, fronts, plan arrows and supply routes.
+12. **Milestone 5:** the war layer, an operational layer.
+13. **The world newspaper and history book.** This can move earlier. World wars, treaties and the figures of the age are natural headlines and chapters.
+14. **Eras and scenarios (Milestone 6) and the desktop release,** together toward a public release.
 
 Later: Milestone 8 (intrigue and dynasties), world scale (as the map and Web Worker allow), and the rest of Beyond the milestones.
 
