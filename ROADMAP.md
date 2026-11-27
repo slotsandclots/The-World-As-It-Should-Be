@@ -293,6 +293,53 @@ The furthest from the pop-and-goods core, so it comes last, and every item ties 
 
 ---
 
+## Visuals and presentation (a track that runs alongside the milestones)
+
+Visuals serve philosophy rule 7: the best graphics are the ones that show *why* something is happening. Two timing rules:
+- **Do now:** the shared look (theme, map, top bar, tooltips).
+- **Do after:** redesign a screen only once the systems behind it have settled. The Politics, Pops and Military tabs will change again in Foundations, Milestone 3 and Milestone 5.
+
+**The map**
+- **Natural features:**
+  - rivers (generated with the terrain; also defensive lines for Milestone 5)
+  - forests, deserts and snow as textures
+  - nicer coastlines and shallow seas
+- **Cities on the map:** they grow visibly with urbanization (Milestone 3), with icons by size and capitals that stand out.
+- **Infrastructure drawn on the map:** roads, railways and ports, appearing as provinces build them (Milestone 4). This also shows supply routes for Milestone 5.
+- **Trade made visible:** animated trade flows between markets and blocs, blockaded routes, chokepoints.
+- **War on the map** (with Milestone 5):
+  - army counters
+  - front lines drawn between the sides
+  - plan arrows
+  - battle markers
+  - encircled pockets highlighted
+- **Detail that follows the zoom:**
+  - nation names that curve along the shape of the country
+  - province names and city labels when zoomed in
+  - smoother rendering when zoomed far in
+- **Map modes:** gradient legends with values on hover, and new modes as systems arrive (culture, religion, migration, inflation, unemployment, supply).
+- **Optional:** fog of war, plus lighting and seasons for atmosphere.
+
+**Screens (redesigned once their systems settle)**
+- **Politics:** a parliament seating chart (semicircle) with coalition blocs, an interest-group overview, and the constitution as a visual chart.
+- **Economy:** a flow diagram of where goods go and where money comes from, the price level and the business cycle at a glance, and a per-province economy panel.
+- **Pops:** class and culture breakdowns, an age pyramid (Milestone 3), and living standard by class over time.
+- **Military:** an army and general roster, front overviews, and supply status.
+- **An outliner:** a side panel of wars, crises, bills, movements and elections coming up.
+
+**Characters, flags and art**
+- **Portraits:** more variety, aging over a career, clothing by role and era, expressions under stress.
+- **Flags and arms:** coats of arms, and flags that change with revolutions and new regimes.
+- **More event illustrations:** a distinct scene for each major event type and crisis, plus era variants for Milestone 6.
+- **Newspapers and history:** a monthly front-page newspaper, and an illustrated history book of your reign.
+
+**Polish**
+- **Motion:** smooth panel and modal transitions, animated numbers and bars, map pulses for battles, coups and elections.
+- **Sound and music:** optional and toggleable: interface sounds, ambient tracks by era and mood.
+- **Settings:** interface scale, colorblind-friendly palettes, reduced motion, a high-contrast mode.
+- **Mobile:** a proper touch layout for phones and tablets.
+- **Title and loading screens:** era-specific backgrounds once Milestone 6 adds start dates.
+
 ## Quality of life (S each, can be slotted in anywhere)
 
 - ✅ **Explain everything (first pass):** hover approval, stability, unrest, political capital, the treasury, infamy and wars for a breakdown of every part. Next: faction loyalty, growth, prices and pop needs.
@@ -303,7 +350,7 @@ The furthest from the pop-and-goods core, so it comes last, and every item ties 
 - **Monthly newspaper:** a front page summing up the month in your nation and the world.
 - **Settings:** colorblind-friendly map palettes, hotkeys, UI scale, and a lighter mobile layout.
 - **Sound and music** (optional, toggleable).
-- ✅ **Map polish:** a painted map with relief, ocean depth, hand-drawn borders and generated national flags. Still to do: rivers and city icons.
+- ✅ **Map polish:** a painted map with relief, ocean depth, hand-drawn borders and generated national flags. More in the visuals track.
 - ✅ **Visual overhaul:** brass-and-midnight theme, illustrated event scenes, a title screen with a live world preview.
 
 ## Platform (M each)
@@ -330,4 +377,4 @@ The furthest from the pop-and-goods core, so it comes last, and every item ties 
 10. **Milestone 5:** military strategy as an operational layer.
 11. **Milestones 6 and 8:** eras and scenarios, intrigue and dynasties. National goals from Milestone 6 can be pulled forward for pacing.
 
-Throughout: each milestone follows the design philosophy, the AI uses every new system as it's built, and each big milestone ships with a campaign chapter.
+Throughout: each milestone follows the design philosophy, the AI uses every new system as it's built, and each big milestone ships with a campaign chapter and its share of the visuals track (cities with Milestone 3, infrastructure and economy screens with Milestone 4, war on the map with Milestone 5, era styling with Milestone 6).
