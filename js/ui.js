@@ -10,6 +10,13 @@ function fmtMoney(b) {
   if (a >= 1) return `${s}$${a.toFixed(1)}B`;
   return `${s}$${(a * 1000).toFixed(0)}M`;
 }
+// Trade flows are often small: keep a decimal below $10M.
+function fmtFlow(b) { const a = Math.abs(b); return a > 0 && a < 0.01 ? `$${(a * 1000).toFixed(1)}M` : fmtMoney(b); }
+// Goods in a flow as shares of it, largest first, leaving out the slivers.
+function goodsShares(goods, n) {
+  const tot = Object.values(goods).reduce((s, v) => s + v, 0) || 1;
+  return Object.entries(goods).map(([k, v]) => [k, v / tot]).filter(x => x[1] >= 0.03).sort((a, b) => b[1] - a[1]).slice(0, n || 4).map(([k, s]) => `${esc(GOODS[GOOD_KEYS[k]].name)} ${pct(s)}`).join(', ');
+}
 function fmtPop(n) {
   if (n >= 1e9) return (n / 1e9).toFixed(2) + 'B';
   if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
@@ -296,6 +303,7 @@ const UI = {
     const legend = document.createElement('div');
     legend.id = 'map-legend';
     $('#map-wrap').appendChild(legend);
+    legend.addEventListener('change', e => { if (e.target.id === 'trade-good') { this.tradeGood = +e.target.value; this.drawLabels(); } });
 
     window.addEventListener('keydown', e => {
       if (e.target.matches('input, select, textarea') || this.modalOpen()) return;
@@ -387,7 +395,71 @@ const UI = {
   drawLabels() {
     const g = App.game;
     if (!this.labels) return;
-    this.labels.draw(g, this.selected, g && !this.choosing ? g.player : -1);
+    this.labels.draw(g, this.selected, g && !this.choosing ? g.player : -1, g && this.mapMode === 'trade' ? (ctx, P) => this.drawTradeLines(ctx, P) : null);
+  },
+
+  // The Trade map mode: a line between each pair of trading partners, thicker for more trade
+  // (12-month average at world prices), with an arrow toward the net importer (tradeflows.js).
+  drawTradeLines(ctx, P) {
+    const g = App.game, provs = g.world.provinces;
+    const gi = this.tradeGood == null ? -1 : this.tradeGood;
+    const pairs = tradePairs(g, gi).filter(p => g.countries[p.a].alive && g.countries[p.b].alive).slice(0, 30);
+    this._tradeSegs = [];
+    if (!pairs.length) return;
+    const vmax = pairs[0].v, me = this.choosing ? -1 : g.player, sel = this.selected;
+    for (const p of pairs.slice().reverse()) {
+      const A = provs[g.countries[p.a].capital], B = provs[g.countries[p.b].capital];
+      if (!A || !B) continue;
+      const [x1, y1] = P(A.lx + 0.5, A.ly + 0.5), [x2, y2] = P(B.lx + 0.5, B.ly + 0.5);
+      const mx = (x1 + x2) / 2, my = (y1 + y2) / 2, dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy) || 1;
+      const cx = mx - dy / len * len * 0.12, cy = my + dx / len * len * 0.12; // a gentle arc
+      const w = 1 + 7 * Math.sqrt(p.v / vmax);
+      const mine = p.a === me || p.b === me, focus = sel != null ? p.a === sel || p.b === sel : true;
+      ctx.lineCap = 'round';
+      // Minor routes fade, so the big ones stand out.
+      const alpha = (0.3 + 0.6 * Math.sqrt(p.v / vmax)) * (focus ? 1 : 0.3);
+      ctx.strokeStyle = mine ? `rgba(255,210,74,${Math.min(0.95, alpha + 0.15).toFixed(2)})` : `rgba(200,220,255,${alpha.toFixed(2)})`;
+      ctx.lineWidth = w;
+      ctx.beginPath(); ctx.moveTo(x1, y1); ctx.quadraticCurveTo(cx, cy, x2, y2); ctx.stroke();
+      // Arrow at the middle of the arc, pointing to the nation that buys more than it sells.
+      const fwd = p.ab >= p.ba, t = 0.5;
+      const bx = (1 - t) * (1 - t) * x1 + 2 * (1 - t) * t * cx + t * t * x2, by = (1 - t) * (1 - t) * y1 + 2 * (1 - t) * t * cy + t * t * y2;
+      let tx = 2 * (1 - t) * (cx - x1) + 2 * t * (x2 - cx), ty = 2 * (1 - t) * (cy - y1) + 2 * t * (y2 - cy);
+      const tl = Math.hypot(tx, ty) || 1; tx /= tl; ty /= tl; if (!fwd) { tx = -tx; ty = -ty; }
+      const s = 4 + w * 0.8;
+      ctx.fillStyle = ctx.strokeStyle;
+      ctx.beginPath(); ctx.moveTo(bx + tx * s, by + ty * s); ctx.lineTo(bx - tx * s - ty * s * 0.7, by - ty * s + tx * s * 0.7); ctx.lineTo(bx - tx * s + ty * s * 0.7, by - ty * s - tx * s * 0.7); ctx.closePath(); ctx.fill();
+      this._tradeSegs.push({ x1, y1, cx, cy, x2, y2, w, p });
+    }
+  },
+
+  // Which trade line is under the mouse (overlay coordinates), if any.
+  tradeLineAt(x, y) {
+    let best = null, bd = Infinity;
+    for (const s of this._tradeSegs || []) {
+      let px = s.x1, py = s.y1;
+      for (let i = 1; i <= 16; i++) {
+        const t = i / 16, qx = (1 - t) * (1 - t) * s.x1 + 2 * (1 - t) * t * s.cx + t * t * s.x2, qy = (1 - t) * (1 - t) * s.y1 + 2 * (1 - t) * t * s.cy + t * t * s.y2;
+        const vx = qx - px, vy = qy - py, l2 = vx * vx + vy * vy || 1, u = clamp(((x - px) * vx + (y - py) * vy) / l2, 0, 1);
+        const d = Math.hypot(x - (px + u * vx), y - (py + u * vy));
+        if (d < s.w / 2 + 4 && d < bd) { bd = d; best = s; }
+        px = qx; py = qy;
+      }
+    }
+    return best;
+  },
+
+  // "A sells B: goods, value", both ways, and how much each depends on the other.
+  tradeTipHtml(p) {
+    const g = App.game, A = g.countries[p.a], B = g.countries[p.b];
+    const gi = this.tradeGood == null ? -1 : this.tradeGood;
+    const tA = tradeOf(g, A.id), tB = tradeOf(g, B.id);
+    const what = gi >= 0 ? `${GOODS[GOOD_KEYS[gi]].name.toLowerCase()} imports` : 'imports';
+    const inA = gi >= 0 ? tA.goodsIn[gi] || 0 : tA.in, inB = gi >= 0 ? tB.goodsIn[gi] || 0 : tB.in;
+    const line = (X, Y, v, gs) => v > 0 ? `<div>${swatch(X)} <b>${esc(X.name)}</b> sells ${esc(Y.name)} ${fmtFlow(v)}/mo: ${gi >= 0 ? esc(GOODS[GOOD_KEYS[gi]].name) : goodsShares(gs)}</div>` : '';
+    return `<b>Trade: ${esc(A.name)} ⇄ ${esc(B.name)}</b>${line(A, B, p.ab, p.goodsAB)}${line(B, A, p.ba, p.goodsBA)}
+      <div class="muted small">${p.ab > 0 && inB > 0 ? `${esc(B.name)} gets ${pct(p.ab / inB)} of its ${what} from ${esc(A.name)}. ` : ''}${p.ba > 0 && inA > 0 ? `${esc(A.name)} gets ${pct(p.ba / inA)} of its ${what} from ${esc(B.name)}.` : ''}</div>
+      <div class="muted small">12-month average, at world prices.</div>`;
   },
 
   resetView() { this.view = { z: 1, x: 0, y: 0 }; if (this.applyView) this.applyView(); },
@@ -447,6 +519,10 @@ const UI = {
       lg.innerHTML = bl.length ? bl.map(b => `<div class="row"><span class="swatch" style="background:rgb(${b.color.join(',')})"></span>${BLOC_TYPES[b.type].icon} ${esc(b.name)}</div>`).join('') + '<div class="muted small">Economic blocs fill provinces; nations in only a military pact are tinted.</div>' : '<span class="muted">No blocs yet.</span>';
     } else if (this.mapMode === 'resources') {
       lg.innerHTML = Object.entries(RESOURCE_COLORS).map(([k, c]) => `<div class="row"><span class="swatch" style="background:rgb(${c.join(',')})"></span>${RES_INFO[k]}</div>`).join('');
+    } else if (this.mapMode === 'trade') {
+      const gi = this.tradeGood == null ? -1 : this.tradeGood;
+      lg.innerHTML = `<div class="row"><select id="trade-good" aria-label="Good"><option value="-1">All goods</option>${GOOD_KEYS.map((k, i) => `<option value="${i}" ${i === gi ? 'selected' : ''}>${esc(GOODS[k].name)}</option>`).join('')}</select></div>
+        <div class="muted small">Lines join trading partners: thicker means more trade (12-month average, at world prices); the arrow points to the nation that buys more than it sells. Gold lines are ours. Hover a line to see what flows each way and who depends on whom.</div>`;
     } else if (this.mapMode === 'political') {
       lg.innerHTML = '<span class="muted">Click a nation for details · ● capital</span>';
     } else lg.innerHTML = MAP_MODES[this.mapMode].legend;
@@ -553,6 +629,19 @@ const UI = {
     const g = App.game;
     const tip = $('#map-tooltip');
     if (!g) return;
+    if (this.mapMode === 'trade') {
+      const wr = $('#map-wrap').getBoundingClientRect();
+      const s = this.tradeLineAt(e.clientX - wr.left, e.clientY - wr.top);
+      if (s) {
+        tip.innerHTML = this.tradeTipHtml(s.p);
+        let x = e.clientX - wr.left + 14, y = e.clientY - wr.top + 14;
+        tip.classList.remove('hidden');
+        if (x + tip.offsetWidth > wr.width - 8) x = e.clientX - wr.left - tip.offsetWidth - 14;
+        if (y + tip.offsetHeight > wr.height - 8) y = e.clientY - wr.top - tip.offsetHeight - 14;
+        tip.style.left = x + 'px'; tip.style.top = y + 'px';
+        return;
+      }
+    }
     const p = App.renderer.provinceAt(e.clientX, e.clientY);
     if (p < 0) { tip.classList.add('hidden'); return; }
     const pr = g.world.provinces[p], c = g.countries[pr.owner];

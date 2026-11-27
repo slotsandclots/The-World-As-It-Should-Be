@@ -1204,6 +1204,8 @@ function tick(game) {
   tickEconomy(game, false);
   tickPeoples(game);
   tickSociety(game);
+  // Who trades with whom: accounting on this month's trade, read before any bloc membership changes (tradeflows.js).
+  if (typeof tickTradeFlows === 'function') tickTradeFlows(game);
   for (const c of game.countries) if (c.alive) tickUniversities(game, c);
   tickIdeas(game);
   if (game.month % 12 === 6) tickUnification(game);

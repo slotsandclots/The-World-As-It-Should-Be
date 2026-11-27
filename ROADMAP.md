@@ -408,6 +408,13 @@ The rule: no goods or money created from nothing. Every unit of money has a sour
 - **Exchange rates and capital flows:** money moves toward high interest rates and strong currencies. Devaluation helps exports, makes imports pricier and adds inflation.
 - **Sovereign debt and currency crises:** lenders stop lending, a currency peg breaks, and a forced devaluation or default follows. Bailouts come with conditions, a lever for blocs and empires.
 - **Protectionism:** raising tariffs in a depression protects jobs at home and deepens the global slump.
+- **The trade view** (in the style of Victoria 3):
+  - **Step 1 ✅ (first pass): bilateral flows and the interface.**
+    - `js/tradeflows.js` splits the pooled bloc and world markets into flows between nations each month: bloc partners first, then the world market, shared out by each exporter's share of world sales. Flows are valued at world prices and kept as a 12-month average.
+    - It is accounting only. 24 worlds × 40 years come out identical to main in every measure but speed (about 2 ms more a month), and a test checks that the flows add up to each nation's exports and imports and that the economy is unchanged with them.
+    - Interface: a Trade map mode (lines thick by value, filter by good, hover for what flows each way and how much each side depends on the other), trading partners per good in the Market tab, and trade with the selected nation in the Diplomacy tab.
+  - **Step 2:** routes with distance and shipping costs, chokepoints and straits, blockades of specific routes (with Milestone 5's navies), and animated trade flows on the map, so trade follows routes rather than shares of world sales.
+  - Spheres of influence can now read trade dependence from these flows.
 
 ### 4e. The stock market and the land market
 
