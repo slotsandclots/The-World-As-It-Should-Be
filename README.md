@@ -121,6 +121,8 @@ The game saves to your browser's local storage (Menu → Save game).
 
 **Booms and busts.** Businesses borrow to build when confidence is high and money is cheap. Debts pile up through a boom; when they outrun profits, firms default, real factories close and workers lose their jobs. Defaults eat into bank capital, and a banking crisis freezes lending (and, without deposit insurance, wipes out savings). Choose free banking, regulated banks or state banks, and decide whether to bail them out.
 
+**Peoples and faiths.** Every province has its own mix of cultures and faiths. Citizenship laws decide whether minorities may vote and work for the state; exclusion breeds grievance, unrest and separatism, while coercion speeds assimilation at a price. People migrate toward work and away from war, carrying their culture with them, and nationalists claim the provinces abroad where their people live.
+
 **Seeing why.** Hover approval, stability, unrest, political capital or the treasury for a breakdown of what drives it. The Ledger tab charts your nation over time, compares you with your rivals, and tracks world market prices.
 
 **Saves.** As many save slots as you like, plus an autosave every January. The title screen offers to continue your latest game.
@@ -144,6 +146,7 @@ The game saves to your browser's local storage (Menu → Save game).
 | `js/warfare.js` | Fronts, occupation, terrain and supply, posture, mobilization |
 | `js/money.js` | Currency, price level, inflation, wages, interest rates, monetary systems |
 | `js/credit.js` | Private credit, confidence, defaults and bankruptcies, banking crises |
+| `js/peoples.js` | Cultures, faiths, assimilation, grievance, migration, nationalist claims |
 | `js/arena.js` | Crises for AI nations, regional elections, referendums, press barons |
 | `js/sim.js` | The monthly simulation: politics, elections, regime change, war, peace, diplomacy, actions, save/load |
 | `js/characters.js` | Leaders, cabinets, generals, opposition, heirs; loyalty and succession |

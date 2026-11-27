@@ -83,8 +83,9 @@ function regionalResults(game, c, nationalShares) {
 
 // Seats per province, by population (largest remainder).
 function apportion(provs, total) {
-  const pop = provs.reduce((s, r) => s + r.prov.pop, 0) || 1;
-  const q = provs.map(r => r.prov.pop / pop * total);
+  const voters = r => r.prov.pop * (1 - (r.prov.voteExcl || 0));
+  const pop = provs.reduce((s, r) => s + voters(r), 0) || 1;
+  const q = provs.map(r => voters(r) / pop * total);
   const seats = q.map(Math.floor);
   let left = total - seats.reduce((a, b) => a + b, 0);
   q.map((v, i) => [v - seats[i], i]).sort((a, b) => b[0] - a[0]).slice(0, left).forEach(([, i]) => seats[i]++);

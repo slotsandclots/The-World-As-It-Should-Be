@@ -27,6 +27,8 @@ const MAP_MODES = {
   admin: { name: 'Administration', legend: 'Gold = special economic zone · teal = autonomous · brown = colonial · orange = non-core · stripes of color = federal states', province: (p, game) => adminColor(p, game) },
   industry: { name: 'Industry', legend: 'Share of each province working in factories: grey = rural, orange = industrial', province: p => mixRgb([75, 78, 92], [240, 130, 40], clamp(provinceIndustry(p) / 0.4, 0, 1)) },
   elections: { name: 'Elections', legend: 'Which party carried each province at the last free election', province: (p, game) => electionColor(p, game) },
+  culture: { name: 'Culture', legend: 'Each province\'s largest people; paler where it is mixed', province: (p, game) => peopleColor(p, game, 'cult') },
+  religion: { name: 'Religion', legend: 'Each province\'s largest faith; paler where it is mixed', province: (p, game) => peopleColor(p, game, 'rel') },
   relations: { name: 'Relations', legend: 'Your relations: red = hostile, green = friendly' },
 };
 
@@ -428,4 +430,12 @@ function electionColor(p, game) {
   if (!E || E.sham || !E.prov || !E.prov[p.id]) return [70, 72, 82];
   const party = c.parties.find(x => x.id === E.prov[p.id]);
   return party ? hexToRgb(party.color) : [70, 72, 82];
+}
+
+function peopleColor(p, game, key) {
+  if (!p[key] || !game) return [90, 92, 100];
+  const [k, v] = topShare(p[key]);
+  const list = key === 'cult' ? game.cultures : game.faiths;
+  const col = list && list[k] ? list[k].color : [120, 120, 120];
+  return mixRgb([210, 205, 195], col, clamp(0.35 + v * 0.65, 0, 1));
 }

@@ -422,7 +422,9 @@ const UI = {
     document.querySelectorAll('#map-modes [data-mode]').forEach(b => b.classList.toggle('active', b.dataset.mode === this.mapMode));
     const lg = $('#map-legend');
     if (!lg) return;
-    if (this.mapMode === 'government') {
+    if (this.mapMode === 'religion' && App.game && App.game.faiths) {
+      lg.innerHTML = App.game.faiths.map(f => `<div class="row"><span class="swatch" style="background:rgb(${f.color.join(',')})"></span>${esc(f.name)}</div>`).join('') + '<div class="muted small">Paler where faiths are mixed.</div>';
+    } else if (this.mapMode === 'government') {
       lg.innerHTML = GOV_ORDER.map(k => `<div class="row"><span class="swatch" style="background:${GOVS[k].color}"></span>${GOVS[k].name}</div>`).join('');
     } else if (this.mapMode === 'blocs') {
       const bl = (App.game && App.game.blocs) || [];

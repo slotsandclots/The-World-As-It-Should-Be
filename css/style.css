@@ -138,7 +138,7 @@ h4::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg
 #map-tooltip b:first-child { font-family: var(--display); letter-spacing: .05em; color: var(--gold-hi); }
 #map-modes { position: absolute; left: 14px; bottom: 14px; right: 64px; display: flex; gap: 0; flex-wrap: wrap; z-index: 3; }
 #map-modes button {
-  font-size: 10px; padding: 5px 6px; border-radius: 0; border-left-width: 0; background: linear-gradient(#1e2838ee, #141b27ee);
+  font-size: 9.5px; padding: 5px 5px; border-radius: 0; border-left-width: 0; background: linear-gradient(#1e2838ee, #141b27ee);
   font-family: var(--display); letter-spacing: .05em; color: #cfc6b0;
 }
 #map-modes button:first-child { border-radius: 5px 0 0 5px; border-left-width: 1px; }

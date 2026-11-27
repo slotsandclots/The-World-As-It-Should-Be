@@ -339,7 +339,7 @@ function tickCountry(game, c) {
     ['Low approval', Math.max(0, 55 - c.approval) * 1.4], ['Public opinion vs. the regime', mismatch * 14], ['War exhaustion', c.warExhaustion * 0.2],
     ['Recession', Math.max(0, -growthA) * 2], ['Unemployment', E.unemployment * 40], ['Poverty of the lower classes', Math.max(0, 30 - E.strataSol.lower) * 0.5],
     ['Cabinet', CF.unrest], ['Dissidents', dissidentPressure(c)], ['Political movements', movementPressure(c)], ['Occupied land', occupiedShare(game, c) * 45],
-    ['Unintegrated conquests', (c.nonCoreShare || 0) * 18], ['Separatism', c.separatistPressure || 0], ['Special economic zones', (c.sezCount || 0) * 1.5], ['Laws', LF.unrest], ['Temporary effects', M.unrest || 0],
+    ['Unintegrated conquests', (c.nonCoreShare || 0) * 18], ['Separatism', c.separatistPressure || 0], ['Special economic zones', (c.sezCount || 0) * 1.5], ['Minority grievances', (c._grievance || 0) * 30], ['Laws', LF.unrest], ['Temporary effects', M.unrest || 0],
   ];
   let unrestT = sumParts(unParts);
   const repress = clamp(p.police / 5 * g.repression * 0.5, 0, 0.75);
@@ -546,7 +546,7 @@ function changeGovernment(game, c, newGov, how, opts) {
   // Coups and reforms keep society's institutions; revolutions remake them.
   const oldLaws = c.laws;
   c.laws = presetLaws(newGov);
-  if (oldLaws && how !== 'revolution') for (const k of ['church', 'economy', 'labor', 'electoral', 'monetary', 'banking']) if (oldLaws[k]) c.laws[k] = oldLaws[k];
+  if (oldLaws && how !== 'revolution') for (const k of ['church', 'economy', 'labor', 'electoral', 'monetary', 'banking', 'migration']) if (oldLaws[k]) c.laws[k] = oldLaws[k];
   c.reform = null;
   if (g.party === 'multi' && GOVS[old].party === 'multi') {
     // keep the existing party system
@@ -959,6 +959,9 @@ function relationTarget(game, a, b) {
   const an = getNeighbors(game, a.id), bn = getNeighbors(game, b.id);
   if (an.some(x => bn.includes(x) && (game.countries[x].infamy || 0) > 25)) t += 12;
   if (a.id === game.player || b.id === game.player) t -= difficulty(game).hostility;
+  // Nationalism: our people under their rule (or theirs under ours) poisons relations.
+  const cl = (game.countries && typeof claimsOn === 'function') ? claimsOn(game, a, b.id) + claimsOn(game, b, a.id) : 0;
+  t -= Math.min(30, cl * 6);
   return clamp(t, -100, 100);
 }
 
@@ -1008,13 +1011,15 @@ function tickDiplomacy(game) {
     const g = GOVS[c.gov];
     for (const n of getNeighbors(game, c.id)) {
       const rel = relation(game, c.id, n);
-      if (rel > -15 || c.allies.includes(n) || hasTruce(game, c.id, n) || game.countries[n].overlord === c.id) continue;
+      const claims = claimsOn(game, c, n);
+      if (rel > (claims ? 5 : -15) || c.allies.includes(n) || hasTruce(game, c.id, n) || game.countries[n].overlord === c.id) continue;
       const target = game.countries[n];
       const theirs = strength(target) + target.allies.reduce((s, x) => s + (game.countries[x].alive ? strength(game.countries[x]) * 0.5 : 0), 0);
       const ratio = strength(c) / (theirs + 0.001);
       if (ratio < 1.4) continue;
-      const p = g.aggression * leaderAggression(c) * 0.012 * Math.min(2, ratio - 1) * (-rel / 50);
-      if (rng.chance(p)) { declareWar(game, c.id, n); break; }
+      // Nationalists want their people home: claims make war far more likely.
+      const p = g.aggression * leaderAggression(c) * 0.012 * Math.min(2, ratio - 1) * Math.max(0.3, -rel / 50) * (1 + Math.min(3, claims) * 0.8) * (claims && c.laws && c.laws.citizenship === 'persecution' ? 1.5 : 1);
+      if (rng.chance(p)) { declareWar(game, c.id, n); if (claims) logNews(game, `${c.name} vows to bring its people in ${game.countries[n].name} home.`, 'war', [c.id, n]); break; }
     }
   }
 }
@@ -1086,6 +1091,7 @@ function tick(game) {
   for (const c of game.countries) c.aiArmyBonus = c.id === game.player ? 0 : D.aiArmy;
   refreshCores(game);
   tickEconomy(game, false);
+  tickPeoples(game);
   for (const c of game.countries) if (c.alive) tickCountry(game, c);
   tickWars(game);
   tickBalance(game);
@@ -1526,9 +1532,9 @@ function serializeGame(game) {
     owners: game.world.provinces.map(p => p.owner),
     provEcon: game.world.provinces.map(p => ({
       pops: p.pops, inc: p.inc, sol: p.sol, wealth: p.wealth, lit: p.lit, res: p.res,
-      b: p.buildings.map(b => ({ t: b.t, level: b.level, active: b.active, idle: b.idle, va: b.va })), conq: p.conquered || null, occ: p.occ == null ? null : p.occ, core: p.core, des: p.designation || null, st: p.state == null ? null : p.state,
+      b: p.buildings.map(b => ({ t: b.t, level: b.level, active: b.active, idle: b.idle, va: b.va })), conq: p.conquered || null, occ: p.occ == null ? null : p.occ, cu: p.cult || null, re: p.rel || null, core: p.core, des: p.designation || null, st: p.state == null ? null : p.state,
     })),
-    worldMarket: game.worldMarket,
+    worldMarket: game.worldMarket, cultures: game.cultures || null, faiths: game.faiths || null,
     lastEvents: game.lastEvents, stats: game.stats, playerMonths: game.playerMonths || 0, nextCharId: game.nextCharId,
     flags: game.flags || {}, scheduled: game.scheduled || [], campaign: game.campaign || null, reparations: game.reparations || [],
     blocs: game.blocs || [], nextBlocId: game.nextBlocId || 1, priceHist: game.priceHist || {},
@@ -1552,6 +1558,8 @@ function deserializeGame(str) {
     p.buildings = e.b;
     p.conquered = e.conq || null;
     p.occ = e.occ == null ? undefined : e.occ;
+    if (e.cu) p.cult = e.cu;
+    if (e.re) p.rel = e.re;
     p.core = e.core === undefined ? p.owner : e.core;
     p.designation = e.des || null;
     p.state = e.st == null ? null : e.st;
@@ -1561,7 +1569,7 @@ function deserializeGame(str) {
     seed: d.seed, opts: d.opts, world, rng: makeRng(d.seed + '|sim'), month: d.month, startYear: d.startYear,
     countries: d.countries, wars: d.wars, log: d.log, player: d.player, nextWarId: d.nextWarId, truces: d.truces,
     pending: [], over: false, neighborCache: {}, mapDirty: true, lastEvents: d.lastEvents || [], stats: d.stats,
-    playerMonths: d.playerMonths, worldMarket: d.worldMarket, nextCharId: d.nextCharId || 1,
+    playerMonths: d.playerMonths, worldMarket: d.worldMarket, cultures: d.cultures || null, faiths: d.faiths || null, nextCharId: d.nextCharId || 1,
     flags: d.flags || {}, scheduled: d.scheduled || [], campaign: d.campaign || null, reparations: d.reparations || [],
     blocs: d.blocs || [], nextBlocId: d.nextBlocId || 1, priceHist: d.priceHist || {},
   };

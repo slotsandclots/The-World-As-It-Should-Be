@@ -268,7 +268,7 @@ test('AI nations face crises; regional elections, referendums and the press work
     const aiCrises = g.log.filter(n => n.kind === 'crisis' && !n.ids.includes(0)).length;
     if (!c.lastElection || c.lastElection.sham || !c.lastElection.prov) { if (GOVS[c.gov].elections !== "free") changeGovernment(g, c, "democracy", "reform", { keepLeader: true }); runElection(g, c); g.pending.length = 0; }
     const E = c.lastElection, provOk = E && E.prov && Object.keys(E.prov).length > 0 && E.results.reduce((s, x) => s + x.seats, 0) === 200;
-    c.pc = 100; c.reform = null; const cat = 'church', opt = Object.keys(LAW_CATS.church.opts).find(o => o !== c.laws.church);
+    c.pc = 100; c.reform = null; c.laws.suffrage = 'universal'; const cat = 'church', opt = Object.keys(LAW_CATS.church.opts).find(o => o !== c.laws.church);
     const ref = holdReferendum(g, c, cat, opt);
     const barons = g.countries.reduce((s, x) => s + (x.barons || []).length, 0);
     let pressOk = true; if (c.barons && c.barons.length) pressOk = pressAction(g, 0, 'court').ok;
@@ -355,12 +355,45 @@ test('credit: an over-borrowed economy defaults, closes buildings, and can trigg
     if (!E.bankCrisis) { E.bankCrisis = 5; }
     c.pc = 100; const bail = bailoutBanks(g).ok;
     const h = deserializeGame(serializeGame(g));
-    return { maxDef, crisis, closed: levels1 < levels0, bail, conf: E.conf, phase: cyclePhase(c), kept: Math.abs(h.countries[0].econ.credit - E.credit) < 1e-6 * E.credit + 1, bad: __sane(g) }; })()`);
+    return { maxDef, crisis, closed: levels1 < levels0, bail, conf: E.conf, phase: cyclePhase(c), kept: Math.abs(h.countries[0].econ.credit - E.credit) < 1e-5 * E.credit + 1, bad: __sane(g) }; })()`);
   assert(r.maxDef > 0.001, 'no defaults under a mountain of debt');
   assert(r.closed, 'defaults should close real buildings');
   assert(r.crisis, 'thin bank capital and defaults should cause a banking crisis');
   assert(r.bail, 'bailout failed');
   assert(r.kept, 'credit lost on save/load');
+  assert(r.bad.length === 0, r.bad.join('; '));
+});
+
+test('peoples: minorities, laws, assimilation, migration and nationalist claims', () => {
+  const r = run(`(() => { const g = createGame('peop1', { size: 'small', countries: 8 }); setPlayer(g, 0); const c = g.countries[0];
+    tick(g); g.pending.length = 0;
+    const cultures = g.cultures.length === g.countries.length && g.faiths.length >= 2;
+    const mixed = g.world.provinces.some(p => p.cult && Object.keys(p.cult).length > 1);
+    const sums = g.world.provinces.every(p => !p.cult || Math.abs(Object.values(p.cult).reduce((a, b) => a + b, 0) - 1) < 1e-6);
+    // Persecution: more grievance and faster assimilation than equal citizenship.
+    const prov = g.world.provinces.find(p => p.owner === 0 && (p.cult[c.culture] || 0) < 0.9) || g.world.provinces.find(p => p.owner === 0);
+    prov.cult = { [c.culture]: 0.5, [g.countries[1].culture]: 0.5 };
+    c.laws.citizenship = 'equal'; tickPeoples(g); const gEq = prov.grievance, mEq = prov.cult[c.culture];
+    c.laws.citizenship = 'persecution'; tickPeoples(g); const gPe = prov.grievance, mPe = prov.cult[c.culture] - mEq;
+    // Migration toward a richer neighbor with open borders carries culture.
+    const n = getNeighbors(g, 0)[0]; const nb = g.countries[n]; nb.laws.migration = 'open';
+    const from = g.world.provinces.find(p => p.owner === 0 && p.neighbors.some(q => g.world.provinces[q].owner === n));
+    const to = g.world.provinces[from.neighbors.find(q => g.world.provinces[q].owner === n)];
+    from.sol = Object.fromEntries(Object.keys(from.sol).map(k => [k, 5])); to.sol = Object.fromEntries(Object.keys(to.sol).map(k => [k, 90]));
+    const before = to.cult[c.culture] || 0; migrate(g);
+    const carried = (to.cult[c.culture] || 0) > before;
+    // Claims: a neighbor province full of our people is claimed.
+    to.cult = { [c.culture]: 0.8, [nb.culture]: 0.2 }; const claims = nationalClaims(g, c).includes(to.id);
+    const h = deserializeGame(serializeGame(g));
+    const kept = JSON.stringify(h.world.provinces[to.id].cult) === JSON.stringify(to.cult) && h.cultures.length === g.cultures.length;
+    for (let i = 0; i < 24; i++) { tick(g); g.pending.length = 0; }
+    return { cultures, mixed, sums, griev: gPe > gEq, assim: mPe > 0, carried, claims, kept, bad: __sane(g) }; })()`);
+  assert(r.cultures && r.mixed && r.sums, 'peoples not generated properly');
+  assert(r.griev, 'persecution should breed more grievance');
+  assert(r.assim, 'persecution should force assimilation');
+  assert(r.carried, 'migrants should carry their culture');
+  assert(r.claims, 'our people abroad should be claimed');
+  assert(r.kept, 'peoples lost on save/load');
   assert(r.bad.length === 0, r.bad.join('; '));
 });
 

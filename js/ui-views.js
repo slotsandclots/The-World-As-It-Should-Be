@@ -2,6 +2,28 @@
 // Side-panel tab views. Each view returns HTML for the tab body.
 
 Object.assign(UI, {
+  // ------------------------------------------------------------------ peoples
+
+  peoplesHtml(c, g) {
+    ensurePeoples(g);
+    const cu = nationComposition(g, c, 'cult'), fa = nationComposition(g, c, 'rel');
+    const row = (name, v, mine) => `<div class="kv"><span>${esc(name)}${mine ? ' <span class="ftag">majority</span>' : ''}</span><span>${pct(v, v < 0.1 ? 1 : 0)}</span></div>`;
+    const L = c.laws;
+    let h = `<div class="card"><h3>${icon('pops', 16)} Peoples and faiths</h3>
+      <p class="small muted" style="margin-top:0">${esc(LAW_CATS.citizenship.opts[L.citizenship].name)} · ${esc(LAW_CATS.church.opts[L.church].name)} · ${esc(LAW_CATS.migration.opts[L.migration].name)}. Minorities assimilate slowly; exclusion keeps them out of state jobs and the vote, and breeds grievance that feeds unrest and separatism.</p>
+      <div class="grid2"><div><h4 style="margin-top:0">Cultures</h4>${cu.slice(0, 5).map(([k, v]) => row(cultureName(g, k), v, k === c.culture)).join('')}</div>
+      <div><h4 style="margin-top:0">Faiths</h4>${fa.slice(0, 5).map(([k, v]) => row(faithName(g, k), v, k === c.faith)).join('')}</div></div>
+      <div class="grid2" style="margin-top:6px">
+        <div class="kv"><span>Minorities</span><span>${pct(c._minority || 0)}</span></div>
+        <div class="kv"><span>Grievance</span><span class="${(c._grievance || 0) > 0.08 ? 'bad' : ''}">${Math.round((c._grievance || 0) * 100)}</span></div>
+        <div class="kv"><span>Immigrants last year</span><span>${fmtPop((c.migYear && c.migYear.in) || 0)}</span></div>
+        <div class="kv"><span>Emigrants last year</span><span>${fmtPop((c.migYear && c.migYear.out) || 0)}</span></div>
+      </div>`;
+    const claims = (c.claims || []).map(pid => g.world.provinces[pid]).filter(p => p.owner !== c.id);
+    if (claims.length) h += `<p class="small" style="margin-bottom:0"><b>Our people abroad:</b> ${claims.slice(0, 6).map(p => `${esc(p.name)} (${esc(g.countries[p.owner].name)})`).join(', ')}${claims.length > 6 ? '…' : ''}. Nationalists want them brought home.</p>`;
+    return h + '</div>';
+  },
+
   // ------------------------------------------------------------------ credit
 
   creditHtml(c, g) {
@@ -450,7 +472,7 @@ Object.assign(UI, {
 
   viewPops(c, g) {
     const E = c.econ;
-    let h = `<div class="card">
+    let h = this.peoplesHtml(c, g) + `<div class="card">
       ${bar('Average standard of living', E.avgSol, { tip: 'How well pops meet their basic, everyday and luxury needs.' })}
       ${bar('Contentment', 50 + E.contentment, { text: fmtSigned(E.contentment, 0), tip: 'Standard of living compared with what each class expects. Drives approval.' })}
       <div class="grid2" style="margin-top:6px">
@@ -571,7 +593,7 @@ Object.assign(UI, {
     if (tSubs.length) status.push(`<span class="muted">Overlord of ${tSubs.map(x => esc(x.name)).join(', ')}</span>`);
     let h = `<button data-act="select" data-id="-1" class="small" style="margin-bottom:8px">← All nations</button>`;
     if (this.selProv != null && g.world.provinces[this.selProv] && g.world.provinces[this.selProv].owner === t.id) h += this.provinceCard(g.world.provinces[this.selProv], false);
-    h += `<div class="card">${this.nationHeader(t)}</div>`;
+    h += `<div class="card">${this.nationHeader(t)}${(() => { const a = claimsOn(g, c, t.id), b = claimsOn(g, t, c.id); return a || b ? `<div class="alert warn small" style="margin-top:6px">${a ? `${a} province${a > 1 ? 's' : ''} of theirs are home to our people. ` : ''}${b ? `${b} of ours are home to theirs. ` : ''}Nationalists on both sides want borders redrawn.</div>` : ''; })()}</div>`;
     h += `<div class="card">${bar('Relations with us', (rel + 100) / 2, { text: Math.round(rel), color: rel < -30 ? 'var(--bad)' : rel > 30 ? 'var(--good)' : 'var(--warn)' })}
       <div class="small">${status.join(' · ') || '<span class="muted">No agreements</span>'}</div></div>`;
     const ratio = strength(c) / Math.max(0.01, strength(t));
@@ -698,6 +720,7 @@ Object.assign(UI, {
         <div class="kv"><span>Factory workforce</span><span>${pct(provinceIndustry(p))}</span></div>
       </div>
       <div class="small" style="margin-top:4px">${classes}</div>
+      ${p.cult ? `<div class="small" style="margin-top:4px"><span class="muted">Peoples:</span> ${Object.entries(p.cult).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, v]) => `${esc(cultureName(g, +k))} ${pct(v)}`).join(' · ')}<br><span class="muted">Faiths:</span> ${Object.entries(p.rel || {}).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, v]) => `${esc(faithName(g, +k))} ${pct(v)}`).join(' · ')}${(p.grievance || 0) > 0.05 ? ` · <span class="bad">grievance ${Math.round(p.grievance * 100)}</span>` : ''}</div>` : ''}
       <div class="small muted" style="margin-top:4px">${p.buildings.length ? p.buildings.slice().sort((a, b) => b.level - a.level).map(b => `${esc(BUILDINGS[b.t].name)} ${b.level}`).join(', ') : 'No buildings'}</div>
       <div class="small muted">Resources: ${Object.entries(p.res || {}).filter(([, v]) => v > 0).map(([k, v]) => `${RES_INFO[k]} ${v}`).join(', ') || 'none'}</div>`;
     if (own) {

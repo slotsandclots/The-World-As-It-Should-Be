@@ -89,6 +89,7 @@ function tickSeparatism(game, c) {
     if (r.core != null && game.countries[r.core].alive && getNeighbors(game, c.id).includes(r.core)) t += 12; // a homeland next door
     t += Math.max(0, 32 - sol) * 0.8;
     t -= (c.approval - 50) * 0.2;
+    t += r.provs.reduce((s, p) => s + (p.grievance || 0) * p.pop, 0) / Math.max(1, pop) * 40;
     if (c.federal) t *= 0.5;
     t *= mult;
     s.support += (clamp(t, 0, 95) - s.support) * 0.04;

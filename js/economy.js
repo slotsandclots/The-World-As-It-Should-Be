@@ -338,7 +338,7 @@ function tickEconomy(game, warmup) {
     const J = provinceJobs(c, p);
     p.jobs = J;
     const fill = {};
-    for (const t of POP_KEYS) fill[t] = J[t] > 0 ? Math.min(1, p.pops[t] / J[t]) : 1;
+    for (const t of POP_KEYS) fill[t] = J[t] > 0 ? Math.min(1, p.pops[t] * ((t === 'clerks' || t === 'officials') && p.excl ? 1 - p.excl : 1) / J[t]) : 1;
     p.fill = fill;
     for (const b of p.buildings) {
       const def = BUILDINGS[b.t];

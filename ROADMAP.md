@@ -119,6 +119,25 @@ The biggest multiplier for political depth. Governments become combinations of l
 
 Built on top of 4a–4b, so it can use wages, savings and debt. Every item states its mechanism.
 
+**3a. Peoples ✅ (first pass):**
+- **Cultures and faiths on every province:** a culture per nation, plus a handful of regional faiths. Border regions are mixed, and there are scattered communities further away.
+- **New laws:**
+  - *Citizenship* (equal / restricted / persecution) decides whether minorities can hold clerk and official jobs and vote. Exclusion lowers output and removes them from the electorate (fewer seats in regional elections).
+  - *Immigration* (open / limited / closed).
+- **The church law** now decides how religious minorities fare.
+- **Assimilation and conversion** drift the mix, faster with literacy and under coercion.
+- **Grievance** (exclusion plus a state faith not their own, worse when poor) feeds unrest (a new line in the breakdown) and separatism.
+- **Migration:** every quarter people move toward better-off provinces, flee occupation, and emigrate to richer neighbors whose borders are open. They carry their culture and faith, building diasporas.
+- **Nationalism:** provinces abroad where our people are a large share become claims. Claims sour relations and make AI governments far more willing to go to war "to bring our people home".
+- **Interface:** Culture and Religion map modes, peoples and faiths in the province panel, a Peoples card in the Pops tab, and claims in diplomacy.
+- **Measured (6 worlds × 40 years):**
+  - minorities: about 19% of people, assimilating slowly
+  - about 11 provinces claimed by nationalists per world
+  - nations with open or limited borders take in roughly 0.1–0.2% of their population a year
+  - economic metrics unchanged
+
+**Still to do in Milestone 3** (cities and housing, demographics, social mobility, public services, education, culture-based interest groups, pan-national unification):
+
 - **Cultures and religions on pops:** each pop has a culture and a faith.
   - *Discrimination and acceptance laws* decide which jobs and classes a minority can hold, and whether it can vote. Exclusion shows up as unemployment, lower living standards and grievances in that group, not as an unrest modifier.
   - *Assimilation and conversion* are slow drifts driven by schooling, cities and the law.
