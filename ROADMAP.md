@@ -28,6 +28,27 @@ These rules apply to every milestone. A feature that breaks them should be redes
 7. **You have to be able to see why.** Every important number has a breakdown, every system has a chart or a map mode, and the news explains what happened. A crash the player can't explain feels random, not emergent.
 8. **Build one layer at a time:** build, measure, play-test, then move on.
 
+## How the systems connect
+
+New features should plug into these quantities rather than add their own meters (philosophy rules 2–4). Before building something, check which rows it reads and which it changes; a feature that touches none of them doesn't mesh.
+
+| System | Fed by | Feeds |
+|---|---|---|
+| **Pops** (classes per province: size, income, savings, literacy, culture, faith) | Jobs and wages, prices, welfare and health spending, schooling, housing, migration | Living standards → approval and contentment; class mix → public opinion; interest-group clout; movements; notable people; votes |
+| **Goods and markets** (`economy.js`) | Buildings and their inputs, pops' needs, state purchases, world and bloc trade | Prices, profits and wages; shortages; arms for the army |
+| **Money and credit** (`money.js`, `credit.js`) | Money growth, printing, bank lending, confidence | Price level and inflation, interest rates, construction, defaults, banking crises, unemployment |
+| **State budget and debt** (`fiscal.js`) | Taxes on pop incomes, tariffs, state enterprises; lenders (savers, banks, foreign nations) | State spending into the economy, crowding out, interest to bondholders, debt crises |
+| **Payments** (`payments.js`, draft) | Trade balances, reparations, owners' capital looking abroad | Reserves, foreign debts and lenders, exchange rates, import prices and rationing |
+| **Trade flows** (`tradeflows.js`, accounting only) | Each month's bloc and world trade | Who trades with whom: the Trade map mode, trading partners per good, trade dependence between nations; read next by spheres of influence |
+| **Society and peoples** (`society.js`, `peoples.js`) | Pops, laws (citizenship, immigration), wars and occupation | Housing and slums, births and aging, grievance, migration, nationalist claims |
+| **Ideas and notable people** (`ideas.js`, `figures.js`) | Neighbors, trade and bloc ties, revolutions, the press, literacy and universities | Idea currents → public opinion and movements; research |
+| **Politics** (interest groups, movements, laws, parties, characters) | Pops' living standards and beliefs, demands met or not, leaders | The four meters (legitimacy, support, unrest, stability) → elections, coups, revolutions, reforms |
+| **Diplomacy, blocs and subjects** | Ideological distance, claims, kinship, trade, infamy, leaders' skills | Alliances, pacts, markets, tribute, wars of aggression and independence |
+| **War** (`warfare.js`, `revanchism.js`, `worldwar.js`) | Army size (military spending, population), arms, technology, generals, alliances | Occupation, peace terms (land, reparations, regime change), the memory of defeat → movements and AI aims; mobilization and war production; war weariness |
+| **Technology** (`tech.js`) | Education, literacy, universities, inventors | Productivity, army strength, tax collection, corruption |
+
+**Known gaps where systems don't mesh yet:** wars are financed only by printing and borrowing (no war bonds); the war dead are not taken out of the pops; tariffs cut trade both ways; great-power status is a fixed ranking; government types still differ mostly by flat numbers (see "Governments that play differently"); several AI paths found blocs and sign up the partner on a relations threshold alone, while the player's partner weighs the offer (fix next: one founding path where every partner decides, show the acceptance chance on the Blocs tab, re-measure world wars).
+
 ## Done
 
 - World generation: seven procedural models, Earth, and Earth with historical regions
@@ -602,6 +623,28 @@ Today the seven government types differ mostly in numbers: freedom, repression, 
 
 **Kept in mind, not scheduled:** playing as a lawmaker (second to the grand-strategy layer; the parliament screen is its first step) and playing as a corporation or a church.
 
+## Spheres of influence (M)
+
+Formal control exists (puppets, vassals, protectorates, colonies), and so do blocs and a simple great-power ranking. A sphere is informal control, and it should come out of real ties rather than be declared.
+
+- **Influence over a nation** is the sum of real ties to a great power:
+  - the foreign debt it holds (payments.js already records every loan by lender)
+  - the share of its trade that goes through that power or its bloc, read from the bilateral trade flows (`tradeflows.js`)
+  - the factories its investors own (with phase 3, owning assets)
+  - pacts and guarantees
+  - shared ideas and kinship
+- **A sphere** is the set of nations where one power's influence clearly leads.
+- **Effects, through existing systems:**
+  - clients lean toward their patron when choosing wars and blocs (`entryWish`, bloc appeal)
+  - the patron's idea currents and press reach them more strongly
+  - loans can come with conditions (lending as leverage, from the closed-loop plan)
+  - a patron backs coups or rebels when a client drifts away (the existing "fund rebels" action, used by the AI)
+- **Great-power status is earned:** from economy, military and the size of a power's sphere, replacing the fixed "strongest quarter" ranking in `worldwar.js`.
+- **Why it matters:** two great powers competing for the same nations makes rivalries and crises emerge on their own, feeding the alliance systems, so world wars grow from competition between powers, not mainly from old defeats.
+- **The player:** lend, invest, offer protection, sponsor parties and newspapers abroad, and defend clients.
+- **Interface:** a spheres map mode, and each nation's influences in the Diplomacy tab.
+- **Order:** after phase 2 of the closed-loop economy lands, alongside phase 3 (foreign ownership) and 4d (the world economy), and before AI ambitions, so AI goals like "dominate the market" have something to aim at.
+
 ## AI ambitions and personalities (M)
 
 Most AI work happens inside each milestone, because the AI uses every system as it's built. This milestone adds what's left: long-term direction. It must come before the war layer, because a war AI needs aims.
@@ -631,6 +674,14 @@ Already in place (first pass): occupation until peace, fighting along the front 
 - **The seas and the skies, abstracted:** fleets contest control of sea routes (landings, blockades that cut world-market trade, convoy raiding); air power is a regional superiority modifier, not units.
 - **Time:** the game runs in weekly steps while a war is on, and monthly in peace. On the map: army counters, battle markers, the front line between the sides, plan arrows, and highlighted encircled pockets.
 - **AI:** fights with the same fronts and orders, so it can spearhead and encircle too.
+
+**Retune world wars** (built early in History makers, on the first-pass war layer):
+- **Pacing:** their length, the exhaustion limit for seeking peace, and the four-month test before a war counts as a world war, all tuned to monthly fronts.
+- **Total war:** replace the stand-ins with the war economy (rationing, converted factories, war bonds) and naval blockades. Today AI powers simply mobilize, and every nation's trade openness drops.
+- **Peace terms:** decided by war goals, not war score.
+- **War dead:** taken out of the soldier pops, not only counted.
+- **The memory of defeat:** "army intact" should come from the armies on the map, not from a strength ratio.
+- **Measure again:** world wars per world, their length, and war finance side effects (hyperinflation, defaults).
 
 **Skip on purpose:** division templates, combat width, daily ticks, unit-level air and naval combat, a production line for every weapon.
 
@@ -700,8 +751,26 @@ The map moves to WebGL 2, which works in every current browser, including when t
   - nation names that curve along the shape of the country
   - province names and city labels when zoomed in
   - smoother rendering when zoomed far in
-- **Map modes:** gradient legends with values on hover, and new modes as systems arrive (culture, religion, migration, inflation, unemployment, supply).
+- **Map modes:** gradient legends with values on hover, and new modes as systems arrive (culture, religion, inflation, unemployment, supply). Migration is a flow view (see Flow views).
 - **Optional:** fog of war, plus lighting and seasons for atmosphere.
+
+**Flow views**
+
+Views that show what moves between nations, all built the same way as the trade view.
+
+- **Shared method:**
+  - **Accounting only:** each view records source-to-destination tables in a sim file, so the economy and politics come out unchanged. A test checks that, as the trade view's does.
+  - **One shared line style** on the map: thickness by size, an arrow for direction, a filter, and a hover that says what moves and why.
+  - **A "who and why" breakdown for each nation,** following the "tell the player why" rule.
+  - **They read the systems and change none of them:** the trade, migration, payments and ideas rows of "How the systems connect".
+- **The views, in order:**
+  1. **Trade.** Step 1 is done (bilateral flows, the Trade map mode, trading partners and dependence); step 2, routes, is under 4d.
+  2. **Migration.** People already move every quarter (peoples.js), but only yearly totals per nation are kept today; the view records who moves where. Arrows between nations sized by migrants and colorable by culture, and a card showing who arrives, who leaves, and why (work, war, open borders). This is the migration map mode listed under the map.
+  3. **Capital and debt,** after phase 2 of the closed-loop economy: who lends to whom and who is owed. It shares its data with spheres of influence.
+  4. **Ideas:** a map mode for each current's strength, and a "where this current came from" breakdown. This needs the sources of each current (neighbors, trade, blocs, revolutions, writers and thinkers) to be stored, which they are not today.
+  5. **The diplomatic web:** pacts, rivalry pacts, revisionist pacts and world-war sides drawn as a network.
+  6. **Later:** spheres of influence (once built), and arms and war supply (with Milestone 5).
+- **Technology:** nothing spreads between nations today, so there is nothing to draw yet. A "where each technology came from" view follows once technology spreads (see "Technology as diffusion" under Deeper simulation).
 
 **Screens (redesigned once their systems settle)**
 - **Politics:** a parliament seating chart (semicircle) with coalition blocs, an interest-group overview, and the constitution as a visual chart.
@@ -769,7 +838,7 @@ Ideas for after (or alongside) the milestones. They follow the same design philo
   - resource depletion
   - droughts and famines
   - later, climate change as a slow global crisis that needs international cooperation
-- **Technology as diffusion, not a tree:** inventions spread from where they're made, through trade, students abroad, spies and foreign investment. Rich nations pull ahead, and catch-up growth becomes a strategy.
+- **Technology as diffusion, not a tree:** inventions spread from where they're made, through trade, students abroad, spies and foreign investment, seeded by the notable inventors (figures.js), whose breakthroughs are where an invention starts. Rich nations pull ahead, and catch-up growth becomes a strategy. Once technology spreads, a "where each technology came from" flow view follows (see Flow views).
 - **Corporations as actors:** large companies with owners and leaders that lobby, bribe, buy newspapers, move factories abroad and get nationalized.
 - **Organized crime and the black economy:** smuggling under tariffs and price controls, black markets in shortages, and corruption as a network rather than a meter.
 
@@ -781,7 +850,7 @@ Ideas for after (or alongside) the milestones. They follow the same design philo
   - sanctions votes
   - a global reserve currency
   - development banks with strings attached
-- **Spheres of influence and a hierarchy of powers** (see World scale).
+- **Spheres of influence and a hierarchy of powers:** now a section of its own (Spheres of influence), with ranks in World scale.
 
 ### World scale
 
@@ -839,12 +908,15 @@ Ideas for after (or alongside) the milestones. They follow the same design philo
 7. ✅ **Milestone 3** (first pass), with ideas spreading through the world folded in: 3a peoples, 3b cities and demographics, 3c aging, inequality, minority movements and healthcare, 3d universities, kinship and unification, idea spread, 3e secondary schools, the minorities interest group, unification by force. Also done: **the alert bar** (see Quality of life).
 8. ✅ **History makers (first pass):** notable people, the memory of defeat and its demagogues, world wars and peace conferences. Pulled forward at the player's request; it uses the existing war layer and leaves the operational war layer to Milestone 5.
 9. **Milestone 4c–4e,** with step 1 of "Governments that play differently" (mechanisms instead of flat per-type numbers) in 4c: labor relations and fiscal policy (including AI governments responding to the cycle), the world economy (with distance that matters, from World scale), and the stock and land markets, with the **closed-loop economy** running through all three (phase 1, the state's budget and debt, is done).
-10. **AI ambitions and personalities, with the graphics-card map**, plus the first art commissions: an art direction document, map textures and an icon set. The war layer needs the new map for army counters, fronts, plan arrows and supply routes.
-11. **Milestone 5:** the war layer, an operational layer.
-12. **The world newspaper and history book.** This can move earlier. World wars, treaties and the figures of the age are natural headlines and chapters.
-13. **Eras and scenarios (Milestone 6) and the desktop release,** together toward a public release.
+10. **Spheres of influence,** once payments and foreign ownership exist (bilateral trade flows already do).
+11. **AI ambitions and personalities, with the graphics-card map**, plus the first art commissions: an art direction document, map textures and an icon set. The war layer needs the new map for army counters, fronts, plan arrows and supply routes.
+12. **Milestone 5:** the war layer, an operational layer.
+13. **The world newspaper and history book.** This can move earlier. World wars, treaties and the figures of the age are natural headlines and chapters.
+14. **Eras and scenarios (Milestone 6) and the desktop release,** together toward a public release.
 
 Later: Milestone 8 (intrigue and dynasties), world scale (as the map and Web Worker allow), and the rest of Beyond the milestones.
+
+Flow views (visuals track) slot in as their data arrives: migration right after the trade view, capital and debt after phase 2 of the closed-loop economy, and ideas after that.
 
 If we want to show the game to other people sooner (screenshots, a playable link, recruiting an artist), the graphics-card map can move earlier, because the map is most of the first impression.
 
