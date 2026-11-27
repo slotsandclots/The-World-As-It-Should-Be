@@ -301,7 +301,7 @@ The economy is already dynamic: goods prices move with supply and demand every m
 
 **Still open:**
 - **No regular cycle yet:** growth carries over from year to year but doesn't swing back at 3–5 years (no negative autocorrelation), so these are booms and busts rather than a regular cycle. Stronger construction delays and inventory cycles in 4c should help.
-- **A stock or land market** (optional).
+- **The stock and land markets** now have their own phase, 4e.
 
 - **Private credit:** businesses borrow to invest when rates are low and confidence is high, so private debt builds up through the boom.
 - **Overshooting:** construction takes time, so new capacity opens after demand has peaked. Prices and profits fall just as the debts come due.
@@ -311,10 +311,38 @@ The economy is already dynamic: goods prices move with supply and demand every m
 - **Optional asset market:** a stock or land index with bubbles in the boom and crashes at the turn.
 
 ### 4c. Labor, unemployment and fiscal policy
+- **AI fiscal response to the cycle:** AI governments already have business confidence, private investment, credit and central banks, but they don't yet change their spending with the cycle. Add stimulus in slumps, austerity after crises and discretionary bailouts, chosen by their politics. A populist spends, an orthodox government cuts.
 - **Labor relations:** unions as organizations with membership, strikes and collective bargaining. Minimum-wage laws change how buildings split value between wages and profits.
 - **Sticky wages:** wages are slow to fall, so a drop in demand becomes layoffs rather than pay cuts. That's what turns a slump into mass unemployment.
 - **Automatic stabilizers:** unemployment insurance and welfare cushion downturns.
 - **The fiscal multiplier:** government spending moves output much more in a slump than in a boom, so stimulus versus austerity is a real choice.
+
+### 4e. The stock market and the land market
+
+The asset side of the cycle. Through pops and goods: asset prices change what the owning and middle classes are worth, which changes what they spend, save and invest.
+
+- **A stock market in each nation:**
+  - **The price:** an index set by expected profits divided by the real interest rate plus a risk premium.
+  - **Investors extrapolate recent gains,** so booms inflate bubbles above fundamentals.
+  - **Crashes:** when prices run far above what profits justify, a shock (a default wave, a banking crisis, a war, a bad election) can crash them.
+  - **Who holds shares:** capitalists, clerks and officials. Their wealth rises and falls with the index, and so does their consumption (the wealth effect).
+  - **Firms invest more when shares are dear** (cheap to raise equity) and less when they're cheap.
+  - **Buying on credit:** margin lending ties the stock market to 4b's credit.
+- **A land market in each province:**
+  - **Farmland** is priced from farm rents.
+  - **Urban land** is priced from housing rents (3b), so city booms raise land values.
+  - **Mortgages:** credit for housing links land, housing construction and banks. A housing bubble can burst, leaving mortgages unpaid and banks hurt.
+  - **Deflation forecloses on indebted farmers.** Landowners and peasants with debts lose land, which feeds the agrarian league and land-reform demands.
+- **Policy and law:**
+  - financial regulation (margin limits, mortgage rules)
+  - capital-gains and land taxes
+  - land reform (redistributing large estates, which hurts landowners and pleases peasants)
+  - nationalizing or privatizing listed companies
+- **The AI plays it too:**
+  - Investors in every nation react to share prices: they put in more when shares are dear.
+  - AI governments respond to crashes with stimulus, bailouts or austerity (with 4c), shaped by their politics.
+- **Interface:** an index chart and land prices in the Ledger, a "market overheating" warning on the alert bar, and crash news in the newspaper.
+- **Measured:** bubbles and crashes should be rare and visible: a major crash about once a generation per nation, and land booms that follow urbanization.
 
 ### 4d. The world economy
 - **Contagion:** a recession in a big economy cuts world-market demand, and its trading partners feel it.
@@ -590,7 +618,7 @@ Ideas for after (or alongside) the milestones. They follow the same design philo
 5. ✅ **Foundations:** consolidation, balance report, economy baseline and noise fix, campaign chapter VIII. Still to do: a play-test by a human. The Web Worker is deferred until weekly war turns arrive.
 6. ✅ **Milestone 4a–4b:** money, inflation, credit and the business cycle (first pass).
 7. ✅ **Milestone 3** (first pass), with ideas spreading through the world folded in: 3a peoples, 3b cities and demographics, 3c aging, inequality, minority movements and healthcare, 3d universities, kinship and unification, idea spread, 3e secondary schools, the minorities interest group, unification by force. Also done: **the alert bar** (see Quality of life).
-8. **Milestone 4c–4d:** labor relations and fiscal policy, then the world economy (with distance that matters, from World scale).
+8. **Milestone 4c–4e:** labor relations and fiscal policy (including AI governments responding to the cycle), the world economy (with distance that matters, from World scale), and the stock and land markets.
 9. **AI ambitions and personalities, with the graphics-card map**, plus the first art commissions: an art direction document, map textures and an icon set. The war layer needs the new map for army counters, fronts, plan arrows and supply routes.
 10. **Milestone 5:** the war layer, an operational layer.
 11. **The world newspaper and history book.** This can move earlier.
