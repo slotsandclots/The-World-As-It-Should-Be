@@ -135,6 +135,13 @@ function memberVote(game, b, applicantId) {
   return { yes, total: b.members.length, passed: yes * 2 > b.members.length };
 }
 
+// The chance that an invited nation ends up a member: the members must vote it
+// in, and then it decides. Shown on the Blocs tab beside each candidate.
+function inviteChance(game, b, targetId) {
+  const v = memberVote(game, b, targetId);
+  return v.passed ? clamp(joinAppeal(game, game.countries[targetId], b) + 0.1, 0, 1) : 0;
+}
+
 // Collective defense, called from declareWar.
 function blocDefense(game, war, attackerId, defenderId) {
   for (const b of blocsOf(game, defenderId)) {
@@ -218,7 +225,7 @@ function playerInvite(game, blocId, targetId) {
   if (c.pc < 10) return { ok: false, msg: 'Needs 10 political capital.' };
   c.pc -= 10;
   if (!memberVote(game, b, t.id).passed) return { ok: false, msg: `The other members vote against admitting ${t.name}.` };
-  if (!game.rng.chance(joinAppeal(game, t, b) + 0.1)) return { ok: false, msg: `${t.name} declines our invitation.` };
+  if (!game.rng.chance(inviteChance(game, b, t.id))) return { ok: false, msg: `${t.name} declines our invitation.` };
   joinBloc(game, b, t.id);
   return { ok: true, msg: `${t.name} joins the ${b.name}.` };
 }

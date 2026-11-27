@@ -153,6 +153,28 @@ test('blocs trade inside a shared market, defend members and apply a common tari
   assert(r.bad.length === 0, r.bad.join('; '));
 });
 
+test('every founding partner decides: friends accept, rivals decline, AI blocs are weighed', () => {
+  const r = run(`(() => { const g = createGame('blocfound', { size: 'small' }); setPlayer(g, 0); g.truces = {};
+    const a = 1, b = 2;
+    const tries = rel => { let ok = 0; for (let i = 0; i < 40; i++) { setRel(g, a, b, rel); const x = proposeBloc(g, a, b, 'freeTrade'); if (x) { ok++; dissolveBloc(g, x); } } return ok; };
+    const friendly = tries(90), hostile = tries(-60);
+    setRel(g, a, b, 90); const chanceFriend = foundingChance(g, g.countries[b], a, 'pact');
+    setRel(g, a, b, -60); const chanceFoe = foundingChance(g, g.countries[b], a, 'pact');
+    // A founding partner already in a bloc of that kind cannot accept.
+    setRel(g, a, b, 90); const ft = foundBloc(g, b, 'freeTrade'); joinBloc(g, ft, 3);
+    const taken = foundingChance(g, g.countries[b], a, 'customs');
+    dissolveBloc(g, ft);
+    // Over 40 years, AI blocs keep forming even though partners can say no.
+    for (let i = 0; i < 480; i++) { tick(g); g.pending.length = 0; }
+    return { friendly, hostile, chanceFriend, chanceFoe, taken, blocs: (g.blocs || []).length, bad: __sane(g) }; })()`);
+  console.log('    founded with a friend', r.friendly, 'of 40, with a rival', r.hostile, 'of 40; pact chance', r.chanceFriend.toFixed(2), 'vs', r.chanceFoe.toFixed(2), '; blocs after 40 years:', r.blocs);
+  assert(r.friendly > r.hostile + 10, 'friends should accept far more often than rivals');
+  assert(r.hostile < 10, 'rivals should mostly decline');
+  assert(r.chanceFriend > r.chanceFoe, 'chance should rise with relations');
+  assert(r.taken === 0, 'a partner already in an economic bloc cannot found another');
+  assert(r.bad.length === 0, r.bad.join('; '));
+});
+
 test('designations, separatism and federation work', () => {
   const r = run(`(() => { const g = createGame('fed', { size: 'small' });
     const big = g.countries.slice().sort((x, y) => y.provinceCount - x.provinceCount)[0].id;
@@ -323,8 +345,8 @@ test('movements are radical wings of interest groups; support is a meter', () =>
 
 test('money: central banks hit their target, printing inflates and erodes debt, wages lag', () => {
   const r = run(`(() => { const g = createGame('money1', { size: 'small', countries: 6 }); setPlayer(g, 0); const c = g.countries[0];
-    c.laws.monetary = 'centralBank';
-    for (let i = 0; i < 180; i++) { tick(g); g.pending.length = 0; }
+    // Keep the central bank: a revolution can replace the monetary law, and then this would not test a central bank.
+    for (let i = 0; i < 180; i++) { c.laws.monetary = 'centralBank'; tick(g); g.pending.length = 0; }
     const cb = inflationYoY(c);
     // Switch to printing money and run a deficit.
     c.laws.monetary = 'state'; c.policy.moneyGrowth = 30; c.policy.monetize = true; c.treasury = -c.gdpNom * 0.8;
