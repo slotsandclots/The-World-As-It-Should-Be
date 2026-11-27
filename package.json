@@ -8,7 +8,8 @@
     "test": "node tools/test.js",
     "test:browser": "node tools/browser-test.js",
     "balance": "node tools/simtest.js",
-    "econ": "node tools/econtest.js"
+    "econ": "node tools/econtest.js",
+    "report": "node tools/balance-report.js --compare tools/baseline.json"
   },
   "devDependencies": {
     "playwright": "1.49.1"

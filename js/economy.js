@@ -148,8 +148,15 @@ function newCountryEcon(c) {
 
 function productivity(game, c) {
   const p = c.policy;
-  let prod = c.econ.tech * (0.85 + p.infrastructure * 0.05) * (c.id === game.player ? 1 : 1 + difficulty(game).aiProd);
-  if (c.stability < 35) prod *= 1 - (35 - c.stability) * 0.006;
+  const E = c.econ;
+  // Stocks, not sliders: infrastructure is built up (and decays) over years,
+  // and disorder builds and fades with instability instead of tracking its
+  // month-to-month noise.
+  if (E.infraStock == null) E.infraStock = p.infrastructure;
+  E.infraStock += (p.infrastructure - E.infraStock) * 0.03;
+  E.disorder = (E.disorder || 0) + (Math.max(0, 35 - c.stability) - (E.disorder || 0)) * 0.08;
+  let prod = E.tech * (0.85 + E.infraStock * 0.05) * (c.id === game.player ? 1 : 1 + difficulty(game).aiProd);
+  prod *= 1 - E.disorder * 0.006;
   if (isAtWar(game, c.id)) prod *= 0.96;
   if (c.mobilized) prod *= 0.9; // reservists leave the factories
   return Math.max(0.05, prod);
@@ -339,7 +346,7 @@ function tickEconomy(game, warmup) {
       const scale = b.level * b.active * b.staff * E.prod * techProd(c, b.t) * (1 - 0.5 * occupationFactor(game, p)) * provProdFactor(p, def);
       let inF = 1;
       for (const g in def.in) {
-        const f = E.fulfill[g];
+        const f = E.fulfillS ? (E.fulfillS[g] ?? E.fulfill[g]) : E.fulfill[g];
         if (SUPPORT_GOODS[g] && def.kind !== 'Industry') inF *= 0.6 + 0.4 * f;
         else inF = Math.min(inF, f);
       }
@@ -402,7 +409,7 @@ function tickEconomy(game, warmup) {
       const def = BUILDINGS[b.t];
       let rev = 0, inCost = 0;
       for (const g in b.outQ) rev += b.outQ[g] * P[g];
-      for (const g in b.inQ) inCost += b.inQ[g] * Math.min(E.fulfill[g], SUPPORT_GOODS[g] ? 1 : b.inF) * PC[g];
+      for (const g in b.inQ) inCost += b.inQ[g] * Math.min(E.fulfillS ? (E.fulfillS[g] ?? E.fulfill[g]) : E.fulfill[g], SUPPORT_GOODS[g] ? 1 : b.inF) * PC[g];
       const va = rev - inCost;
       b.va = b.va * 0.7 + (b.level > 0 ? va / b.level : 0) * 0.3;
       // Potential value added at full staffing and inputs decides whether the owners keep it running.
@@ -632,6 +639,9 @@ function clearMarkets(game, alive) {
       E.exports[g] = ex + r.exB; E.imports[g] = im + r.imB;
       E.blocEx[g] = r.exB; E.blocIm[g] = r.imB;
       E.fulfill[g] = D > 0 ? Math.min(1, avail / D) : 1;
+      // Firms hold a few months of inputs in stock, so a short month dents output gradually.
+      E.fulfillS = E.fulfillS || {};
+      E.fulfillS[g] = E.fulfillS[g] == null ? E.fulfill[g] : E.fulfillS[g] + (E.fulfill[g] - E.fulfillS[g]) * 0.3;
       let localT;
       if (D <= 0 && S <= 0) localT = base;
       else if (avail <= 0) localT = base * ECON.PRICE_MAX;

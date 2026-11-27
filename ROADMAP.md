@@ -48,8 +48,8 @@ These rules apply to every milestone. A feature that breaks them should be redes
 Before the next big milestone:
 
 - **Finish the consolidation:** fold political movements into radicalized interest groups, and cut down to the four meters in the design philosophy.
-- **Balance report:** headless runs across many seeds after every change, with statistics on regime changes, wars, crises, growth, prices, living standards and inequality. Philosophy rule 5 depends on it.
-- **Economy baseline:** measure today's GDP and price swings over 50 years as the starting point for Milestone 4.
+- ✅ **Balance report:** `npm run report` (and `--compare tools/baseline.json`) runs AI-only worlds and summarizes regime changes, wars, crises, elections, laws, growth, recessions, prices, living standards, inequality, unemployment and stability. Philosophy rule 5 depends on it.
+- ✅ **Economy baseline:** measured (see Milestone 4). Still to do: calm the remaining GDP noise before 4b.
 - **Performance:** run the simulation in a Web Worker before credit cycles and weekly war turns make each month more expensive.
 - **Play-test and campaign:** a real play session, and campaign chapters that teach laws, interest groups and the new war system.
 
@@ -138,7 +138,19 @@ Built on top of 4a–4b, so it can use wages, savings and debt. Every item state
 **Goal:** inflation, booms, recessions and depressions that come out of the simulation (money, credit, confidence and wages) rather than from scripted events, and that feed straight into politics.
 
 ### Starting point: what the economy does today
-The economy is already dynamic: goods prices move with supply and demand every month, buildings run or go idle on profitability, investors build where it pays, pop incomes and living standards follow what each class can afford, and markets trade nationally, in blocs and with the world. But it settles back to normal: after a shock it drifts back toward a stable state. Nothing accumulates (no private debt or credit), there is no money or price level (prices are relative to fixed bases and capped at 0.25–4× base, so economy-wide inflation is impossible), and there are few delays and no expectations. Milestone 4 adds the missing ingredients. Before starting, measure today's behavior (GDP and price swings over 50 years across many seeds) as a baseline to compare against.
+The economy is already dynamic: goods prices move with supply and demand every month, buildings run or go idle on profitability, investors build where it pays, pop incomes and living standards follow what each class can afford, and markets trade nationally, in blocs and with the world. But it settles back to normal: after a shock it drifts back toward a stable state. Nothing accumulates (no private debt or credit), there is no money or price level (prices are relative to fixed bases and capped at 0.25–4× base, so economy-wide inflation is impossible), and there are few delays and no expectations. Milestone 4 adds the missing ingredients.
+
+**Measured baseline** (`npm run report`, 6 worlds × 40 years, saved in `tools/baseline.json`):
+- **Prices:** world prices are calm (coefficient of variation 0.055; max/min ratio 1.24) and unemployment is low (mean 1.1%, worst 8%).
+- **GDP is noisy rather than cyclical:** GDP per person moves ±4.5 points a year (±4.0 even in peaceful years with no regime change), and falls in 41% of nation-years. Year-on-year growth has no memory beyond one year (autocorrelation ≈ 0), so there are no cycles to speak of.
+- **Causes found and fixed:**
+  - Buildings were capped each month by their scarcest input, so supply-chain shortages rippled month to month. Firms now hold input stocks, which halved building-output jitter.
+  - Productivity responded instantly to the noisy stability meter and to the infrastructure slider. Both are now stocks that build up and fade.
+- **Causes still open:**
+  - swings in trade openness (about ±2.5 points a year)
+  - AI spending changes counted directly in GDP
+
+**Implication:** before 4b adds credit cycles, the real economy needs to be calm enough that a genuine boom or bust stands out from the noise. Target: GDP per person falling in fewer than 20% of peaceful years, with any cycles showing as positive autocorrelation over 1–3 years.
 
 ### Design rules (the game-wide philosophy, applied to the economy)
 1. **Emergence comes from four ingredients:**
