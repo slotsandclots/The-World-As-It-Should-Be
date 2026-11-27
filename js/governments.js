@@ -113,6 +113,7 @@ const FACTIONS = {
   business: { name: 'Business', icon: '⚖', desc: 'Industrialists and financiers. Want low taxes, infrastructure and growth.' },
   clergy: { name: 'Clergy', icon: '☩', desc: 'Religious institutions. Want tradition, order and influence over the state.' },
   intelligentsia: { name: 'Intelligentsia', icon: '✎', desc: 'Academics, students and journalists. Want freedom and education.' },
+  minorities: { name: 'Minorities', icon: '✊', desc: 'Peoples and faiths other than the majority. Want equal citizenship and freedom of worship.' },
 };
 const FACTION_KEYS = Object.keys(FACTIONS);
 

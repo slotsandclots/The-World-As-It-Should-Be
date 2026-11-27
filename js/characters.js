@@ -12,6 +12,7 @@ const SKILL_KEYS = Object.keys(SKILLS);
 const FACTION_IDEO = {
   military: { econ: 0.3, auth: 0.7 }, workers: { econ: -0.6, auth: 0.1 }, business: { econ: 0.7, auth: 0 },
   clergy: { econ: 0.3, auth: 0.7 }, intelligentsia: { econ: -0.2, auth: -0.6 },
+  minorities: { econ: -0.2, auth: -0.5 },
 };
 
 const sgn = (v, d) => { const s = v.toFixed(d === undefined ? 1 : d); return v > 0 ? '+' + s : s.replace('-', '−'); };

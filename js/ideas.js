@@ -23,12 +23,17 @@
 function tickUniversities(game, c) {
   const edu = c.policy.education || 0;
   let s = 0, n = 0;
+  let s2 = 0;
   for (const p of c._provs || []) {
     const target = clamp((edu - 3) * 0.025 + (p.lit || 0) * 0.08 - 0.02, 0, 0.35);
     p.uni = (p.uni || 0.02) + (target - (p.uni || 0.02)) * 0.004;
-    s += p.uni * p.pop; n += p.pop;
+    // Secondary schools come before universities: they need literacy and a basic budget.
+    const secT = clamp((edu - 1.5) * 0.07 + (p.lit || 0) * 0.3 - 0.05, 0, 0.7);
+    p.sec = (p.sec == null ? secT * 0.8 : p.sec) + (secT - (p.sec == null ? secT * 0.8 : p.sec)) * 0.006;
+    s += p.uni * p.pop; s2 += p.sec * p.pop; n += p.pop;
   }
   c.uni = n ? s / n : 0;
+  c.sec = n ? s2 / n : 0;
 }
 
 // ------------------------------------------------------------------ kinship

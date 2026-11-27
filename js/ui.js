@@ -191,6 +191,8 @@ function tipHtml(key) {
       if (debt > 0) h += `<div class="tt-note">Debt is ${pct(debt)} of GDP. Above 60% it hurts approval; above 150% the state defaults.</div>`;
       return h;
     }
+    case 'alert:coup': case 'alert:revolution': case 'alert:politics': case 'alert:economy': case 'alert:society': case 'alert:war': case 'alert:decisions':
+      return alertTipHtml(g, c, key.slice(6));
     case 'inflation': {
       const E = c.econ, inf = inflationYoY(c);
       let h = title('Inflation', fmtSigned(inf * 100) + '%/yr') + tipParts(inflationParts(c));
@@ -262,6 +264,7 @@ const UI = {
     document.querySelectorAll('[data-speed]').forEach(b => b.addEventListener('click', () => App.setSpeed(+b.dataset.speed)));
     $('#btn-next').addEventListener('click', () => App.step(true));
     $('#btn-menu').addEventListener('click', () => this.showMenu());
+    $('#alertbar').addEventListener('click', e => { const b = e.target.closest('[data-alert-tab]'); if (!b || this.choosing) return; this.tab = b.dataset.alertTab; $('#tab-body').scrollTop = 0; this.renderTab(); });
 
     const canvas = $('#map');
     canvas.addEventListener('mousemove', e => this.onMapMove(e));
@@ -416,6 +419,8 @@ const UI = {
       b.disabled = this.choosing;
     });
     $('#choose-banner').classList.toggle('hidden', !this.choosing);
+    const ab = $('#alertbar');
+    if (ab) { const html = c && typeof alertBarHtml === 'function' ? alertBarHtml(g, c) : ''; ab.innerHTML = html; ab.classList.toggle('hidden', !html); }
   },
 
   renderMapModes() {

@@ -63,7 +63,7 @@ const MOVEMENTS = {
   },
 };
 const MOVEMENT_KEYS = Object.keys(MOVEMENTS);
-const MOVEMENT_IG = { labor: 'workers', liberal: 'intelligentsia', nationalist: 'military', clerical: 'clergy', monarchist: 'business', agrarian: null, minority: null };
+const MOVEMENT_IG = { labor: 'workers', liberal: 'intelligentsia', nationalist: 'military', clerical: 'clergy', monarchist: 'business', agrarian: null, minority: 'minorities' };
 
 // Loyalty pressure on each interest group from its radical wing.
 function radicalWingPressure(c, f) {

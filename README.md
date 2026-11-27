@@ -127,6 +127,8 @@ The game saves to your browser's local storage (Menu → Save game).
 
 **Ideas and kin.** Liberalism, socialism, fascism and traditionalism spread between nations through borders, trade and alliances; a revolution next door inspires your own radicals. Related peoples can unite peacefully, and universities speed research and staff the state.
 
+**Warnings before it's too late.** An alert bar under the top bar shows coup and revolution risk building up, and flags trouble in politics, the economy, society and war, plus decisions waiting for you.
+
 **Seeing why.** Hover approval, stability, unrest, political capital or the treasury for a breakdown of what drives it. The Ledger tab charts your nation over time, compares you with your rivals, and tracks world market prices.
 
 **Saves.** As many save slots as you like, plus an autosave every January. The title screen offers to continue your latest game.
@@ -153,6 +155,7 @@ The game saves to your browser's local storage (Menu → Save game).
 | `js/peoples.js` | Cultures, faiths, assimilation, grievance, migration, nationalist claims |
 | `js/society.js` | Cities, housing and rents, slums, births and deaths, aging |
 | `js/ideas.js` | Universities, kinship and unification, ideas spreading between nations |
+| `js/alerts.js` | Alert bar: coup and revolution risk, alerts by category |
 | `js/arena.js` | Crises for AI nations, regional elections, referendums, press barons |
 | `js/sim.js` | The monthly simulation: politics, elections, regime change, war, peace, diplomacy, actions, save/load |
 | `js/characters.js` | Leaders, cabinets, generals, opposition, heirs; loyalty and succession |

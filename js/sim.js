@@ -322,6 +322,9 @@ function tickCountry(game, c) {
     clergy: 48 + g.clergyBonus - (c.freedom - 50) * 0.12 + c.ideo.auth * 10 + (c.flags.clericalSchools ? 10 : 0),
     intelligentsia: 28 - (c.flags.clericalSchools ? 6 : 0) + c.freedom * 0.35 + (p.education - 4) * 3 - p.police * 2.5 - (c.emergency ? 15 : 0) + (E.strataSol.middle - 65) * 0.2,
   };
+  // Minorities judge the state by their grievances (peoples.js).
+  if (c.factions.minorities == null) c.factions.minorities = 50;
+  ft.minorities = 52 - (c._grievance || 0) * 250 - Math.max(0, 40 - (E.strataSol.lower || 40)) * 0.3;
   // Interest groups also judge the state by how their own people live, and by whether their demands are met.
   ft.military += ((E.solType && E.solType.soldiers) || 40) * 0.15 - 6;
   ft.clergy += ((E.solType && E.solType.clergy) || 50) * 0.12 - 6;
@@ -834,7 +837,11 @@ function tickWars(game) {
         const sa = warScore(game, war, war.a[0]);
         const W = sa > 0 ? war.a[0] : war.b[0], Lo = sa > 0 ? war.b[0] : war.a[0];
         const weak = strength(game.countries[Lo]) < strength(game.countries[W]) * 0.4;
-        if (!war.independence && Math.abs(sa) > 55 && weak && rng.chance(0.5)) applyPeaceTerms(game, W, Lo, { subjugate: true });
+        const kinWar = typeof kinNations === 'function' && game.cultures && kinNations(game, game.countries[W], game.countries[Lo]);
+        if (!war.independence && kinWar && Math.abs(sa) > 55 && weak && game.countries[Lo].pop < game.countries[W].pop * 0.6) {
+          makeSubject(game, W, Lo, 'puppet', 'conquest');
+          if (game.countries[Lo].overlord === W) { absorbSubject(game, Lo, false); logNews(game, `${game.countries[W].name} unifies its people by force: ${game.countries[Lo].name} is annexed.`, 'war', [W, Lo]); }
+        } else if (!war.independence && Math.abs(sa) > 55 && weak && rng.chance(0.5)) applyPeaceTerms(game, W, Lo, { subjugate: true });
         else if (!war.independence && Math.abs(sa) > 30) applyPeaceTerms(game, W, Lo, { provinces: 1, reparations: Math.abs(sa) > 55 });
         endWar(game, war, 'peace');
       }
@@ -1540,7 +1547,7 @@ function serializeGame(game) {
     owners: game.world.provinces.map(p => p.owner),
     provEcon: game.world.provinces.map(p => ({
       pops: p.pops, inc: p.inc, sol: p.sol, wealth: p.wealth, lit: p.lit, res: p.res,
-      b: p.buildings.map(b => ({ t: b.t, level: b.level, active: b.active, idle: b.idle, va: b.va })), conq: p.conquered || null, occ: p.occ == null ? null : p.occ, cu: p.cult || null, re: p.rel || null, ho: p.housing == null ? null : p.housing, un: p.uni == null ? null : p.uni, core: p.core, des: p.designation || null, st: p.state == null ? null : p.state,
+      b: p.buildings.map(b => ({ t: b.t, level: b.level, active: b.active, idle: b.idle, va: b.va })), conq: p.conquered || null, occ: p.occ == null ? null : p.occ, cu: p.cult || null, re: p.rel || null, ho: p.housing == null ? null : p.housing, un: p.uni == null ? null : p.uni, se: p.sec == null ? null : p.sec, core: p.core, des: p.designation || null, st: p.state == null ? null : p.state,
     })),
     worldMarket: game.worldMarket, cultures: game.cultures || null, faiths: game.faiths || null, families: game.families || null,
     lastEvents: game.lastEvents, stats: game.stats, playerMonths: game.playerMonths || 0, nextCharId: game.nextCharId,
@@ -1569,6 +1576,7 @@ function deserializeGame(str) {
     if (e.cu) p.cult = e.cu;
     if (e.ho != null) p.housing = e.ho;
     if (e.un != null) p.uni = e.un;
+    if (e.se != null) p.sec = e.se;
     if (e.re) p.rel = e.re;
     p.core = e.core === undefined ? p.owner : e.core;
     p.designation = e.des || null;

@@ -179,30 +179,17 @@ Built on top of 4a–4b, so it can use wages, savings and debt. Every item state
   - claims are back to about 12 provinces per world
   - the economy is unchanged
 
-**Still to do in Milestone 3:**
-- ✅ **Healthcare** is its own spending line, carved out of each regime's welfare budget. It pays clerks as doctors and nurses, lowers death rates and improves living standards. Approval and the workers count it as social spending. Still to do: schooling as a service staffed by teachers, with levels.
-- **Interest groups for large minorities and faiths** (beyond the Minority Rights League movement).
-- **Unification wars:** a unification that comes by force rather than consent.
-- **Teachers as a staffed service:** schooling staffed like healthcare, with primary and secondary levels.
+**3e. Finishing touches ✅ (first pass):**
+- **Secondary schooling** is its own level, between literacy and universities. Clerks (the literate middle class) can only be hired as fast as people finish secondary school, and officials as fast as universities produce graduates.
+- **Minorities are an interest group:**
+  - clout from the minority population
+  - loyalty falls with grievance and poverty
+  - citizenship and church laws matter to them
+  - the Minority Rights League is their radical wing, led by their leader once it grows
+- **Unification by force:** a decisive victory by a kin nation over a much smaller one ends with the loser annexed.
+- **Measured:** the economy and stability are back on baseline after calibrating the schooling limit.
 
-
-- **Cultures and religions on pops:** each pop has a culture and a faith.
-  - *Discrimination and acceptance laws* decide which jobs and classes a minority can hold, and whether it can vote. Exclusion shows up as unemployment, lower living standards and grievances in that group, not as an unrest modifier.
-  - *Assimilation and conversion* are slow drifts driven by schooling, cities and the law.
-- **Nationalism (extends separatism and movements, not a parallel system):**
-  - *irredentism:* our people across the border, which becomes war goals in Milestone 5
-  - *pan-national unification*
-  - *minority separatism:* grows from discrimination and living standards
-- **Migration:** pops move between provinces and nations toward higher wages, jobs and safety, out of famines and wars. Refugees are pops, with costs and politics. Migration laws decide who can enter.
-- **Cities and housing:**
-  - Housing is a good, built by construction and consumed by pops.
-  - Cities grow where jobs are.
-  - Housing shortages raise rents (eating into pop incomes), create slums, and concentrate urban unrest.
-- **Demographics:** birth and death rates by class and living standard. Births fall as living standards rise. Age structure creates pensioners, who are a cost and a voting bloc.
-- **Social mobility and inequality:** children move between classes through schooling and family wealth, not just through job vacancies. Inequality is measured (a Gini-style figure) and feeds interest groups and movements.
-- **Public services as goods:** healthcare, pensions and housing support replace the single welfare slider. Each is a service with workers (doctors, teachers, clerks), costs and the classes it serves. Unemployment insurance belongs to 4c.
-- **Education system:** primary, secondary and university schooling, staffed by teachers. It produces literacy, clerks, engineers and an intelligentsia. Research and political liberalization depend on it.
-- **Interest groups from culture and faith:** a religious minority or a national movement can become an interest group with its own clout and demands, folded into the existing interest-group system.
+**Milestone 3 is complete (first pass).** Later passes: teachers as a separate profession, faith-based interest groups beyond minorities, emigrant remittances, and the age pyramid in the Pops tab.
 
 ## Milestone 4: Deeper economy (L)
 
@@ -493,6 +480,7 @@ The map moves to WebGL 2, which works in every current browser, including when t
 
 - ✅ **Explain everything (first pass):** hover approval, stability, unrest, political capital, the treasury, infamy and wars for a breakdown of every part. Next: faction loyalty, growth, prices and pop needs.
 - ✅ **Ledger:** graphs over time for your nation, comparisons between nations, and world market price history.
+- ✅ **Alert bar:** under the top bar, coup and revolution risk meters that show the build-up before they happen (built from the same quantities that trigger them), plus alerts grouped by politics, economy, society, war and decisions waiting. Hover for the list; click to open the tab.
 - **Outliner:** a side list of wars, movements, plots, constructions and upcoming elections.
 - ✅ **Province panel:** click a province for its pops, buildings and resources.
 - ✅ **Saves:** multiple save slots and a yearly autosave. Still to do: exporting and importing a save file.
@@ -601,7 +589,7 @@ Ideas for after (or alongside) the milestones. They follow the same design philo
 4. ✅ **Consolidation and war on the map (first pass).**
 5. ✅ **Foundations:** consolidation, balance report, economy baseline and noise fix, campaign chapter VIII. Still to do: a play-test by a human. The Web Worker is deferred until weekly war turns arrive.
 6. ✅ **Milestone 4a–4b:** money, inflation, credit and the business cycle (first pass).
-7. **Finish Milestone 3**, with ideas spreading through the world folded in. ✅ 3a peoples, 3b cities and demographics, 3c aging, inequality, minority movements and healthcare, 3d universities, kinship and unification, and idea spread (first passes). Remaining: schooling staffed by teachers with levels, interest groups for large minorities and faiths, unification wars.
+7. ✅ **Milestone 3** (first pass), with ideas spreading through the world folded in: 3a peoples, 3b cities and demographics, 3c aging, inequality, minority movements and healthcare, 3d universities, kinship and unification, idea spread, 3e secondary schools, the minorities interest group, unification by force. Also done: **the alert bar** (see Quality of life).
 8. **Milestone 4c–4d:** labor relations and fiscal policy, then the world economy (with distance that matters, from World scale).
 9. **AI ambitions and personalities, with the graphics-card map**, plus the first art commissions: an art direction document, map textures and an icon set. The war layer needs the new map for army counters, fronts, plan arrows and supply routes.
 10. **Milestone 5:** the war layer, an operational layer.

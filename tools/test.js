@@ -478,6 +478,25 @@ test('ideas spread after a revolution; kin unite; universities speed research', 
   assert(r.bad.length === 0, r.bad.join('; '));
 });
 
+test('minorities interest group, secondary schools, and coup/revolution warning meters', () => {
+  const r = run(`(() => { const g = createGame('m3end', { size: 'small', countries: 6 }); setPlayer(g, 0); const c = g.countries[0];
+    for (let i = 0; i < 3; i++) { tick(g); g.pending.length = 0; }
+    const ig = FACTION_KEYS.includes('minorities') && c.factions.minorities >= 0 && c.igLeaders.minorities && interestClout(c).minorities >= 0;
+    const secOk = c.sec > 0 && c.sec < 1;
+    const lawHurts = lawPreference(c, 'citizenship', 'persecution', 'minorities') < 0;
+    const before = (UI_free => coupRisk(g, c).value)();
+    c.generals[0].loyalty = 5; c.generals[0].ambition = 90; c.factions.military = 25; c.stability = 25;
+    const after = coupRisk(g, c).value;
+    c.unrest = 60; const rev = revolutionRisk(g, c).value;
+    return { ig, secOk, lawHurts, coup: after > before && after >= 60, rev: rev >= 60, bad: __sane(g) }; })()`);
+  assert(r.ig, 'minorities interest group missing');
+  assert(r.secOk, 'secondary schooling not tracked');
+  assert(r.lawHurts, 'persecution should anger the minorities group');
+  assert(r.coup, 'coup risk should build with a disloyal, ambitious general');
+  assert(r.rev, 'revolution risk should build with unrest and low stability');
+  assert(r.bad.length === 0, r.bad.join('; '));
+});
+
 test('the campaign can be completed', () => {
   const r = run(`(() => {
     const g = startCampaign(); const c = g.countries[g.player]; const cs = g.campaign;

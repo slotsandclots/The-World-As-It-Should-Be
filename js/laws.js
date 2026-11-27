@@ -39,9 +39,9 @@ const LAW_CATS = {
   },
   church: {
     name: 'Church and state', opts: {
-      secular: { name: 'Secular state', desc: 'Religion is a private matter.', fx: { clergy: -12, intelligentsia: 5 }, pos: [-0.3, -0.3] },
+      secular: { name: 'Secular state', desc: 'Religion is a private matter.', fx: { clergy: -12, intelligentsia: 5, minorities: 4 }, pos: [-0.3, -0.3] },
       tolerant: { name: 'Freedom of worship', desc: 'All faiths are tolerated.', fx: {}, pos: [0, 0] },
-      state: { name: 'State church', desc: 'One faith, funded and favored by the state.', fx: { clergy: 12, intelligentsia: -6, legitimacy: 4 }, pos: [0.3, 0.6] },
+      state: { name: 'State church', desc: 'One faith, funded and favored by the state.', fx: { clergy: 12, intelligentsia: -6, legitimacy: 4, minorities: -8 }, pos: [0.3, 0.6] },
     },
   },
   labor: {
@@ -87,9 +87,9 @@ const LAW_CATS = {
   },
   citizenship: {
     name: 'Citizenship', opts: {
-      equal: { name: 'Equal citizenship', desc: 'Minorities may vote and hold any job. They assimilate slowly, but have few grievances.', fx: { intelligentsia: 4, legitimacy: 2 }, pos: [-0.2, -0.6] },
-      restricted: { name: 'Restricted citizenship', desc: 'Minorities are kept out of state jobs and the vote. Grievances grow.', fx: { clergy: 2, intelligentsia: -3 }, pos: [0.3, 0.4] },
-      persecution: { name: 'Persecution', desc: 'Minorities are hounded and forced to assimilate. Fast assimilation, bitter grievance, flight abroad.', fx: { intelligentsia: -10, military: 3, legitimacy: -4 }, pos: [0.5, 0.95] },
+      equal: { name: 'Equal citizenship', desc: 'Minorities may vote and hold any job. They assimilate slowly, but have few grievances.', fx: { intelligentsia: 4, legitimacy: 2, minorities: 15 }, pos: [-0.2, -0.6] },
+      restricted: { name: 'Restricted citizenship', desc: 'Minorities are kept out of state jobs and the vote. Grievances grow.', fx: { clergy: 2, intelligentsia: -3, minorities: -10 }, pos: [0.3, 0.4] },
+      persecution: { name: 'Persecution', desc: 'Minorities are hounded and forced to assimilate. Fast assimilation, bitter grievance, flight abroad.', fx: { intelligentsia: -10, military: 3, legitimacy: -4, minorities: -30 }, pos: [0.5, 0.95] },
     },
   },
   migration: {
@@ -174,7 +174,7 @@ function lawPreference(c, cat, opt, f) {
 
 // Interest-group clout, from the classes that make them up.
 function interestClout(c) {
-  const t = { military: 0, workers: 0, business: 0, clergy: 0, intelligentsia: 0 };
+  const t = { military: 0, workers: 0, business: 0, clergy: 0, intelligentsia: 0, minorities: 0 };
   for (const p of c._provs || []) {
     const P = p.pops || {};
     t.military += (P.soldiers || 0) * 3;
@@ -182,6 +182,7 @@ function interestClout(c) {
     t.business += (P.capitalists || 0) * 40 + (P.landowners || 0) * 15;
     t.clergy += (P.clergy || 0) * 20 + (P.peasants || 0) * 0.15;
     t.intelligentsia += (P.clerks || 0) * 1.5 + (P.officials || 0) * 1.5 + (p.pop || 0) * (p.uni || 0) * 0.6;
+    if (p.cult && game_cultureOf(c) != null) t.minorities += (p.pop || 0) * (1 - (p.cult[game_cultureOf(c)] || 0)) * 0.25;
   }
   if (c.igLeaders) for (const k in t) if (c.igLeaders[k]) t[k] *= 0.8 + c.igLeaders[k].skills.cha / 25;
   const s = Object.values(t).reduce((a, b) => a + b, 0) || 1;
@@ -400,3 +401,5 @@ function cloutLoyalty(c) {
   for (const f of FACTION_KEYS) { s += c.factions[f] * cl[f]; w += cl[f]; }
   return w ? s / w : avgLoyalty(c);
 }
+
+function game_cultureOf(c) { return c.culture == null ? null : c.culture; }
