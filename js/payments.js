@@ -16,7 +16,7 @@
 //
 // c.econ.reserves (billions, world money) · c.extDebt = { lenderId: billions } · c.econ.importSqueeze (0-0.8)
 
-const PAY = { RESERVE_MONTHS: 3, LEND_LIMIT: 0.6, BASE_RATE: 0.04, FX_MIN: 0.5, FX_MAX: 1.5 };
+const PAY = { RESERVE_MONTHS: 3, LEND_LIMIT: 0.6, BASE_RATE: 0.04, FX_MIN: 0.3, FX_MAX: 1.6 };
 
 // The exchange rate: a currency falls as reserves run short and rises as they pile up.
 // A weak currency wins exporters a larger share of world sales and makes imports
@@ -97,10 +97,11 @@ function tickPayments(game) {
     if (debt > c.gdp * 1.2) foreignDefault(game, c);
     // Reserves are judged against the size of the economy: trade is small, but reparations and debts are not.
     const r = (E.reserves - target) / Math.max(0.01, c.gdp);
-    const fxT = clamp(1 + r * 3, PAY.FX_MIN, PAY.FX_MAX);
-    E.fx = (E.fx || 1) + (fxT - (E.fx || 1)) * 0.03;
-    // Only a nation deep in the red, with no one left to lend, has to ration its imports outright.
-    const sq = E.reserves < -c.gdp * 0.05 ? clamp((-E.reserves / c.gdp - 0.05) / 0.15, 0, 0.5) : 0;
+    // A floating currency keeps falling while reserves drain: imports grow dearer at home and exporters earn more.
+    const fxT = clamp(1 + r * 4, PAY.FX_MIN, PAY.FX_MAX);
+    E.fx = (E.fx || 1) + (fxT - (E.fx || 1)) * 0.04;
+    // Only a nation in arrears (deep in the red, no one left to lend) has to ration its imports outright.
+    const sq = E.reserves < -c.gdp * 0.1 ? clamp((-E.reserves / c.gdp - 0.1) / 0.2, 0, 0.6) : 0;
     E.importSqueeze = (E.importSqueeze || 0) + (sq - (E.importSqueeze || 0)) * 0.3;
     if (E.importSqueeze < 0.005) E.importSqueeze = 0;
     if (sq > 0.2 && !E.payCrisis) { E.payCrisis = game.month; logNews(game, `${c.name} runs out of foreign currency and must cut its imports.`, 'econ', [c.id]); if (isPlayer(game, c)) notify(game, 'A Balance-of-Payments Crisis', 'Our reserves of foreign currency are gone and no one will lend us more. Imports are being cut: expect shortages and rising prices until exports recover or the debts are paid.'); }
