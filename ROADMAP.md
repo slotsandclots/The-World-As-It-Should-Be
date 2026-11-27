@@ -311,6 +311,15 @@ The economy is already dynamic: goods prices move with supply and demand every m
 - **Optional asset market:** a stock or land index with bubbles in the boom and crashes at the turn.
 
 ### 4c. Labor, unemployment and fiscal policy
+- **Economic systems as mechanisms, not modifiers:** today the economic-system law mostly shifts growth and interest-group loyalty, and a democracy with a "planned economy" still has private owners investing.
+  - *Laissez-faire:* private owners decide all investment; no state building; low tariffs.
+  - *Interventionist:* the state directs part of investment and protects chosen industries.
+  - *Planned:* tied to the law rather than to communism. No private owners; the state sets output targets and prices, and price controls cause real shortages and queues.
+- **Different tools for different regimes:**
+  - *Democracies:* campaigning, negotiating bills, managing the press.
+  - *Autocracies:* purges, rigged elections, secret police operations, buying off generals.
+  - *Monarchies:* marriages, the succession, the court.
+- **Fewer flat base numbers per government:** growth, corruption, repression and similar bonuses should come from the mechanisms underneath wherever possible.
 - **AI fiscal response to the cycle:** AI governments already have business confidence, private investment, credit and central banks, but they don't yet change their spending with the cycle. Add stimulus in slumps, austerity after crises and discretionary bailouts, chosen by their politics. A populist spends, an orthodox government cuts.
 - **Labor relations:** unions as organizations with membership, strikes and collective bargaining. Minimum-wage laws change how buildings split value between wages and profits.
 - **Sticky wages:** wages are slow to fall, so a drop in demand becomes layoffs rather than pay cuts. That's what turns a slump into mass unemployment.
