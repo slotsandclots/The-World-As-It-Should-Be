@@ -59,7 +59,7 @@ function tickSociety(game) {
     if (c.pop > 0) { c._dev /= c.pop; c.urbanShare = c._urban / c.pop; c.slumShare = c._slum / c.pop; c.rentBurden = c._urban > 0 ? c._rentBurden / c._urban : 0; }
     // Societies age as they develop.
     c.elderly = (c.elderly == null ? 0.06 : c.elderly) + ((0.05 + 0.13 * (c._dev || 0)) - (c.elderly == null ? 0.06 : c.elderly)) / 240;
-    if (game.month % 12 === 0 && c.alive) c.cities = topCities(game, c);
+    if (game.month % 12 === 0 && c.alive) { c.cities = topCities(game, c); c.gini = giniOf(game, c); }
   }
 }
 
@@ -81,3 +81,16 @@ function topCities(game, c) {
 
 // Rent is paid by tenants and received by owners (economy.js calls these).
 function rentPaid(p, t, net) { return TENANTS[t] && p.rentExcess ? Math.max(0, net) * p.rentExcess * TENANTS[t] : 0; }
+
+// Income inequality (Gini, 0 = equal, 1 = one person has everything) from class incomes.
+function giniOf(game, c) {
+  const groups = [];
+  for (const p of game.world.provinces) if (p.owner === c.id && p.pops) for (const t of POP_KEYS) if (p.pops[t] > 0) groups.push([Math.max(0, p.inc[t] || 0), p.pops[t]]);
+  if (!groups.length) return 0;
+  groups.sort((a, b) => a[0] - b[0]);
+  const N = groups.reduce((s, g) => s + g[1], 0), Y = groups.reduce((s, g) => s + g[0] * g[1], 0);
+  if (Y <= 0) return 0;
+  let cumN = 0, cumY = 0, area = 0;
+  for (const [y, n] of groups) { const ny = cumY + y * n; area += (n / N) * (cumY + ny) / 2 / Y; cumN += n; cumY = ny; }
+  return clamp(1 - 2 * area, 0, 1);
+}

@@ -341,7 +341,9 @@ function tickEconomy(game, warmup) {
     const J = provinceJobs(c, p);
     p.jobs = J;
     const fill = {};
-    for (const t of POP_KEYS) fill[t] = J[t] > 0 ? Math.min(1, p.pops[t] * ((t === 'clerks' || t === 'officials') && p.excl ? 1 - p.excl : 1) / J[t]) : 1;
+    // Retirees don't work: an aging society has fewer hands (society.js).
+    const working = 1 - Math.max(0, (c.elderly || 0.06) - 0.06);
+    for (const t of POP_KEYS) fill[t] = J[t] > 0 ? Math.min(1, p.pops[t] * working * ((t === 'clerks' || t === 'officials') && p.excl ? 1 - p.excl : 1) / J[t]) : 1;
     p.fill = fill;
     for (const b of p.buildings) {
       const def = BUILDINGS[b.t];
@@ -460,8 +462,13 @@ function tickEconomy(game, warmup) {
     };
     E.gdpNew += G.admin + G.police * 0.7 + G.military * 0.5 + G.education + G.infrastructure * 0.4 + E.construction * 0.5;
     E.gdpRealNew += G.admin + G.police * 0.7 + G.military * 0.5 + G.education + G.infrastructure * 0.4 + E.construction * 0.5;
-    const ww = N.peasants * 1.5 + N.laborers + N.workers;
-    E.welfarePC = { peasants: ww > 0 ? G.welfare * 1.5 / ww : 0, laborers: ww > 0 ? G.welfare / ww : 0, workers: ww > 0 ? G.welfare / ww : 0 };
+    // Pensions come first and grow with the elderly; what is left is relief for the poor.
+    const pensionShare = clamp((c.elderly || 0.06) * 3, 0.1, 0.8);
+    E.pensionShare = pensionShare;
+    const relief = G.welfare * (1 - pensionShare), pensions = G.welfare * pensionShare;
+    const ww = N.peasants * 1.5 + N.laborers + N.workers, all = Math.max(1, POP_KEYS.reduce((s, t) => s + (N[t] || 0), 0));
+    E.welfarePC = {};
+    for (const t of POP_KEYS) E.welfarePC[t] = pensions / all + (ww > 0 ? relief * (t === 'peasants' ? 1.5 : t === 'laborers' || t === 'workers' ? 1 : 0) / ww : 0);
     E.statePool += G.investment;
   }
   // Pops: taxes, spending, savings, standard of living.

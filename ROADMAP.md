@@ -149,7 +149,25 @@ Built on top of 4a–4b, so it can use wages, savings and debt. Every item state
   - growth per person is about 11% below the pre-housing baseline, because housing now takes part of investment, as in real economies
   - living standards and inequality are essentially unchanged
 
-**Still to do in Milestone 3** (pensions and an aging electorate, social mobility, public services, education, culture-based interest groups, pan-national unification):
+**3c. Aging, inequality and minority movements ✅ (first pass):**
+- **Retirees leave the workforce,** so an aging society has fewer hands.
+- **Pensions are paid first** from the welfare budget (about three times the elderly share of the population), so as a society ages, the same welfare spending buys less relief for the poor.
+- **The aging electorate** shifts each province toward pensions and order.
+- **Income inequality** is measured as a Gini figure from class incomes. It strengthens the labor movement and appears in the Pops tab and the Ledger.
+- **A Minority Rights League** grows from excluded, aggrieved minorities and demands equal citizenship. Its radicalism feeds separatism, and its riots feed unrest.
+- **Social mobility through schooling already exists:** literate jobs (clerks, officials) can only be filled as fast as literacy allows.
+- **Measured:**
+  - Gini about 0.50, typical of a largely agrarian world
+  - pensions about 28% of welfare by year 40
+  - minority grievance down 25% as governments concede equal citizenship
+  - economic and political metrics unchanged
+
+**Still to do in Milestone 3:**
+- **Public services as goods:** healthcare and schooling staffed by doctors and teachers, replacing part of the welfare and education sliders.
+- **Levels of schooling:** universities feeding research and the intelligentsia.
+- **Interest groups for large minorities and faiths** (beyond the Minority Rights League movement).
+- **Pan-national unification** once released or split nations share a culture.
+
 
 - **Cultures and religions on pops:** each pop has a culture and a faith.
   - *Discrimination and acceptance laws* decide which jobs and classes a minority can hold, and whether it can vote. Exclusion shows up as unemployment, lower living standards and grievances in that group, not as an unrest modifier.

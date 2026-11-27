@@ -90,6 +90,8 @@ function tickSeparatism(game, c) {
     t += Math.max(0, 32 - sol) * 0.8;
     t -= (c.approval - 50) * 0.2;
     t += r.provs.reduce((s, p) => s + (p.grievance || 0) * p.pop, 0) / Math.max(1, pop) * 40;
+    const ml = c.movements && c.movements.minority;
+    if (ml) t += ml.support * ml.radicalism / 100 * 0.6;
     if (c.federal) t *= 0.5;
     t *= mult;
     s.support += (clamp(t, 0, 95) - s.support) * 0.04;

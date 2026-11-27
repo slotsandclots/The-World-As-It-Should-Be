@@ -424,6 +424,23 @@ test('cities: housing shortages raise rents and slums; development lowers births
   assert(r.bad.length === 0, r.bad.join('; '));
 });
 
+test('aging dilutes relief, inequality is measured, minorities organize', () => {
+  const r = run(`(() => { const g = createGame('age1', { size: 'small', countries: 6 }); setPlayer(g, 0); const c = g.countries[0];
+    for (let i = 0; i < 13; i++) { tick(g); g.pending.length = 0; }
+    const gini = c.gini > 0.05 && c.gini < 0.95;
+    c.elderly = 0.06; tick(g); g.pending.length = 0; const reliefYoung = c.econ.welfarePC.workers - c.econ.welfarePC.clerks;
+    c.elderly = 0.2; tick(g); g.pending.length = 0; const reliefOld = c.econ.welfarePC.workers - c.econ.welfarePC.clerks;
+    // An excluded, aggrieved minority builds a movement.
+    c.laws.citizenship = 'persecution';
+    for (const p of g.world.provinces) if (p.owner === 0) p.cult = { [c.culture]: 0.5, [g.countries[1].culture]: 0.5 };
+    for (let i = 0; i < 36; i++) { tick(g); g.pending.length = 0; }
+    return { gini, diluted: reliefOld < reliefYoung, league: c.movements.minority.support > 3, bad: __sane(g) }; })()`);
+  assert(r.gini, 'inequality not measured');
+  assert(r.diluted, 'an aging society should leave less welfare for poor relief');
+  assert(r.league, 'a persecuted minority should organize');
+  assert(r.bad.length === 0, r.bad.join('; '));
+});
+
 test('the campaign can be completed', () => {
   const r = run(`(() => {
     const g = startCampaign(); const c = g.countries[g.player]; const cs = g.campaign;

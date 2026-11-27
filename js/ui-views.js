@@ -39,7 +39,9 @@ Object.assign(UI, {
         <div class="kv"><span>City dwellers</span><span>${pct(c.urbanShare || 0)}</span></div>
         <div class="kv"><span>In slums</span><span class="${(c.slumShare || 0) > 0.03 ? 'bad' : ''}">${pct(c.slumShare || 0, 1)}</span></div>
         <div class="kv" title="Extra share of urban incomes paid as rent because of housing shortages"><span>Rent burden</span><span class="${(c.rentBurden || 0) > 0.05 ? 'bad' : ''}">${pct(c.rentBurden || 0, 1)}</span></div>
-        <div class="kv"><span>Elderly</span><span>${pct(c.elderly || 0.06)}</span></div>
+        <div class="kv" title="Retirees leave the workforce; an aging society has fewer hands"><span>Elderly</span><span>${pct(c.elderly || 0.06)}</span></div>
+        <div class="kv" title="Pensions are paid first from the welfare budget; the rest is relief for the poor. As the society ages, the same welfare spending buys less relief."><span>Pensions</span><span>${pct((c.econ.pensionShare || 0.18))} of welfare</span></div>
+        <div class="kv" title="0 = everyone earns the same, 1 = one person has everything. High inequality strengthens the labor movement."><span>Inequality (Gini)</span><span class="${(c.gini || 0) > 0.5 ? 'bad' : ''}">${(c.gini || 0).toFixed(2)}</span></div>
         <div class="kv"><span>Births</span><span>${yr(births)} per 1,000 a year</span></div>
         <div class="kv"><span>Deaths</span><span>${yr(deaths)} per 1,000 a year</span></div>
       </div>
@@ -163,6 +165,7 @@ Object.assign(UI, {
       ], { min: 0, max: 100, fmt: v => v.toFixed(0) });
       h += chart('Prices and money', [{ pts: monthly(c.hist.infl), color: '#e2705f', label: 'Inflation %/yr' }, { pts: monthly(c.hist.rate), color: '#8fb0dc', label: 'Interest rate %' }], { fmt: v => v.toFixed(1) + '%', zero: true });
       h += chart('Credit and confidence', [{ pts: monthly(c.hist.credit), color: '#e3a64e', label: 'Private debt, % of GDP' }, { pts: monthly(c.hist.conf), color: '#8fb0dc', label: 'Business confidence' }], { fmt: v => v.toFixed(0), zero: true });
+      h += chart('Income inequality (Gini × 100)', [{ pts: monthly(c.hist.gini), color: '#e3a64e', label: 'Gini' }], { fmt: v => v.toFixed(0) });
       h += chart('Real wages (100 = keeping up with prices)', [{ pts: monthly(c.hist.rwage), color: '#7fc98f', label: 'Real wages' }], { fmt: v => v.toFixed(0) });
       h += chart('Living standard', [{ pts: series(c, 'sol'), color: '#8fb0dc', label: 'Average standard of living' }], { fmt: v => v.toFixed(0) });
       h += chart('Population (millions)', [{ pts: series(c, 'pop'), color: '#c9a0dc', label: 'Population' }], { fmt: v => v.toFixed(1) + 'M' });

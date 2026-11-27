@@ -73,7 +73,8 @@ function regionalResults(game, c, nationalShares) {
   const out = [];
   for (const p of provs) {
     const li = provinceIdeo(game, p);
-    const loc = { econ: c.ideo.econ * 0.45 + li.econ * 0.55, auth: c.ideo.auth * 0.45 + li.auth * 0.55 };
+    const old = (c.elderly || 0.06) - 0.08;
+    const loc = { econ: c.ideo.econ * 0.45 + li.econ * 0.55 - old * 0.6, auth: c.ideo.auth * 0.45 + li.auth * 0.55 + old * 0.8 };
     const raw = c.parties.map((pt, i) => nationalShares[i] * partyAppeal(pt, loc) / natApp[i] * (1 + game.rng.normal() * 0.08));
     const tot = raw.reduce((s, v) => s + Math.max(0, v), 0) || 1;
     out.push({ prov: p, shares: raw.map(v => Math.max(0, v) / tot) });

@@ -1127,7 +1127,7 @@ function recordHistory(game) {
     push(H, 'conf', Math.round((c.econ.conf || 1) * 100));
     if (c.id === game.player) {
       // Keep the player's series aligned with the shared ones.
-      for (const k of ['unrest', 'treasury', 'army', 'unemp', 'pc', 'revenue', 'spend', 'infl', 'rate', 'rwage']) if (!H[k]) H[k] = new Array(Math.max(0, H.gdp.length - 1)).fill(null);
+      for (const k of ['unrest', 'treasury', 'army', 'unemp', 'pc', 'revenue', 'spend', 'infl', 'rate', 'rwage', 'gini']) if (!H[k]) H[k] = new Array(Math.max(0, H.gdp.length - 1)).fill(null);
       push(H, 'unrest', Math.round(c.unrest));
       push(H, 'treasury', Math.round(c.treasury * 100) / 100);
       push(H, 'army', Math.round(c.army / 1000));
@@ -1136,6 +1136,7 @@ function recordHistory(game) {
       push(H, 'infl', Math.round(inflationYoY(c) * 1000) / 10);
       push(H, 'rate', Math.round((c.econ.rate || 0) * 1000) / 10);
       push(H, 'rwage', Math.round((c.econ.realWage || 1) * 1000) / 10);
+      push(H, 'gini', Math.round((c.gini || 0) * 1000) / 10);
       push(H, 'revenue', c.budget ? Math.round(c.budget.revenue * 1000) / 1000 : 0);
       push(H, 'spend', c.budget ? Math.round((c.budget.spend + c.budget.interest) * 1000) / 1000 : 0);
     }

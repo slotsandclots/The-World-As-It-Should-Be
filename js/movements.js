@@ -15,7 +15,7 @@ const MOVEMENTS = {
   labor: {
     name: 'Labor Movement', icon: '⚒', gov: 'communist',
     desc: 'Unions and socialists organizing workers and laborers.',
-    support: c => { const E = c.econ; const g = clamp((40 - E.solType.workers) / 30, 0, 1.4) + clamp((35 - E.solType.laborers) / 30, 0, 1) + E.unemployment * 4 + clamp((E.strataSol.upper - E.strataSol.lower - 35) / 50, 0, 0.8); return (share(c, 'workers') + share(c, 'laborers') * 0.8) * 100 * g * 1.4; },
+    support: c => { const E = c.econ; const g = clamp((40 - E.solType.workers) / 30, 0, 1.4) + clamp((35 - E.solType.laborers) / 30, 0, 1) + E.unemployment * 4 + clamp((E.strataSol.upper - E.strataSol.lower - 35) / 50, 0, 0.8) + clamp(((c.gini || 0.35) - 0.35) * 3, 0, 0.8); return (share(c, 'workers') + share(c, 'laborers') * 0.8) * 100 * g * 1.4; },
     demand: { text: 'Expand welfare to 12% of GDP', met: c => c.policy.welfare >= 12, enact: c => { c.policy.welfare = Math.max(c.policy.welfare, 12); } },
   },
   agrarian: {
@@ -49,6 +49,12 @@ const MOVEMENTS = {
     support: c => (share(c, 'clergy') * 4 + share(c, 'peasants') * 0.4) * 100 * clamp((55 - c.factions.clergy) / 30 + Math.max(0, c.ideo.auth) * 0.5, 0, 1.4),
     demand: { text: 'Give the clergy charge of the schools', met: c => !!c.flags.clericalSchools, enact: c => { c.flags.clericalSchools = true; } },
   },
+  minority: {
+    name: 'Minority Rights League', icon: '✊', gov: null,
+    desc: 'Minorities organizing against exclusion and a state faith not their own.',
+    support: c => (c._minority || 0) * 100 * clamp((c._grievance || 0) * 8, 0, 1.6),
+    demand: { text: 'Grant equal citizenship', met: c => !c.laws || c.laws.citizenship === 'equal', enact: c => { c.laws.citizenship = 'equal'; } },
+  },
   monarchist: {
     name: 'Monarchist League', icon: '♛', gov: 'constMonarchy',
     desc: 'Landowners and traditionalists who want the crown back.',
@@ -57,7 +63,7 @@ const MOVEMENTS = {
   },
 };
 const MOVEMENT_KEYS = Object.keys(MOVEMENTS);
-const MOVEMENT_IG = { labor: 'workers', liberal: 'intelligentsia', nationalist: 'military', clerical: 'clergy', monarchist: 'business', agrarian: null };
+const MOVEMENT_IG = { labor: 'workers', liberal: 'intelligentsia', nationalist: 'military', clerical: 'clergy', monarchist: 'business', agrarian: null, minority: null };
 
 // Loyalty pressure on each interest group from its radical wing.
 function radicalWingPressure(c, f) {
@@ -72,7 +78,8 @@ function share(c, t) { return c.econ && c.pop > 0 ? c.econ.popType[t] / c.pop : 
 function demandText(c, key) { const d = MOVEMENTS[key].demand.text; return typeof d === 'function' ? d(c) : d; }
 
 function ensureMovements(c) {
-  if (!c.movements) { c.movements = {}; for (const k of MOVEMENT_KEYS) c.movements[k] = { support: 0, radicalism: 10, leader: null }; }
+  if (!c.movements) c.movements = {};
+  for (const k of MOVEMENT_KEYS) if (!c.movements[k]) c.movements[k] = { support: 0, radicalism: 10, leader: null };
   return c.movements;
 }
 
