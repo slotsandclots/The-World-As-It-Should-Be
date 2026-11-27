@@ -640,8 +640,26 @@ The map moves to WebGL 2, which works in every current browser, including when t
   - nation names that curve along the shape of the country
   - province names and city labels when zoomed in
   - smoother rendering when zoomed far in
-- **Map modes:** gradient legends with values on hover, and new modes as systems arrive (culture, religion, migration, inflation, unemployment, supply).
+- **Map modes:** gradient legends with values on hover, and new modes as systems arrive (culture, religion, inflation, unemployment, supply). Migration is a flow view (see Flow views).
 - **Optional:** fog of war, plus lighting and seasons for atmosphere.
+
+**Flow views**
+
+Views that show what moves between nations, all built the same way as the trade view.
+
+- **Shared method:**
+  - **Accounting only:** each view records source-to-destination tables in a sim file, so the economy and politics come out unchanged. A test checks that, as the trade view's does.
+  - **One shared line style** on the map: thickness by size, an arrow for direction, a filter, and a hover that says what moves and why.
+  - **A "who and why" breakdown for each nation,** following the "tell the player why" rule.
+  - **They read the systems and change none of them:** the trade, migration, payments and ideas rows of "How the systems connect".
+- **The views, in order:**
+  1. **Trade.** Step 1 is done (bilateral flows, the Trade map mode, trading partners and dependence); step 2, routes, is under 4d.
+  2. **Migration.** People already move every quarter (peoples.js), but only yearly totals per nation are kept today; the view records who moves where. Arrows between nations sized by migrants and colorable by culture, and a card showing who arrives, who leaves, and why (work, war, open borders). This is the migration map mode listed under the map.
+  3. **Capital and debt,** after phase 2 of the closed-loop economy: who lends to whom and who is owed. It shares its data with spheres of influence.
+  4. **Ideas:** a map mode for each current's strength, and a "where this current came from" breakdown. This needs the sources of each current (neighbors, trade, blocs, revolutions, writers and thinkers) to be stored, which they are not today.
+  5. **The diplomatic web:** pacts, rivalry pacts, revisionist pacts and world-war sides drawn as a network.
+  6. **Later:** spheres of influence (once built), and arms and war supply (with Milestone 5).
+- **Technology:** nothing spreads between nations today, so there is nothing to draw yet. A "where each technology came from" view follows once technology spreads (see "Technology as diffusion" under Deeper simulation).
 
 **Screens (redesigned once their systems settle)**
 - **Politics:** a parliament seating chart (semicircle) with coalition blocs, an interest-group overview, and the constitution as a visual chart.
@@ -709,7 +727,7 @@ Ideas for after (or alongside) the milestones. They follow the same design philo
   - resource depletion
   - droughts and famines
   - later, climate change as a slow global crisis that needs international cooperation
-- **Technology as diffusion, not a tree:** inventions spread from where they're made, through trade, students abroad, spies and foreign investment. Rich nations pull ahead, and catch-up growth becomes a strategy.
+- **Technology as diffusion, not a tree:** inventions spread from where they're made, through trade, students abroad, spies and foreign investment, seeded by the notable inventors (figures.js), whose breakthroughs are where an invention starts. Rich nations pull ahead, and catch-up growth becomes a strategy. Once technology spreads, a "where each technology came from" flow view follows (see Flow views).
 - **Corporations as actors:** large companies with owners and leaders that lobby, bribe, buy newspapers, move factories abroad and get nationalized.
 - **Organized crime and the black economy:** smuggling under tariffs and price controls, black markets in shortages, and corruption as a network rather than a meter.
 
@@ -785,6 +803,8 @@ Ideas for after (or alongside) the milestones. They follow the same design philo
 13. **Eras and scenarios (Milestone 6) and the desktop release,** together toward a public release.
 
 Later: Milestone 8 (intrigue and dynasties), world scale (as the map and Web Worker allow), and the rest of Beyond the milestones.
+
+Flow views (visuals track) slot in as their data arrives: migration right after the trade view, capital and debt after phase 2 of the closed-loop economy, and ideas after that.
 
 If we want to show the game to other people sooner (screenshots, a playable link, recruiting an artist), the graphics-card map can move earlier, because the map is most of the first impression.
 
