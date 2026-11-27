@@ -317,6 +317,12 @@ The economy is already dynamic: goods prices move with supply and demand every m
 - **Automatic stabilizers:** unemployment insurance and welfare cushion downturns.
 - **The fiscal multiplier:** government spending moves output much more in a slump than in a boom, so stimulus versus austerity is a real choice.
 
+### 4d. The world economy
+- **Contagion:** a recession in a big economy cuts world-market demand, and its trading partners feel it.
+- **Exchange rates and capital flows:** money moves toward high interest rates and strong currencies. Devaluation helps exports, makes imports pricier and adds inflation.
+- **Sovereign debt and currency crises:** lenders stop lending, a currency peg breaks, and a forced devaluation or default follows. Bailouts come with conditions, a lever for blocs and empires.
+- **Protectionism:** raising tariffs in a depression protects jobs at home and deepens the global slump.
+
 ### 4e. The stock market and the land market
 
 The asset side of the cycle. Through pops and goods: asset prices change what the owning and middle classes are worth, which changes what they spend, save and invest.
@@ -343,12 +349,6 @@ The asset side of the cycle. Through pops and goods: asset prices change what th
   - AI governments respond to crashes with stimulus, bailouts or austerity (with 4c), shaped by their politics.
 - **Interface:** an index chart and land prices in the Ledger, a "market overheating" warning on the alert bar, and crash news in the newspaper.
 - **Measured:** bubbles and crashes should be rare and visible: a major crash about once a generation per nation, and land booms that follow urbanization.
-
-### 4d. The world economy
-- **Contagion:** a recession in a big economy cuts world-market demand, and its trading partners feel it.
-- **Exchange rates and capital flows:** money moves toward high interest rates and strong currencies. Devaluation helps exports, makes imports pricier and adds inflation.
-- **Sovereign debt and currency crises:** lenders stop lending, a currency peg breaks, and a forced devaluation or default follows. Bailouts come with conditions, a lever for blocs and empires.
-- **Protectionism:** raising tariffs in a depression protects jobs at home and deepens the global slump.
 
 ### Player toolkit
 - interest rates (where the law allows)
