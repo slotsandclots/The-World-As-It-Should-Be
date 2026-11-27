@@ -4,6 +4,11 @@
 // more radical while the demand goes unmet. Radical mass movements fuel
 // unrest, tilt revolutions toward their preferred regime, and can rise up.
 //
+// Each movement is the radical wing of an interest group (MOVEMENT_IG): it is
+// led by that group's leader once it grows, an angry group radicalizes it, and
+// a radical wing drags the group's loyalty down. The agrarian league speaks
+// for peasants, who have no interest group of their own yet.
+//
 // c.movements = { key: { support (% of population), radicalism (0-100), leader } }
 
 const MOVEMENTS = {
@@ -52,6 +57,15 @@ const MOVEMENTS = {
   },
 };
 const MOVEMENT_KEYS = Object.keys(MOVEMENTS);
+const MOVEMENT_IG = { labor: 'workers', liberal: 'intelligentsia', nationalist: 'military', clerical: 'clergy', monarchist: 'business', agrarian: null };
+
+// Loyalty pressure on each interest group from its radical wing.
+function radicalWingPressure(c, f) {
+  if (!c.movements) return 0;
+  let p = 0;
+  for (const k of MOVEMENT_KEYS) if (MOVEMENT_IG[k] === f) { const m = c.movements[k]; p += m.support * m.radicalism / 100 * 0.25; }
+  return Math.min(10, p);
+}
 
 function share(c, t) { return c.econ && c.pop > 0 ? c.econ.popType[t] / c.pop : 0; }
 
@@ -70,15 +84,24 @@ function tickMovements(game, c) {
     const target = clamp(def.support(c), 0, 60);
     m.support += (target - m.support) * 0.05;
     const met = def.demand.met(c);
-    const radT = clamp((met ? 5 : 35) + m.support * 1.2 + (repressive ? 12 : 0) - (c.approval - 50) * 0.3 + (m.angry || 0), 0, 100);
+    const ig = MOVEMENT_IG[k];
+    const radT = clamp((met ? 5 : 35) + m.support * 1.2 + (repressive ? 12 : 0) - (c.approval - 50) * 0.3 + (m.angry || 0) + (ig ? (45 - c.factions[ig]) * 0.25 : 0), 0, 100);
     m.radicalism += (radT - m.radicalism) * 0.04;
     m.angry = (m.angry || 0) * 0.95;
+    // A growing movement is led by its interest group's leader.
+    if (m.support > 8 && !m.leader && ig && c.igLeaders && c.igLeaders[ig]) {
+      m.leader = c.igLeaders[ig];
+      m.leader.movement = k;
+      if (isPlayer(game, c) && m.support > 10) toastPlayer(game, `${m.leader.name}, leader of the ${FACTIONS[ig].name.toLowerCase()}, now heads a ${def.name}.`, 'info');
+    }
     if (m.support > 8 && !m.leader) {
       m.leader = makeCharacter(game, c, { role: 'movement', ideo: def.gov ? GOVS[def.gov] : c.ideo, faction: k === 'labor' ? 'workers' : k === 'nationalist' ? 'military' : k === 'clerical' ? 'clergy' : k === 'monarchist' ? 'business' : k === 'liberal' ? 'intelligentsia' : 'workers', skillBias: { cha: 2 }, loyalty: 10 });
       m.leader.movement = k;
       if (isPlayer(game, c) && m.support > 10) toastPlayer(game, `A ${def.name} is forming under ${m.leader.name}.`, 'info');
     }
     if (m.support < 3) m.leader = null;
+    // Keep the group and its radical wing under one leader.
+    if (ig && m.leader && c.igLeaders && m.support > 8) { m.leader.ig = ig; c.igLeaders[ig] = m.leader; m.leader.stance = m.radicalism > 55 ? 'radical' : m.radicalism < 35 ? 'moderate' : (m.leader.stance || 'moderate'); }
     if (m.leader && game.month % 12 === 0) m.leader.age++;
   }
   // Uprisings: radical, popular movements may try to seize power.

@@ -316,7 +316,7 @@ function tickCountry(game, c) {
   ft.military += ((E.solType && E.solType.soldiers) || 40) * 0.15 - 6;
   ft.clergy += ((E.solType && E.solType.clergy) || 50) * 0.12 - 6;
   const unmet = {};
-  for (const f of FACTION_KEYS) { const d = interestDemand(c, f); unmet[f] = d ? -Math.min(6, lawPreference(c, d.cat, d.opt, f) * 0.35) : 0; ft[f] += unmet[f]; }
+  for (const f of FACTION_KEYS) { const d = interestDemand(c, f); unmet[f] = d ? -Math.min(6, lawPreference(c, d.cat, d.opt, f) * 0.35) : 0; ft[f] += unmet[f] - radicalWingPressure(c, f); }
   c._unmet = unmet;
   for (const f of FACTION_KEYS) {
     const target = clamp(ft[f] + (T[f] || 0) + (M[f] || 0) + (CF.factions[f] || 0) + (f === 'military' ? CF.military : 0) + LF[f], 0, 100);
@@ -357,14 +357,17 @@ function tickCountry(game, c) {
   // --- Stability
   const aw = g.approvalWeight;
   const baseLoy = weightedLoyalty(c, g.base);
+  // The four meters: legitimacy, support, unrest, and stability derived from them.
+  const clout = cloutLoyalty(c);
+  c.support = clamp((0.38 * (aw * c.approval + (1 - aw) * baseLoy) + 0.2 * clout) / 0.58, 0, 100);
   const stParts = [
-    ['Baseline', 8], [`Public approval (weight ${Math.round(aw * 100)}%)`, 0.38 * aw * c.approval], [`Loyalty of the power base (weight ${Math.round((1 - aw) * 100)}%)`, 0.38 * (1 - aw) * baseLoy],
-    ['Legitimacy', 0.25 * c.legitimacy], ['Support of interest groups (by clout)', 0.2 * cloutLoyalty(c)], ['Unrest', -0.4 * c.unrest], ['Police', p.police * 1.2 * g.repression],
+    ['Baseline', 8], [`Support: public approval (weight ${Math.round(aw * 100)}%)`, 0.38 * aw * c.approval], [`Support: the power base (weight ${Math.round((1 - aw) * 100)}%)`, 0.38 * (1 - aw) * baseLoy],
+    ['Support: interest groups, by clout', 0.2 * clout], ['Legitimacy', 0.25 * c.legitimacy], ['Unrest', -0.4 * c.unrest], ['Police', p.police * 1.2 * g.repression],
     ['War exhaustion', -c.warExhaustion * 0.1], ['Leader\'s traits', T.stability || 0], ['Cabinet', CF.stability], ['Laws', LF.stability], ['Temporary effects', M.stability || 0], ['Unintegrated conquests', -Math.min(25, (c.nonCoreCount || 0) * 0.6)],
   ];
   const stT = sumParts(stParts);
   c.stability = clamp(c.stability + (clamp(stT, 0, 100) - c.stability) * 0.08 + rng.normal() * 1.1, 0, 100);
-  c._why = { approval: { target: apT, parts: apParts, rate: 0.1 }, stability: { target: stT, parts: stParts, rate: 0.08 }, unrest: { target: unrestT, parts: unParts, rate: 0.12 } };
+  c._why = { support: { target: c.support, parts: [[`Public approval (×${(0.38 * aw / 0.58).toFixed(2)})`, 0.38 * aw * c.approval / 0.58], [`Power base loyalty (×${(0.38 * (1 - aw) / 0.58).toFixed(2)})`, 0.38 * (1 - aw) * baseLoy / 0.58], ['Interest groups by clout (×0.34)', 0.2 * clout / 0.58]], rate: 1 }, approval: { target: apT, parts: apParts, rate: 0.1 }, stability: { target: stT, parts: stParts, rate: 0.08 }, unrest: { target: unrestT, parts: unParts, rate: 0.12 } };
 
   // --- Military
   c.army += (armyTarget(c) - c.army) * 0.06;

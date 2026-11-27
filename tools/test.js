@@ -304,6 +304,22 @@ test('wars are fought on the map: occupation, fronts, peace, mobilization', () =
   assert(r.bad.length === 0, r.bad.join('; '));
 });
 
+test('movements are radical wings of interest groups; support is a meter', () => {
+  const r = run(`(() => { const g = createGame('wing1', { size: 'small', countries: 8 }); setPlayer(g, 0); const c = g.countries[0];
+    for (let i = 0; i < 3; i++) { tick(g); g.pending.length = 0; }
+    const m = c.movements.labor; m.support = 20; m.radicalism = 70; m.leader = null;
+    tick(g); g.pending.length = 0;
+    const shared = c.movements.labor.leader && c.movements.labor.leader === c.igLeaders.workers && c.igLeaders.workers.stance === 'radical';
+    const drag = radicalWingPressure(c, 'workers') > 0;
+    const sup = c.support >= 0 && c.support <= 100 && c._why.support.parts.length === 3;
+    const unique = new Set(allCharacters(c).map(x => x.id)).size === allCharacters(c).length;
+    return { shared, drag, sup, unique }; })()`);
+  assert(r.shared, 'movement and interest group should share a radical leader');
+  assert(r.drag, 'a radical wing should weigh on its group');
+  assert(r.sup, 'support meter missing');
+  assert(r.unique, 'characters listed twice');
+});
+
 test('the campaign can be completed', () => {
   const r = run(`(() => {
     const g = startCampaign(); const c = g.countries[g.player]; const cs = g.campaign;

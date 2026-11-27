@@ -131,6 +131,7 @@ Object.assign(UI, {
     h += `<div class="card">${this.nationHeader(c)}</div>`;
     h += `<div class="card">
       ${bar('Stability', c.stability, { why: 'stability' })}
+      ${bar('Support', c.support != null ? c.support : c.approval, { why: 'support', color: '#c9a45a' })}
       ${bar('Approval', c.approval, { why: 'approval' })}
       ${bar('Unrest', c.unrest, { invert: true, why: 'unrest' })}
       ${bar('Freedom', c.freedom, { color: '#5b8cff', tip: 'Civil liberties. Intelligentsia value it highly.' })}
@@ -285,6 +286,7 @@ Object.assign(UI, {
       const ld = c.igLeaders && c.igLeaders[f];
       h += `<div class="person"><div title="${ld ? esc(ld.name) : ''}">${ld ? portraitSVG(ld, { size: 46, gov: c.gov }) : `<span class="icon">${F.icon}</span>`}</div><div class="pinfo" title="${esc(F.desc)}">${bar(`${F.icon} ${star}${F.name} <span class="ftag">clout ${pct(clout[f])}</span>`, c.factions[f])}
         ${ld ? `<div class="small">${esc(ld.name)}, ${ld.age} · <span class="${ld.stance === 'radical' ? 'bad' : 'good'}">${ld.stance}</span>${ld.traits.map(t => ` <span class="trait" title="${esc(TRAITS[t].desc || '')}">${TRAITS[t].name}</span>`).join('')}</div>` : ''}
+        ${(() => { const k = MOVEMENT_KEYS.find(x => MOVEMENT_IG[x] === f); const m = k && c.movements && c.movements[k]; return m && m.support > 2 ? `<div class="small">Radical wing: <b>${MOVEMENTS[k].name}</b>, ${m.support.toFixed(0)}% of the people, radicalism <span class="${m.radicalism > 60 ? 'bad' : m.radicalism > 40 ? 'warn' : 'muted'}">${Math.round(m.radicalism)}</span></div>` : ''; })()}
         ${dem ? `<div class="small muted">Wants: <a href="#" data-act="lawpick" data-cat="${dem.cat}" data-opt="${dem.opt}">${esc(LAW_CATS[dem.cat].opts[dem.opt].name)}</a></div>` : ''}</div>
         <div class="pact"><button data-act="appease" data-f="${f}" ${costOk(c, APPEASE_COST) ? 'disabled' : ''} title="Make concessions to the ${F.name}">Appease</button>
         ${ld ? Object.entries(IG_ACTIONS).map(([k, A]) => `<button data-act="ig" data-f="${f}" data-a="${k}" ${c.pc < A.pc ? 'disabled' : ''} title="${esc(A.desc)}">${A.name} (${A.pc})</button>`).join('') : ''}</div></div>`;
@@ -759,7 +761,7 @@ Object.assign(UI, {
   movementsHtml(c) {
     const M = ensureMovements(c);
     const active = MOVEMENT_KEYS.filter(k => M[k].support >= 2).sort((a, b) => M[b].support - M[a].support);
-    let h = `<div class="card"><h3>Political movements</h3><p class="small muted">Movements grow out of the pops when a class has a grievance. Each makes a demand, and grows more radical while it goes unmet. Radical mass movements fuel unrest and can try to seize power.</p>`;
+    let h = `<div class="card"><h3>Political movements</h3><p class="small muted">Movements are the radical wings of the interest groups (the agrarian league speaks for peasants). They grow out of the pops when a class has a grievance, make a demand, and radicalize while it goes unmet or while their interest group is angry. A large movement is led by its group's leader, and a radical wing drags the group's loyalty down. Radical mass movements fuel unrest and can try to seize power.</p>`;
     if (!active.length) return h + '<p class="small muted">No significant movements.</p></div>';
     for (const k of active) {
       const def = MOVEMENTS[k], m = M[k], met = def.demand.met(c);

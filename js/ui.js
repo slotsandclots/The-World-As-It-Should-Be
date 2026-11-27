@@ -139,6 +139,7 @@ const TIP_INFO = {
   approval: 'How the public feels about the government. In democracies it decides elections and most of stability.',
   stability: `Below ${typeof CRISIS_LEVEL !== 'undefined' ? CRISIS_LEVEL : 30}, coups and revolutions become possible.`,
   unrest: 'Protests and agitation. Above 55, it can spark revolution on its own.',
+  support: 'Who backs the government: the public (most in democracies), the power base (most in autocracies) and the interest groups weighted by clout. With legitimacy and unrest, it makes up stability.',
 };
 
 function tipRow(label, v, d, unit) {
@@ -155,15 +156,15 @@ function tipHtml(key) {
   if (!g || !c) return '';
   const title = (t, v) => `<div class="tt-title"><span>${t}</span><span>${v}</span></div>`;
   switch (key) {
-    case 'approval': case 'stability': case 'unrest': {
+    case 'approval': case 'stability': case 'unrest': case 'support': {
       const name = key[0].toUpperCase() + key.slice(1);
       const W = c._why && c._why[key];
       let h = title(name, Math.round(c[key]));
       if (!W) return h + '<div class="tt-note">Advance a month to see what drives this.</div>';
       const t = clamp(W.target, 0, 100);
       h += tipParts(W.parts, key === 'unrest');
-      h += `<div class="tt-row tt-sum"><span>Heading toward</span><span>${Math.round(t)} ${t > c[key] + 0.5 ? '▲' : t < c[key] - 0.5 ? '▼' : '●'}</span></div>`;
-      h += `<div class="tt-note">${TIP_INFO[key]} Moves ${Math.round(W.rate * 100)}% of the way to its target each month.</div>`;
+      if (W.rate >= 1) h += `<div class="tt-row tt-sum"><span>Support</span><span>${Math.round(t)}</span></div>`; else h += `<div class="tt-row tt-sum"><span>Heading toward</span><span>${Math.round(t)} ${t > c[key] + 0.5 ? '▲' : t < c[key] - 0.5 ? '▼' : '●'}</span></div>`;
+      h += `<div class="tt-note">${TIP_INFO[key]}${W.rate < 1 ? ` Moves ${Math.round(W.rate * 100)}% of the way to its target each month.` : ''}</div>`;
       return h;
     }
     case 'pc': {

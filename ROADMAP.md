@@ -47,7 +47,10 @@ These rules apply to every milestone. A feature that breaks them should be redes
 
 Before the next big milestone:
 
-- **Finish the consolidation:** fold political movements into radicalized interest groups, and cut down to the four meters in the design philosophy.
+- ✅ **Consolidation (second pass):**
+  - **Movements are the radical wings of interest groups.** Labor goes with the workers, liberal with the intelligentsia, nationalist with the military, clerical with the clergy, monarchist with business. Growing movements are led by their group's leader, an angry group radicalizes its wing, and a radical wing drags the group's loyalty down.
+  - **Support is now a visible meter** (public approval, power-base loyalty and clout-weighted interest groups), and the stability breakdown is grouped under the four meters.
+  - **Still to do:** a peasant interest group (the agrarian league has none yet), and retiring separate meters that only feed one of the four (for example coalition satisfaction, which could become support from partner parties).
 - ✅ **Balance report:** `npm run report` (and `--compare tools/baseline.json`) runs AI-only worlds and summarizes regime changes, wars, crises, elections, laws, growth, recessions, prices, living standards, inequality, unemployment and stability. Philosophy rule 5 depends on it.
 - ✅ **Economy baseline:** measured (see Milestone 4). Still to do: calm the remaining GDP noise before 4b.
 - **Performance:** run the simulation in a Web Worker before credit cycles and weekly war turns make each month more expensive.

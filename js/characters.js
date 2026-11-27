@@ -263,7 +263,7 @@ function allCharacters(c) {
   if (c.movements) for (const k in c.movements) if (c.movements[k].leader) out.push(c.movements[k].leader);
   if (c.igLeaders) for (const k in c.igLeaders) out.push(c.igLeaders[k]);
   if (c.barons) for (const b of c.barons) out.push(b.ch);
-  return out;
+  return [...new Set(out)];
 }
 
 function deathChance(ch) {

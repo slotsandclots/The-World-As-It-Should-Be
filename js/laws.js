@@ -358,6 +358,7 @@ function igAction(game, f, action) {
     return { ok: true, msg: `${ch.name} appreciates being heard.` };
   }
   if (action === 'coopt') { ch.stance = 'moderate'; adjust(c, { approval: -2 }); c.factions[f] = clamp(c.factions[f] + 3, 0, 100); return { ok: true, msg: `${ch.name} accepts a seat on a government council and tones it down.` }; }
+  for (const k in c.movements || {}) if (c.movements[k].leader === ch) c.movements[k].leader = null;
   c.igLeaders[f] = makeIGLeader(game, c, f);
   adjust(c, { legitimacy: -2 });
   c.factions[f] = clamp(c.factions[f] - 6, 0, 100);
