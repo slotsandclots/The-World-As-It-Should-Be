@@ -104,6 +104,30 @@ function joinAppeal(game, c, b) {
   return clamp(s, 0, 0.95);
 }
 
+// The chance that partner accepts founding a bloc of this type with founder.
+// Every founding path goes through it, the player's and the AI's alike, so a
+// founding partner always weighs the offer the way a joining nation does.
+// bonus carries the founder's reason to ask (a shared grievance, a common rival).
+const FOUND_BONUS = 0.15;
+function foundingChance(game, partner, founderId, type, bonus) {
+  if (canJoin(game, partner, type) || atWarWith(game, partner.id, founderId)) return 0;
+  const appeal = joinAppeal(game, partner, { type, leader: founderId, members: [founderId] });
+  return clamp(appeal + (bonus == null ? FOUND_BONUS : bonus), 0.05, 0.95);
+}
+
+// Found a bloc with a partner who decides. Returns the bloc, or null when the
+// partner declines (the founder is snubbed a little).
+function proposeBloc(game, founderId, partnerId, type, name, bonus) {
+  const P = game.countries[partnerId];
+  if (!game.rng.chance(foundingChance(game, P, founderId, type, bonus))) {
+    addRel(game, founderId, partnerId, -3);
+    return null;
+  }
+  const b = foundBloc(game, founderId, type, name);
+  joinBloc(game, b, partnerId);
+  return b;
+}
+
 // Members vote on an applicant: each says yes if relations are decent.
 function memberVote(game, b, applicantId) {
   let yes = 0;
@@ -147,7 +171,7 @@ function tickBlocs(game) {
       if (offer && rng.chance(joinAppeal(game, c, offer)) && memberVote(game, offer, c.id).passed) joinBloc(game, offer, c.id);
       else {
         const friend = others.find(o => !militaryBloc(game, o.id) && relation(game, c.id, o.id) > 45 && o.id !== game.player);
-        if (friend && rng.chance(0.3)) { const b = foundBloc(game, c.id, 'pact'); joinBloc(game, b, friend.id); }
+        if (friend && rng.chance(0.3)) proposeBloc(game, c.id, friend.id, 'pact');
       }
     }
     // Seek an economic bloc with trading partners.
@@ -156,7 +180,7 @@ function tickBlocs(game) {
       if (offer && rng.chance(joinAppeal(game, c, offer) * 0.7) && memberVote(game, offer, c.id).passed) joinBloc(game, offer, c.id);
       else if (c.trade.length >= 2 && rng.chance(0.15)) {
         const partner = c.trade.map(id => game.countries[id]).find(o => o.alive && !economicBloc(game, o.id) && o.overlord == null && o.id !== game.player && relation(game, c.id, o.id) > 35);
-        if (partner) { const b = foundBloc(game, c.id, rng.chance(0.6) ? 'freeTrade' : 'customs'); joinBloc(game, b, partner.id); }
+        if (partner) proposeBloc(game, c.id, partner.id, rng.chance(0.6) ? 'freeTrade' : 'customs');
       }
     }
     // Leaders invite friendly nations, including the player.
@@ -181,10 +205,8 @@ function playerFoundBloc(game, type, invitee) {
   if (rt) return { ok: false, msg: `${t.name}: ${rt.toLowerCase()}` };
   if (c.pc < T.foundPc) return { ok: false, msg: `Needs ${T.foundPc} political capital.` };
   c.pc -= T.foundPc;
-  const appeal = joinAppeal(game, t, { type, leader: c.id, members: [c.id] });
-  if (!game.rng.chance(clamp(appeal + 0.15, 0.05, 0.95))) { return { ok: false, msg: `${t.name} declines to found a ${T.name.toLowerCase()} with us.` }; }
-  const b = foundBloc(game, c.id, type);
-  joinBloc(game, b, t.id);
+  const b = proposeBloc(game, c.id, t.id, type);
+  if (!b) return { ok: false, msg: `${t.name} declines to found a ${T.name.toLowerCase()} with us.` };
   return { ok: true, msg: `The ${b.name} is founded with ${t.name}.` };
 }
 
