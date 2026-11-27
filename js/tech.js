@@ -69,7 +69,8 @@ function techProd(c, buildingType) {
 
 function researchRate(c) {
   const lit = c.econ ? c.econ.literacy : 0.3;
-  return 0.6 + c.policy.education * lit * Math.pow(Math.max(c.gdp, 0.1), 0.35) * 0.9;
+  // University graduates speed research (ideas.js).
+  return (0.6 + c.policy.education * lit * Math.pow(Math.max(c.gdp, 0.1), 0.35) * 0.9) * (1 + (c.uni || 0) * 3);
 }
 
 const TECH_TASTE = {

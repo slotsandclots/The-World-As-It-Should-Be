@@ -181,7 +181,7 @@ function interestClout(c) {
     t.workers += (P.workers || 0) + (P.laborers || 0) * 0.8;
     t.business += (P.capitalists || 0) * 40 + (P.landowners || 0) * 15;
     t.clergy += (P.clergy || 0) * 20 + (P.peasants || 0) * 0.15;
-    t.intelligentsia += (P.clerks || 0) * 1.5 + (P.officials || 0) * 1.5;
+    t.intelligentsia += (P.clerks || 0) * 1.5 + (P.officials || 0) * 1.5 + (p.pop || 0) * (p.uni || 0) * 0.6;
   }
   if (c.igLeaders) for (const k in t) if (c.igLeaders[k]) t[k] *= 0.8 + c.igLeaders[k].skills.cha / 25;
   const s = Object.values(t).reduce((a, b) => a + b, 0) || 1;

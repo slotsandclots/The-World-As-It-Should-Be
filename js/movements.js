@@ -88,7 +88,7 @@ function tickMovements(game, c) {
   const repressive = c.policy.police > 3.5 || c.freedom < 30;
   for (const k of MOVEMENT_KEYS) {
     const def = MOVEMENTS[k], m = M[k];
-    const target = clamp(def.support(c), 0, 60);
+    const target = clamp(def.support(c) * (typeof ideaBoost === 'function' ? ideaBoost(c, k) : 1), 0, 60);
     m.support += (target - m.support) * 0.05;
     const met = def.demand.met(c);
     const ig = MOVEMENT_IG[k];

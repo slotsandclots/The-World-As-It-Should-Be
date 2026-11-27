@@ -41,6 +41,7 @@ Object.assign(UI, {
         <div class="kv" title="Extra share of urban incomes paid as rent because of housing shortages"><span>Rent burden</span><span class="${(c.rentBurden || 0) > 0.05 ? 'bad' : ''}">${pct(c.rentBurden || 0, 1)}</span></div>
         <div class="kv" title="Retirees leave the workforce; an aging society has fewer hands"><span>Elderly</span><span>${pct(c.elderly || 0.06)}</span></div>
         <div class="kv" title="Pensions are paid first from the welfare budget; the rest is relief for the poor. As the society ages, the same welfare spending buys less relief."><span>Pensions</span><span>${pct((c.econ.pensionShare || 0.18))} of welfare</span></div>
+        <div class="kv" title="Education spending above the basics builds universities. Graduates speed research, staff the state and give the intelligentsia clout."><span>University-educated</span><span>${pct(c.uni || 0, 1)}</span></div>
         <div class="kv" title="0 = everyone earns the same, 1 = one person has everything. High inequality strengthens the labor movement."><span>Inequality (Gini)</span><span class="${(c.gini || 0) > 0.5 ? 'bad' : ''}">${(c.gini || 0).toFixed(2)}</span></div>
         <div class="kv"><span>Births</span><span>${yr(births)} per 1,000 a year</span></div>
         <div class="kv"><span>Deaths</span><span>${yr(deaths)} per 1,000 a year</span></div>
@@ -619,7 +620,7 @@ Object.assign(UI, {
     if (tSubs.length) status.push(`<span class="muted">Overlord of ${tSubs.map(x => esc(x.name)).join(', ')}</span>`);
     let h = `<button data-act="select" data-id="-1" class="small" style="margin-bottom:8px">← All nations</button>`;
     if (this.selProv != null && g.world.provinces[this.selProv] && g.world.provinces[this.selProv].owner === t.id) h += this.provinceCard(g.world.provinces[this.selProv], false);
-    h += `<div class="card">${this.nationHeader(t)}${(() => { const a = claimsOn(g, c, t.id), b = claimsOn(g, t, c.id); return a || b ? `<div class="alert warn small" style="margin-top:6px">${a ? `${a} province${a > 1 ? 's' : ''} of theirs are home to our people. ` : ''}${b ? `${b} of ours are home to theirs. ` : ''}Nationalists on both sides want borders redrawn.</div>` : ''; })()}</div>`;
+    h += `<div class="card">${this.nationHeader(t)}${typeof kinNations === 'function' && g.families && kinNations(g, c, t) ? `<div class="small good" style="margin-top:4px">Kin: our peoples are both of the ${esc(g.families[g.cultures[c.culture].family].name)}.</div>` : ''}${(() => { const a = claimsOn(g, c, t.id), b = claimsOn(g, t, c.id); return a || b ? `<div class="alert warn small" style="margin-top:6px">${a ? `${a} province${a > 1 ? 's' : ''} of theirs are home to our people. ` : ''}${b ? `${b} of ours are home to theirs. ` : ''}Nationalists on both sides want borders redrawn.</div>` : ''; })()}</div>`;
     h += `<div class="card">${bar('Relations with us', (rel + 100) / 2, { text: Math.round(rel), color: rel < -30 ? 'var(--bad)' : rel > 30 ? 'var(--good)' : 'var(--warn)' })}
       <div class="small">${status.join(' · ') || '<span class="muted">No agreements</span>'}</div></div>`;
     const ratio = strength(c) / Math.max(0.01, strength(t));
@@ -860,6 +861,7 @@ Object.assign(UI, {
     const M = ensureMovements(c);
     const active = MOVEMENT_KEYS.filter(k => M[k].support >= 2).sort((a, b) => M[b].support - M[a].support);
     let h = `<div class="card"><h3>Political movements</h3><p class="small muted">Movements are the radical wings of the interest groups (the agrarian league speaks for peasants). They grow out of the pops when a class has a grievance, make a demand, and radicalize while it goes unmet or while their interest group is angry. A large movement is led by its group's leader, and a radical wing drags the group's loyalty down. Radical mass movements fuel unrest and can try to seize power.</p>`;
+    if (c.currents) h += `<div class="small" style="margin:-4px 0 8px"><span class="muted">Ideas from abroad:</span> ${CURRENT_KEYS.map(k => `${CURRENTS[k].name} <b>${Math.round(c.currents[k] * 100)}</b>`).join(' · ')}<br><span class="muted">They spread from prosperous, stable neighbors, trade partners and allies, and surge after a revolution next door; each strengthens its movement.</span></div>`;
     if (!active.length) return h + '<p class="small muted">No significant movements.</p></div>';
     for (const k of active) {
       const def = MOVEMENTS[k], m = M[k], met = def.demand.met(c);

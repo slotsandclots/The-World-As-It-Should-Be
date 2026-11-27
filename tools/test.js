@@ -453,6 +453,31 @@ test('healthcare: a funded health service lowers deaths and pays doctors', () =>
   assert(r.inBudget, 'healthcare should be in the budget');
 });
 
+test('ideas spread after a revolution; kin unite; universities speed research', () => {
+  const r = run(`(() => { const g = createGame('ideas1', { size: 'small', countries: 8 }); setPlayer(g, 0); const c = g.countries[0];
+    for (let i = 0; i < 3; i++) { tick(g); g.pending.length = 0; }
+    const n = getNeighbors(g, 0)[0], t = g.countries[n];
+    const before = c.currents.socialism;
+    changeGovernment(g, t, 'communist', 'revolution');
+    for (let i = 0; i < 12; i++) { tick(g); g.pending.length = 0; }
+    const spread = c.currents.socialism > before + 0.02 && ideaBoost(c, 'labor') > 1;
+    // Kinship and unification.
+    ensureFamilies(g);
+    const kin = g.countries.find(x => x.alive && x.id !== 0 && getNeighbors(g, 0).includes(x.id));
+    g.cultures[kin.culture].family = g.cultures[c.culture].family;
+    const alive0 = kin.alive; unite(g, c, kin);
+    const united = alive0 && !kin.alive;
+    // Universities.
+    const r0 = researchRate(c); c.uni = 0.2; const r1 = researchRate(c);
+    const h = deserializeGame(serializeGame(g));
+    return { spread, united, research: r1 > r0, kept: !!h.families && h.countries[0].currents && h.countries[0].currents.socialism >= 0, bad: __sane(g) }; })()`);
+  assert(r.spread, 'a revolution next door should spread its idea');
+  assert(r.united, 'kin nations should be able to unite');
+  assert(r.research, 'graduates should speed research');
+  assert(r.kept, 'ideas and families lost on save/load');
+  assert(r.bad.length === 0, r.bad.join('; '));
+});
+
 test('the campaign can be completed', () => {
   const r = run(`(() => {
     const g = startCampaign(); const c = g.countries[g.player]; const cs = g.campaign;

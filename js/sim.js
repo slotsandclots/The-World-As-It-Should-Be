@@ -569,6 +569,7 @@ function changeGovernment(game, c, newGov, how, opts) {
   if (newGov !== 'absMonarchy') c.heir = null;
   if (newGov !== 'constMonarchy') c.monarch = null;
   initCharacters(game, c, { cabinet: !!opts.keepLeader, generals: true, dissidents: g.party === 'single' && GOVS[old].party === 'single' });
+  if (typeof ideaShock === 'function') ideaShock(game, c, newGov);
   c.emergency = false;
   c.flags.fraud = false;
   c.coalition = null;
@@ -963,6 +964,7 @@ function relationTarget(game, a, b) {
   // Nationalism: our people under their rule (or theirs under ours) poisons relations.
   const cl = (game.countries && typeof claimsOn === 'function') ? claimsOn(game, a, b.id) + claimsOn(game, b, a.id) : 0;
   t -= Math.min(30, cl * 6);
+  if (typeof kinNations === 'function' && game.cultures && kinNations(game, a, b)) t += 10;
   return clamp(t, -100, 100);
 }
 
@@ -1094,6 +1096,9 @@ function tick(game) {
   tickEconomy(game, false);
   tickPeoples(game);
   tickSociety(game);
+  for (const c of game.countries) if (c.alive) tickUniversities(game, c);
+  tickIdeas(game);
+  if (game.month % 12 === 6) tickUnification(game);
   for (const c of game.countries) if (c.alive) tickCountry(game, c);
   tickWars(game);
   tickBalance(game);
@@ -1535,9 +1540,9 @@ function serializeGame(game) {
     owners: game.world.provinces.map(p => p.owner),
     provEcon: game.world.provinces.map(p => ({
       pops: p.pops, inc: p.inc, sol: p.sol, wealth: p.wealth, lit: p.lit, res: p.res,
-      b: p.buildings.map(b => ({ t: b.t, level: b.level, active: b.active, idle: b.idle, va: b.va })), conq: p.conquered || null, occ: p.occ == null ? null : p.occ, cu: p.cult || null, re: p.rel || null, ho: p.housing == null ? null : p.housing, core: p.core, des: p.designation || null, st: p.state == null ? null : p.state,
+      b: p.buildings.map(b => ({ t: b.t, level: b.level, active: b.active, idle: b.idle, va: b.va })), conq: p.conquered || null, occ: p.occ == null ? null : p.occ, cu: p.cult || null, re: p.rel || null, ho: p.housing == null ? null : p.housing, un: p.uni == null ? null : p.uni, core: p.core, des: p.designation || null, st: p.state == null ? null : p.state,
     })),
-    worldMarket: game.worldMarket, cultures: game.cultures || null, faiths: game.faiths || null,
+    worldMarket: game.worldMarket, cultures: game.cultures || null, faiths: game.faiths || null, families: game.families || null,
     lastEvents: game.lastEvents, stats: game.stats, playerMonths: game.playerMonths || 0, nextCharId: game.nextCharId,
     flags: game.flags || {}, scheduled: game.scheduled || [], campaign: game.campaign || null, reparations: game.reparations || [],
     blocs: game.blocs || [], nextBlocId: game.nextBlocId || 1, priceHist: game.priceHist || {},
@@ -1563,6 +1568,7 @@ function deserializeGame(str) {
     p.occ = e.occ == null ? undefined : e.occ;
     if (e.cu) p.cult = e.cu;
     if (e.ho != null) p.housing = e.ho;
+    if (e.un != null) p.uni = e.un;
     if (e.re) p.rel = e.re;
     p.core = e.core === undefined ? p.owner : e.core;
     p.designation = e.des || null;
@@ -1573,7 +1579,7 @@ function deserializeGame(str) {
     seed: d.seed, opts: d.opts, world, rng: makeRng(d.seed + '|sim'), month: d.month, startYear: d.startYear,
     countries: d.countries, wars: d.wars, log: d.log, player: d.player, nextWarId: d.nextWarId, truces: d.truces,
     pending: [], over: false, neighborCache: {}, mapDirty: true, lastEvents: d.lastEvents || [], stats: d.stats,
-    playerMonths: d.playerMonths, worldMarket: d.worldMarket, cultures: d.cultures || null, faiths: d.faiths || null, nextCharId: d.nextCharId || 1,
+    playerMonths: d.playerMonths, worldMarket: d.worldMarket, cultures: d.cultures || null, faiths: d.faiths || null, families: d.families || null, nextCharId: d.nextCharId || 1,
     flags: d.flags || {}, scheduled: d.scheduled || [], campaign: d.campaign || null, reparations: d.reparations || [],
     blocs: d.blocs || [], nextBlocId: d.nextBlocId || 1, priceHist: d.priceHist || {},
   };

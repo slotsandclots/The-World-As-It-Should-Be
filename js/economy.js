@@ -537,7 +537,8 @@ function tickEconomy(game, warmup) {
     for (const t of JOB_KEYS) {
       const N = p.pops[t], want = J[t];
       if (N < want) {
-        const lit = POP_TYPES[t].literate ? 0.15 + 0.85 * p.lit : 1;
+        // Officials need higher education; clerks need literacy.
+        const lit = (POP_TYPES[t].literate ? 0.15 + 0.85 * p.lit : 1) * (t === 'officials' ? clamp(0.4 + (p.uni || 0) * 4, 0.4, 1.2) : 1);
         const hire = Math.min(p.pops.peasants * 0.05, (want - N) * (t === 'soldiers' ? 0.5 : 0.25)) * lit;
         p.pops.peasants -= hire; p.pops[t] += hire;
       } else if (N > want) {

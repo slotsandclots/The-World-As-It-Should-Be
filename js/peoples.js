@@ -163,7 +163,11 @@ function nationalClaims(game, c) {
   const out = [];
   for (const p of game.world.provinces) {
     if (p.owner < 0 || p.owner === c.id || !p.cult) continue;
-    if ((p.cult[c.culture] || 0) > 0.45 || p.core === c.id) out.push(p.id);
+    // Kin count at half weight (ideas.js).
+    let ours = p.cult[c.culture] || 0;
+    if (typeof kinCultures === 'function') for (const k in p.cult) if (kinCultures(game, c.culture, +k)) ours += p.cult[k] * 0.3;
+    // Kin alone don't make a claim: some of our own people must live there.
+    if ((ours > 0.45 && (p.cult[c.culture] || 0) > 0.15) || p.core === c.id) out.push(p.id);
   }
   return out;
 }

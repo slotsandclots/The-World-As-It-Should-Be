@@ -162,11 +162,28 @@ Built on top of 4a–4b, so it can use wages, savings and debt. Every item state
   - minority grievance down 25% as governments concede equal citizenship
   - economic and political metrics unchanged
 
+**3d. Universities, kinship and ideas ✅ (first pass):**
+- **Universities:** education spending above the basics builds higher education. Graduates speed research (up to about +100%), staff the state (officials need graduates) and give the intelligentsia clout.
+- **Kinship:** cultures belong to families of related peoples.
+  - Kin count toward nationalist claims at 0.3 weight, but only where some of our own people live.
+  - Kin nations get on better.
+  - Strong, like-minded kin neighbors can unite peacefully (about once every three worlds), and the player can propose unification to a smaller kin nation.
+- **Ideas spreading through the world** (the priority from Beyond the milestones, first pass):
+  - **The currents:** liberalism, socialism, fascism and traditionalism, in each nation.
+  - **How they spread:** from neighbors, trade partners and bloc allies, weighted by how prosperous and stable those regimes are, and stronger with a free press.
+  - **Revolution shocks:** a revolution sends a shock wave through its neighbors.
+  - **Where they land:** currents strengthen the matching movement and pull public opinion.
+- **Measured:**
+  - the strongest current averages about 0.2
+  - regime changes rose to about 16 per world, within the range earlier versions produced, but worth watching
+  - claims are back to about 12 provinces per world
+  - the economy is unchanged
+
 **Still to do in Milestone 3:**
 - ✅ **Healthcare** is its own spending line, carved out of each regime's welfare budget. It pays clerks as doctors and nurses, lowers death rates and improves living standards. Approval and the workers count it as social spending. Still to do: schooling as a service staffed by teachers, with levels.
-- **Levels of schooling:** universities feeding research and the intelligentsia.
 - **Interest groups for large minorities and faiths** (beyond the Minority Rights League movement).
-- **Pan-national unification** once released or split nations share a culture.
+- **Unification wars:** a unification that comes by force rather than consent.
+- **Teachers as a staffed service:** schooling staffed like healthcare, with primary and secondary levels.
 
 
 - **Cultures and religions on pops:** each pop has a culture and a faith.
@@ -504,7 +521,7 @@ Ideas for after (or alongside) the milestones. They follow the same design philo
 - ★ **The world newspaper and a generated history book.** This brings together the monthly newspaper (quality of life), the history book (Milestone 6) and the newspapers in the visuals track.
   - **The newspaper:** a front page every month, with foreign headlines alongside our own: wars far away, great-power rivalries, revolutions, crashes, elections. It's built from the game's event log and statistics, with headlines chosen by importance, so the world feels alive rather than revolving around the player.
   - **The history book:** a world-history view, a chronicle of your reign, and a "verdict of history" at an optional end date.
-- ★ **Ideas spreading through the world.**
+- ★ **Ideas spreading through the world.** (First pass done in Milestone 3d.)
   - **The mechanism:** ideologies (liberalism, socialism, fascism, nationalism, later environmentalism) are currents with a strength in each nation. They travel along trade links, migrant flows, the press barons and bloc ties.
   - **Revolutions inspire neighbors:** a revolution or a striking success in one country boosts the matching current next door.
   - **Where it lands:** currents feed movements, party polls and interest-group radicalism, so 1848-style waves and domino effects emerge from the simulation.
@@ -584,7 +601,7 @@ Ideas for after (or alongside) the milestones. They follow the same design philo
 4. ✅ **Consolidation and war on the map (first pass).**
 5. ✅ **Foundations:** consolidation, balance report, economy baseline and noise fix, campaign chapter VIII. Still to do: a play-test by a human. The Web Worker is deferred until weekly war turns arrive.
 6. ✅ **Milestone 4a–4b:** money, inflation, credit and the business cycle (first pass).
-7. **Finish Milestone 3**, with ideas spreading through the world folded in or right after. ✅ 3a peoples, 3b cities and demographics, 3c aging, inequality, minority movements and healthcare (first passes). Remaining: schooling as a service with levels, interest groups for large minorities and faiths, unification movements.
+7. **Finish Milestone 3**, with ideas spreading through the world folded in. ✅ 3a peoples, 3b cities and demographics, 3c aging, inequality, minority movements and healthcare, 3d universities, kinship and unification, and idea spread (first passes). Remaining: schooling staffed by teachers with levels, interest groups for large minorities and faiths, unification wars.
 8. **Milestone 4c–4d:** labor relations and fiscal policy, then the world economy (with distance that matters, from World scale).
 9. **AI ambitions and personalities, with the graphics-card map**, plus the first art commissions: an art direction document, map textures and an icon set. The war layer needs the new map for army counters, fronts, plan arrows and supply routes.
 10. **Milestone 5:** the war layer, an operational layer.
