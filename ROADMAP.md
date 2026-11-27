@@ -46,7 +46,7 @@ New features should plug into these quantities rather than add their own meters 
 | **War** (`warfare.js`, `revanchism.js`, `worldwar.js`) | Army size (military spending, population), arms, technology, generals, alliances | Occupation, peace terms (land, reparations, regime change), the memory of defeat → movements and AI aims; mobilization and war production; war weariness |
 | **Technology** (`tech.js`) | Education, literacy, universities, inventors | Productivity, army strength, tax collection, corruption |
 
-**Known gaps where systems don't mesh yet:** wars are financed only by printing and borrowing (no war bonds); the war dead are not taken out of the pops; tariffs cut trade both ways; world trade is pooled, so there is no bilateral trade to measure dependence; great-power status is a fixed ranking; government types still differ mostly by flat numbers (see "Governments that play differently").
+**Known gaps where systems don't mesh yet:** wars are financed only by printing and borrowing (no war bonds); the war dead are not taken out of the pops; tariffs cut trade both ways; world trade is pooled, so there is no bilateral trade to measure dependence; great-power status is a fixed ranking; government types still differ mostly by flat numbers (see "Governments that play differently"); several AI paths found blocs and sign up the partner on a relations threshold alone, while the player's partner weighs the offer (fix next: one founding path where every partner decides, show the acceptance chance on the Blocs tab, re-measure world wars).
 
 ## Done
 
