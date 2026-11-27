@@ -136,7 +136,20 @@ Built on top of 4a–4b, so it can use wages, savings and debt. Every item state
   - nations with open or limited borders take in roughly 0.1–0.2% of their population a year
   - economic metrics unchanged
 
-**Still to do in Milestone 3** (cities and housing, demographics, social mobility, public services, education, culture-based interest groups, pan-national unification):
+**3b. Cities, housing and demographics ✅ (first pass):**
+- **Housing is a stock in every province.** When the urban population outgrows it, rents rise: laborers, workers, clerks and officials pay, and landlords and owners receive (the state, under communism).
+- **Slums** come from overcrowding and feed unrest (a new line in the breakdown).
+- **Builders add housing** when rents pay, out of a share of national savings. Welfare above 11% of GDP adds public housing. Housing construction is real construction, buying steel and timber and employing laborers.
+- **Housing services count in real GDP,** as in national accounts.
+- **The demographic transition:** births fall as living standards and literacy rise, death rates fall as basic needs are met, and societies age.
+- **Interface:** a Cities and people card (city dwellers, slums, rent burden, births and deaths, the largest cities), housing in the province panel, and city markers on the map with names when zoomed in.
+- **Measured:**
+  - 24% of people live in cities and 2.6% in slums
+  - world population grows 1.1% a year, births about 22 per 1,000
+  - growth per person is about 11% below the pre-housing baseline, because housing now takes part of investment, as in real economies
+  - living standards and inequality are essentially unchanged
+
+**Still to do in Milestone 3** (pensions and an aging electorate, social mobility, public services, education, culture-based interest groups, pan-national unification):
 
 - **Cultures and religions on pops:** each pop has a culture and a faith.
   - *Discrimination and acceptance laws* decide which jobs and classes a minority can hold, and whether it can vote. Exclusion shows up as unemployment, lower living standards and grievances in that group, not as an unrest modifier.

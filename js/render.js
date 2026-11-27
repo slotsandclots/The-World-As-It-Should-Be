@@ -389,6 +389,24 @@ class LabelLayer {
       ctx.fillStyle = c.id === player ? '#ffd24a' : '#fff'; ctx.fill();
       ctx.lineWidth = 1.5; ctx.strokeStyle = '#1a1a22'; ctx.stroke();
     }
+    // Cities: rings sized by urban population; names appear when zoomed in.
+    const big = [];
+    for (const p of provs) { if (p.owner < 0 || !p.pops) continue; const u = urbanPop(p); if (u > 150000) big.push([p, u]); }
+    big.sort((a, b) => b[1] - a[1]);
+    for (const [p, u] of big.slice(0, 80)) {
+      const x = mr.left - wr.left + (p.lx + 0.5) * sx, y = mr.top - wr.top + (p.ly + 0.5) * sy;
+      const r = clamp(Math.sqrt(u / 1e6) * 3.2 * Math.sqrt(sx / 4), 1.6, 9);
+      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fillStyle = p.slum > 0.08 ? 'rgba(160,120,90,0.55)' : 'rgba(240,226,190,0.35)'; ctx.fill();
+      ctx.lineWidth = 1.2; ctx.strokeStyle = 'rgba(25,20,18,0.85)'; ctx.stroke();
+      if (sx > 9 && u > 400000) {
+        if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
+        ctx.font = `600 ${Math.min(13, 8 + sx * 0.25).toFixed(1)}px 'EB Garamond', Georgia, serif`;
+        ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+        ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(10,10,16,0.75)'; ctx.strokeText(p.name, x + r + 3, y);
+        ctx.fillStyle = 'rgba(245,238,222,0.95)'; ctx.fillText(p.name, x + r + 3, y);
+      }
+    }
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     for (const a of this.r.labelAnchors(game)) {
       const size = clamp(Math.sqrt(a.tiles) * 0.16 * sx * Math.min(1, 9 / Math.max(5, a.c.name.length)), 0, 26);

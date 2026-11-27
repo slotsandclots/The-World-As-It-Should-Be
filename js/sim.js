@@ -339,7 +339,7 @@ function tickCountry(game, c) {
     ['Low approval', Math.max(0, 55 - c.approval) * 1.4], ['Public opinion vs. the regime', mismatch * 14], ['War exhaustion', c.warExhaustion * 0.2],
     ['Recession', Math.max(0, -growthA) * 2], ['Unemployment', E.unemployment * 40], ['Poverty of the lower classes', Math.max(0, 30 - E.strataSol.lower) * 0.5],
     ['Cabinet', CF.unrest], ['Dissidents', dissidentPressure(c)], ['Political movements', movementPressure(c)], ['Occupied land', occupiedShare(game, c) * 45],
-    ['Unintegrated conquests', (c.nonCoreShare || 0) * 18], ['Separatism', c.separatistPressure || 0], ['Special economic zones', (c.sezCount || 0) * 1.5], ['Minority grievances', (c._grievance || 0) * 30], ['Laws', LF.unrest], ['Temporary effects', M.unrest || 0],
+    ['Unintegrated conquests', (c.nonCoreShare || 0) * 18], ['Separatism', c.separatistPressure || 0], ['Special economic zones', (c.sezCount || 0) * 1.5], ['Minority grievances', (c._grievance || 0) * 30], ['Slums', (c.slumShare || 0) * 40], ['Laws', LF.unrest], ['Temporary effects', M.unrest || 0],
   ];
   let unrestT = sumParts(unParts);
   const repress = clamp(p.police / 5 * g.repression * 0.5, 0, 0.75);
@@ -1092,6 +1092,7 @@ function tick(game) {
   refreshCores(game);
   tickEconomy(game, false);
   tickPeoples(game);
+  tickSociety(game);
   for (const c of game.countries) if (c.alive) tickCountry(game, c);
   tickWars(game);
   tickBalance(game);
@@ -1532,7 +1533,7 @@ function serializeGame(game) {
     owners: game.world.provinces.map(p => p.owner),
     provEcon: game.world.provinces.map(p => ({
       pops: p.pops, inc: p.inc, sol: p.sol, wealth: p.wealth, lit: p.lit, res: p.res,
-      b: p.buildings.map(b => ({ t: b.t, level: b.level, active: b.active, idle: b.idle, va: b.va })), conq: p.conquered || null, occ: p.occ == null ? null : p.occ, cu: p.cult || null, re: p.rel || null, core: p.core, des: p.designation || null, st: p.state == null ? null : p.state,
+      b: p.buildings.map(b => ({ t: b.t, level: b.level, active: b.active, idle: b.idle, va: b.va })), conq: p.conquered || null, occ: p.occ == null ? null : p.occ, cu: p.cult || null, re: p.rel || null, ho: p.housing == null ? null : p.housing, core: p.core, des: p.designation || null, st: p.state == null ? null : p.state,
     })),
     worldMarket: game.worldMarket, cultures: game.cultures || null, faiths: game.faiths || null,
     lastEvents: game.lastEvents, stats: game.stats, playerMonths: game.playerMonths || 0, nextCharId: game.nextCharId,
@@ -1559,6 +1560,7 @@ function deserializeGame(str) {
     p.conquered = e.conq || null;
     p.occ = e.occ == null ? undefined : e.occ;
     if (e.cu) p.cult = e.cu;
+    if (e.ho != null) p.housing = e.ho;
     if (e.re) p.rel = e.re;
     p.core = e.core === undefined ? p.owner : e.core;
     p.designation = e.des || null;

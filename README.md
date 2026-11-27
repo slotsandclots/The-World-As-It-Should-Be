@@ -123,6 +123,8 @@ The game saves to your browser's local storage (Menu → Save game).
 
 **Peoples and faiths.** Every province has its own mix of cultures and faiths. Citizenship laws decide whether minorities may vote and work for the state; exclusion breeds grievance, unrest and separatism, while coercion speeds assimilation at a price. People migrate toward work and away from war, carrying their culture with them, and nationalists claim the provinces abroad where their people live.
 
+**Cities and people.** Cities grow with industry. When they outgrow their housing, rents rise (paid by working people to landlords) and slums spread, breeding unrest; builders and public housing respond. Families have fewer children as living standards and literacy rise, and societies age.
+
 **Seeing why.** Hover approval, stability, unrest, political capital or the treasury for a breakdown of what drives it. The Ledger tab charts your nation over time, compares you with your rivals, and tracks world market prices.
 
 **Saves.** As many save slots as you like, plus an autosave every January. The title screen offers to continue your latest game.
@@ -147,6 +149,7 @@ The game saves to your browser's local storage (Menu → Save game).
 | `js/money.js` | Currency, price level, inflation, wages, interest rates, monetary systems |
 | `js/credit.js` | Private credit, confidence, defaults and bankruptcies, banking crises |
 | `js/peoples.js` | Cultures, faiths, assimilation, grievance, migration, nationalist claims |
+| `js/society.js` | Cities, housing and rents, slums, births and deaths, aging |
 | `js/arena.js` | Crises for AI nations, regional elections, referendums, press barons |
 | `js/sim.js` | The monthly simulation: politics, elections, regime change, war, peace, diplomacy, actions, save/load |
 | `js/characters.js` | Leaders, cabinets, generals, opposition, heirs; loyalty and succession |

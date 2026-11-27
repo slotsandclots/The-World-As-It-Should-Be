@@ -19,6 +19,7 @@ for (let i = 0; i < SEEDS; i++) {
     const g = createGame(${JSON.stringify(seed)}, { model: ${JSON.stringify(model)}, countries: 14 });
     const months = ${YEARS} * 12, t = Date.now();
     ensurePeoples(g); tickPeoples(g);
+    const pop0 = g.countries.reduce((t, c) => t + (c.alive ? c.pop : 0), 0);
     const minority0 = g.countries.filter(c => c.alive).reduce((s, c) => s + (c._minority || 0), 0) / g.countries.filter(c => c.alive).length;
     let migrants = 0;
     const warStart = {}, warLen = [], yearGdp = {}, unemp = [], stab = [], lowStab = { n: 0, of: 0 }, accY = {};
@@ -91,6 +92,9 @@ for (let i = 0; i < SEEDS; i++) {
       unemployment: +(mean(unemp) * 100).toFixed(2), unemploymentMax: +(Math.max(...unemp) * 100).toFixed(1),
       stability: +mean(stab).toFixed(1), crisisShare: +(lowStab.n / Math.max(1, lowStab.of)).toFixed(3),
       inflation: +(mean(infl) * 100).toFixed(2), inflationSd: +(sd(infl) * 100).toFixed(2), hyperinflation: infl.filter(x => x > 0.5).length, deflationShare: +(infl.filter(x => x < 0).length / Math.max(1, infl.length)).toFixed(3), rate: +(mean(rates) * 100).toFixed(2),
+      urbanShare: +(mean(alive.map(c => c.urbanShare || 0)) * 100).toFixed(1), slumShare: +(mean(alive.map(c => c.slumShare || 0)) * 100).toFixed(2),
+      rentBurden: +(mean(alive.map(c => c.rentBurden || 0)) * 100).toFixed(2), elderly: +(mean(alive.map(c => c.elderly || 0)) * 100).toFixed(1),
+      popGrowth: +((Math.pow(g.countries.reduce((t, c) => t + (c.alive ? c.pop : 0), 0) / pop0, 1 / ${YEARS}) - 1) * 100).toFixed(2),
       minorityStart: +(minority0 * 100).toFixed(1), minorityEnd: +(mean(alive.map(c => c._minority || 0)) * 100).toFixed(1), grievance: +(mean(alive.map(c => c._grievance || 0)) * 100).toFixed(2),
       immigration: +(migrants / Math.max(1, alive.length) / ${YEARS} * 100).toFixed(3), claimWars: count(/bring its people/), claimsHeld: alive.reduce((t, c) => t + (c.claims || []).length, 0),
       creditGdp: +(mean(creditGdp) * 100).toFixed(1), confidence: +mean(conf).toFixed(2),
@@ -104,13 +108,14 @@ for (let i = 0; i < SEEDS; i++) {
 }
 
 const NUM = ['regimeChanges', 'wars', 'warMonthsMean', 'capitulations', 'negotiatedPeace', 'elections', 'hung', 'lawsAdopted', 'referendums', 'survivors',
-  'growthMean', 'growthSd', 'growthTotalSd', 'calmFalling', 'recessionShare', 'depressions', 'priceCV', 'priceRange', 'sol', 'inequality', 'unemployment', 'unemploymentMax', 'inflation', 'inflationSd', 'deflationShare', 'hyperinflation', 'rate', 'creditGdp', 'confidence', 'bankingCrises', 'bankruptcyWaves', 'minorityStart', 'minorityEnd', 'grievance', 'immigration', 'claimWars', 'claimsHeld', 'stability', 'crisisShare', 'msPerMonth'];
+  'growthMean', 'growthSd', 'growthTotalSd', 'calmFalling', 'recessionShare', 'depressions', 'priceCV', 'priceRange', 'sol', 'inequality', 'unemployment', 'unemploymentMax', 'inflation', 'inflationSd', 'deflationShare', 'hyperinflation', 'rate', 'creditGdp', 'confidence', 'bankingCrises', 'bankruptcyWaves', 'urbanShare', 'slumShare', 'rentBurden', 'elderly', 'popGrowth', 'minorityStart', 'minorityEnd', 'grievance', 'immigration', 'claimWars', 'claimsHeld', 'stability', 'crisisShare', 'msPerMonth'];
 const LABEL = {
   regimeChanges: 'Regime changes / world', wars: 'Wars / world', warMonthsMean: 'War length (months)', capitulations: 'Capitulations', negotiatedPeace: 'Negotiated peaces',
   elections: 'Free elections', hung: 'Hung parliaments', lawsAdopted: 'Laws adopted', referendums: 'Referendum news', survivors: 'Nations surviving (of 14)',
   growthMean: 'GDP per person growth, mean %/yr', growthSd: 'GDP per person growth, std dev (pp)', growthTotalSd: 'Total GDP growth std dev, incl. borders', calmFalling: 'Calm years with falling GDP/person (target <0.2)', recessionShare: 'Share of nation-years with falling GDP/person', depressions: 'Depressions (GDP/person >10% below peak)',
   priceCV: 'World price volatility (CV)', priceRange: 'World price max/min ratio', sol: 'Living standard (end)', inequality: 'Upper/lower living standard',
-  inflation: 'Inflation, mean %/yr', inflationSd: 'Inflation, std dev (pp)', deflationShare: 'Share of nation-years with deflation', hyperinflation: 'Nation-years above 50% inflation', rate: 'Interest rate, mean %', creditGdp: 'Private debt, % of GDP', confidence: 'Business confidence, mean', bankingCrises: 'Banking crises / world', bankruptcyWaves: 'Bankruptcy waves / world', minorityStart: 'Minorities, % of people (start)', minorityEnd: 'Minorities, % of people (end)', grievance: 'Minority grievance (x100)', immigration: 'Immigration, % of pop per year', claimWars: 'Wars to bring our people home', claimsHeld: 'Provinces claimed by nationalists (end)', unemployment: 'Unemployment, mean %', unemploymentMax: 'Unemployment, worst %', stability: 'Stability, mean', crisisShare: 'Share of nation-months in crisis', msPerMonth: 'Speed (ms/month)',
+  inflation: 'Inflation, mean %/yr', inflationSd: 'Inflation, std dev (pp)', deflationShare: 'Share of nation-years with deflation', hyperinflation: 'Nation-years above 50% inflation', rate: 'Interest rate, mean %', creditGdp: 'Private debt, % of GDP', confidence: 'Business confidence, mean', bankingCrises: 'Banking crises / world', bankruptcyWaves: 'Bankruptcy waves / world', urbanShare: 'City dwellers, % of people (end)', slumShare: 'In slums, % of people (end)', rentBurden: 'Excess rent, % of urban income', elderly: 'Elderly, % of people (end)', popGrowth: 'World population growth, %/yr',
+  minorityStart: 'Minorities, % of people (start)', minorityEnd: 'Minorities, % of people (end)', grievance: 'Minority grievance (x100)', immigration: 'Immigration, % of pop per year', claimWars: 'Wars to bring our people home', claimsHeld: 'Provinces claimed by nationalists (end)', unemployment: 'Unemployment, mean %', unemploymentMax: 'Unemployment, worst %', stability: 'Stability, mean', crisisShare: 'Share of nation-months in crisis', msPerMonth: 'Speed (ms/month)',
 };
 const avg = k => worlds.reduce((s, w) => s + w[k], 0) / worlds.length;
 const summary = {};

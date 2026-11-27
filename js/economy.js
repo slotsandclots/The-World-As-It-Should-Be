@@ -329,6 +329,9 @@ function tickEconomy(game, warmup) {
     };
     E.construction = 0;
     for (const pr of E.projects) E.construction += pr.cost / ECON.BUILD_MONTHS;
+    // Housing construction (society.js) is real construction too.
+    E.construction += E.housingSpend || 0;
+    E.housingSpend = 0;
   }
   for (const p of provs) { const E = game.countries[p.owner].econ; for (const t of POP_KEYS) E.N[t] += p.pops[t]; }
 
@@ -438,6 +441,8 @@ function tickEconomy(game, warmup) {
     gross.peasants += p.subsist * P.grain;
     E.gdpNew += p.subsist * P.grain;
     E.gdpRealNew += p.subsist * GOODS.grain.base;
+    // Housing services count as output, as in national accounts (society.js).
+    if (p.housing) { const hs = Math.min(urbanPop(p), p.housing) * (E.gdpRealM || 0) / Math.max(1, c.pop) * 0.08; E.gdpRealNew += hs; E.gdpNew += hs; }
     p.gross = gross;
   }
   // State wages and welfare, paid per head across the nation.
@@ -468,12 +473,18 @@ function tickEconomy(game, warmup) {
   for (const p of provs) {
     const c = game.countries[p.owner], E = c.econ, PC = E.prices, F = E.fulfill;
     const tax = c.policy.tax;
+    // Rents (society.js): tenants pay, owners receive last month's rents.
+    let rentNew = 0;
+    const ownersN = (p.pops.capitalists || 0) + (p.pops.landowners || 0);
+    if (p.rentIn && (!ownersAllowed(c) || ownersN < 1)) E.stateProfitK += p.rentIn;
     for (const t of POP_KEYS) {
       const N = p.pops[t];
       const plan = p.plan[t];
       const grossT = p.gross[t] + (E.govWagePC[t] || 0) * N;
       E.taxGross += grossT * provTaxFactor(p);
-      const net = grossT * (1 - tax) + (E.welfarePC[t] || 0) * N;
+      let net = grossT * (1 - tax) + (E.welfarePC[t] || 0) * N;
+      const rp = rentPaid(p, t, net); net -= rp; rentNew += rp;
+      if ((t === 'capitalists' || t === 'landowners') && p.rentIn && ownersN >= 1 && ownersAllowed(c)) net += p.rentIn * N / ownersN;
       if (N < 1 || !plan) { p.inc[t] = 0; p.sol[t] = 0; continue; }
       const vb = E.vec.basic, ve = E.vec.everyday, vl = E.vec.luxury;
       let spend = 0, bVal = 0, bGot = 0, eVal = 0, eGot = 0, lGot = 0;
@@ -498,6 +509,7 @@ function tickEconomy(game, warmup) {
       p.fb[t] = fbA;
       p.sol[t] = clamp(45 * fbA + 30 * feA + 25 * lux, 0, 100);
     }
+    p.rentIn = rentNew;
   }
 
   // 6. Labor market, building activity, pop growth, literacy
@@ -530,7 +542,8 @@ function tickEconomy(game, warmup) {
       const war = isAtWar(game, c.id) ? 0.0005 : 0;
       for (const t of POP_KEYS) {
         const fb = p.fb ? (p.fb[t] === undefined ? 1 : p.fb[t]) : 1;
-        p.pops[t] *= 1 + (-0.0016 + 0.0028 * fb - war + techSum(c, 'popGrowth') * fb);
+        // The demographic transition: births fall as living standards and literacy rise (society.js).
+        p.pops[t] *= 1 + (naturalGrowth(p, fb).net - war + techSum(c, 'popGrowth') * fb);
       }
       const litT = clamp(0.05 + c.policy.education * 0.08 + c.econ.tech * 0.08 + techSum(c, 'literacy'), 0, 0.98);
       p.lit += (litT - p.lit) * 0.008;

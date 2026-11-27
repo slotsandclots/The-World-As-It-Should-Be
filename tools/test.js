@@ -397,6 +397,33 @@ test('peoples: minorities, laws, assimilation, migration and nationalist claims'
   assert(r.bad.length === 0, r.bad.join('; '));
 });
 
+test('cities: housing shortages raise rents and slums; development lowers births', () => {
+  const r = run(`(() => { const g = createGame('city1', { size: 'small', countries: 6 }); setPlayer(g, 0); const c = g.countries[0];
+    for (let i = 0; i < 3; i++) { tick(g); g.pending.length = 0; }
+    const p = g.world.provinces.filter(x => x.owner === 0).sort((a, b) => urbanPop(b) - urbanPop(a))[0];
+    const workerSol0 = p.sol.workers;
+    // Halve the housing: rents and slums should appear, and owners should gain the rent.
+    p.housing = urbanPop(p) * 0.6;
+    tickSociety(g);
+    const rent = p.rentExcess, slum = p.slum;
+    for (let i = 0; i < 2; i++) { tick(g); g.pending.length = 0; }
+    const paid = p.rentIn > 0;
+    // Builders respond over time.
+    const h0 = p.housing; for (let i = 0; i < 24; i++) { tick(g); g.pending.length = 0; }
+    const built = p.housing > h0;
+    // The demographic transition: a rich, literate province has fewer births.
+    const fx = (sol, lit) => ({ sol: Object.fromEntries(POP_KEYS.map(k => [k, sol])), pops: Object.fromEntries(POP_KEYS.map(k => [k, k === 'peasants' ? 1 : 0])), pop: 1, lit }); const poor = fx(20, 0.1), rich = fx(80, 0.9);
+    const bPoor = naturalGrowth(poor, 1).birth, bRich = naturalGrowth(rich, 1).birth;
+    const h = deserializeGame(serializeGame(g));
+    return { rent, slum, paid, built, transition: bRich < bPoor * 0.7, kept: Math.abs(h.world.provinces[p.id].housing - p.housing) < 1e-4 * p.housing + 1, cities: (c.cities || []).length > 0 || true, bad: __sane(g) }; })()`);
+  assert(r.rent > 0.03 && r.slum > 0.2, 'a housing shortage should raise rents and create slums');
+  assert(r.paid, 'rents should flow to owners');
+  assert(r.built, 'builders should add housing');
+  assert(r.transition, 'development should lower births');
+  assert(r.kept, 'housing lost on save/load');
+  assert(r.bad.length === 0, r.bad.join('; '));
+});
+
 test('the campaign can be completed', () => {
   const r = run(`(() => {
     const g = startCampaign(); const c = g.countries[g.player]; const cs = g.campaign;

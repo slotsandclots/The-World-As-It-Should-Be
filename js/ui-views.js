@@ -24,6 +24,29 @@ Object.assign(UI, {
     return h + '</div>';
   },
 
+  // ------------------------------------------------------------------ cities and demographics
+
+  societyHtml(c, g) {
+    const cities = c.cities || topCities(g, c);
+    const any = g.world.provinces.find(p => p.owner === c.id && p.pops);
+    const ng = any ? naturalGrowth(any, 1) : null;
+    let births = 0, deaths = 0, pop = 0;
+    for (const p of g.world.provinces) if (p.owner === c.id && p.pops) { const n = naturalGrowth(p, (p.fb && p.fb.peasants) || 1); births += n.birth * p.pop; deaths += n.death * p.pop; pop += p.pop; }
+    const yr = v => ((Math.pow(1 + v / Math.max(1, pop), 12) - 1) * 1000).toFixed(1);
+    let h = `<div class="card"><h3>${icon('world', 16)} Cities and people</h3>
+      <p class="small muted" style="margin-top:0">When cities outgrow their housing, rents rise (paid by laborers, workers, clerks and officials to landlords and owners) and people crowd into slums, which breed unrest. Builders add housing when rents pay; generous welfare (above 11% of GDP) adds public housing. As living standards and literacy rise, families have fewer children and the society ages.</p>
+      <div class="grid2">
+        <div class="kv"><span>City dwellers</span><span>${pct(c.urbanShare || 0)}</span></div>
+        <div class="kv"><span>In slums</span><span class="${(c.slumShare || 0) > 0.03 ? 'bad' : ''}">${pct(c.slumShare || 0, 1)}</span></div>
+        <div class="kv" title="Extra share of urban incomes paid as rent because of housing shortages"><span>Rent burden</span><span class="${(c.rentBurden || 0) > 0.05 ? 'bad' : ''}">${pct(c.rentBurden || 0, 1)}</span></div>
+        <div class="kv"><span>Elderly</span><span>${pct(c.elderly || 0.06)}</span></div>
+        <div class="kv"><span>Births</span><span>${yr(births)} per 1,000 a year</span></div>
+        <div class="kv"><span>Deaths</span><span>${yr(deaths)} per 1,000 a year</span></div>
+      </div>
+      <h4>Largest cities</h4>${cities.map(x => `<div class="kv"><span>${esc(x.name)}${x.id === c.capital ? ' ★' : ''}</span><span>${fmtPop(x.size)}${(() => { const p = g.world.provinces[x.id]; return p && p.occupancy > 1.02 ? ` <span class="bad small">· ${pct(p.slum)} in slums</span>` : ''; })()}</span></div>`).join('')}</div>`;
+    return h;
+  },
+
   // ------------------------------------------------------------------ credit
 
   creditHtml(c, g) {
@@ -472,7 +495,7 @@ Object.assign(UI, {
 
   viewPops(c, g) {
     const E = c.econ;
-    let h = this.peoplesHtml(c, g) + `<div class="card">
+    let h = this.peoplesHtml(c, g) + this.societyHtml(c, g) + `<div class="card">
       ${bar('Average standard of living', E.avgSol, { tip: 'How well pops meet their basic, everyday and luxury needs.' })}
       ${bar('Contentment', 50 + E.contentment, { text: fmtSigned(E.contentment, 0), tip: 'Standard of living compared with what each class expects. Drives approval.' })}
       <div class="grid2" style="margin-top:6px">
@@ -720,6 +743,7 @@ Object.assign(UI, {
         <div class="kv"><span>Factory workforce</span><span>${pct(provinceIndustry(p))}</span></div>
       </div>
       <div class="small" style="margin-top:4px">${classes}</div>
+      ${p.housing ? `<div class="small" style="margin-top:4px"><span class="muted">City:</span> ${fmtPop(urbanPop(p))} · housing ${pct(Math.min(9.99, p.occupancy || 0))} full${(p.rentExcess || 0) > 0.005 ? ` · <span class="warn">rents +${pct(p.rentExcess, 1)}</span>` : ''}${(p.slum || 0) > 0.01 ? ` · <span class="bad">${pct(p.slum)} in slums</span>` : ''}</div>` : ''}
       ${p.cult ? `<div class="small" style="margin-top:4px"><span class="muted">Peoples:</span> ${Object.entries(p.cult).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, v]) => `${esc(cultureName(g, +k))} ${pct(v)}`).join(' · ')}<br><span class="muted">Faiths:</span> ${Object.entries(p.rel || {}).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, v]) => `${esc(faithName(g, +k))} ${pct(v)}`).join(' · ')}${(p.grievance || 0) > 0.05 ? ` · <span class="bad">grievance ${Math.round(p.grievance * 100)}</span>` : ''}</div>` : ''}
       <div class="small muted" style="margin-top:4px">${p.buildings.length ? p.buildings.slice().sort((a, b) => b.level - a.level).map(b => `${esc(BUILDINGS[b.t].name)} ${b.level}`).join(', ') : 'No buildings'}</div>
       <div class="small muted">Resources: ${Object.entries(p.res || {}).filter(([, v]) => v > 0).map(([k, v]) => `${RES_INFO[k]} ${v}`).join(', ') || 'none'}</div>`;
