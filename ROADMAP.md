@@ -96,18 +96,71 @@ The biggest multiplier for political depth. Governments become combinations of l
 
 ## Milestone 4: Deeper economy (L)
 
-- **Company and ownership models:** private capitalists, state enterprises, cooperatives and foreign owners. The ownership mix shifts with laws, and nationalization and privatization become political decisions with winners and losers.
-- **Production methods:** each building chooses how to work (e.g. labor-intensive or automated, coal or oil power), changing inputs, jobs and output. Technology unlocks new methods.
-- **Finance:**
-  - a central bank with interest rates, inflation and a currency
-  - government bonds with a credit rating
-  - banking crises
-- **Foreign investment:** build in other nations' special economic zones, own foreign companies, and form multinationals.
-- **Infrastructure per province:** roads, rail and ports limit how much a province can trade and produce. This replaces the single infrastructure slider.
-- **Resource depletion, and an energy sector:** an electricity good with power plants that need fuel.
+**Goal:** inflation, booms, recessions and depressions that come out of the simulation (money, credit, confidence and wages) rather than from scripted events, and that feed straight into politics.
+
+### 4a. Money, inflation and the central bank
+- **A currency per nation:** a money supply and a price level. Today's goods prices become relative prices, multiplied by the national price level.
+- **What drives inflation:** money growth beyond real output (especially printing to cover deficits), expectations (people who expect rising prices raise them now), import prices and the exchange rate, and a wage-price spiral when unions are strong and labor is scarce.
+- **Debts in your own currency:** the treasury and national debt are in your currency, so inflation erodes debt. That's the temptation; printing to cover a war or a deficit can spiral into hyperinflation.
+- **Monetary-system law:**
+  - *gold standard*: stable prices and trade, but deflation in a slump and no stimulus
+  - *independent central bank*: interest rates set by a rule
+  - *government-controlled money*: you set rates and can print
+- **Interest rates:** they drive investment, consumer credit, the exchange rate and what debt costs to service.
+
+### 4b. Credit, confidence and the business cycle
+- **Private credit:** businesses borrow to invest when rates are low and confidence is high, so private debt builds up through the boom.
+- **Overshooting:** construction takes time, so new capacity opens after demand has peaked. Prices and profits fall just as the debts come due.
+- **The bust:** defaults lead to a credit crunch, cancelled projects, layoffs and falling demand. High debt plus falling prices can turn a recession into a depression (debt deflation).
+- **Business confidence:** a visible index, moved by profits, the news, the press barons and events, that drives investment and hiring.
+- **Banking crises:** bank runs, deposit insurance (a law), lender of last resort, bailouts or nationalization.
+- **Optional asset market:** a stock or land index with bubbles in the boom and crashes at the turn.
+
+### 4c. Labor, unemployment and fiscal policy
+- **Sticky wages:** wages are slow to fall, so a drop in demand becomes layoffs rather than pay cuts. That's what turns a slump into mass unemployment.
+- **Automatic stabilizers:** unemployment insurance and welfare cushion downturns.
+- **The fiscal multiplier:** government spending moves output much more in a slump than in a boom, so stimulus versus austerity is a real choice.
+
+### 4d. The world economy
+- **Contagion:** a recession in a big economy cuts world-market demand, and its trading partners feel it.
+- **Exchange rates and capital flows:** money moves toward high interest rates and strong currencies. Devaluation helps exports, makes imports pricier and adds inflation.
+- **Sovereign debt and currency crises:** lenders stop lending, a currency peg breaks, and a forced devaluation or default follows. Bailouts come with conditions, a lever for blocs and empires.
+- **Protectionism:** raising tariffs in a depression protects jobs at home and deepens the global slump.
+
+### Player toolkit
+- interest rates (where the law allows)
+- money printing
+- stimulus or austerity
+- bank bailouts or nationalization
+- price controls (shortages and black markets) and wage controls
+- capital controls
+- tariffs
+- devaluation, or leaving the gold standard
+
+### Ties to politics
+- **Who wins and loses:**
+  - inflation hurts fixed incomes and savers (clerks, officials, pensioners) and helps debtors
+  - deflation crushes farmers and anyone in debt
+- **Interest groups take sides on money:** business and banking want sound money, workers want full employment, landowners want cheap credit.
+- **Downturns hit governments:** recessions cost incumbents elections, and depressions feed radical movements, so a 1930s-style slump can produce fascism or communism on its own.
+- **War is paid for by printing or borrowing,** and pays the bill in inflation afterwards.
+
+### Seeing it
+- **New Ledger charts:** inflation, real versus nominal GDP, unemployment, interest rates, private debt, business confidence, and a marker for where you are in the cycle.
+- **Breakdowns:** inflation broken into its causes (money growth, expectations, wages, imports).
+- **Balance runs across many seeds,** aiming for cycles every 7–10 years, depressions rare but possible, and hyperinflation only under reckless policy.
+
+### Also in this milestone (from the earlier plan)
+- **Company and ownership models:** private capitalists, state enterprises, cooperatives and foreign owners. The ownership mix shifts with laws, and nationalization and privatization become political decisions.
+- **Production methods:** each building chooses how to work (labor-intensive or automated, coal or oil power), changing inputs, jobs and output. Technology unlocks new methods.
+- **Government bonds** with a credit rating.
+- **Foreign investment:** build in other nations' special economic zones, own foreign companies, form multinationals.
+- **Infrastructure per province:** roads, rail and ports limit how much a province can trade and produce, replacing the single infrastructure slider. This also feeds military supply in Milestone 5.
+- **Resource depletion and an energy sector:** an electricity good, with power plants that need fuel.
 - **Sanctions, embargoes and trade routes:** shipping between markets, with chokepoints and straits.
-- **Business cycles:** booms, recessions and depressions that emerge from investment, debt and prices instead of being scripted. Governments respond with stimulus or austerity.
-- **Economic statistics:** GDP by sector, inflation, unemployment and trade balance in a ledger, and price history charts per good.
+- **Economic statistics:** GDP by sector and the trade balance.
+
+**Order inside the milestone:** 4a, then 4b (most of the gain is in these two), then 4c, then 4d. The remaining items slot in as they become relevant.
 
 ## Milestone 5: Military strategy, an operational layer (L)
 
@@ -192,6 +245,6 @@ Already in place (first pass): occupation until peace, fighting along the front 
 2. ✅ **Quick wins:** number breakdowns, the ledger, the province panel and save slots, plus a visual overhaul. A deep economic simulation is only fun if you can see why things happen.
 3. **Milestone 2:** laws and interest groups (first pass done).
 4. **Milestone 3:** society, peoples and culture.
-5. **Milestone 4:** deeper economy.
+5. **Milestone 4:** deeper economy: money and inflation, credit and the business cycle, sticky wages and fiscal policy, then the world economy.
 6. **Milestone 5:** military strategy as an operational layer (armies, orders, supply, encirclement, generals), built on everything above: war economy, mobilization from pops, war goals from nationalism.
 7. **Milestones 6–8** as we go. Each big milestone ships with a new campaign chapter or campaign, and the AI improves alongside every system.
