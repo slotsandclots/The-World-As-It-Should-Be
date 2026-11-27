@@ -323,7 +323,7 @@ function tickEconomy(game, warmup) {
     E.S = zeroGoods(); E.D = zeroGoods(); E.govQ = zeroGoods();
     E.prod = productivity(game, c);
     E.N = zeroPops();
-    E.tau = clamp(0.2 + 0.07 * c.trade.length - effectiveTariff(game, c) * 0.6 - (isAtWar(game, c.id) ? 0.1 : 0) - (c.gov === 'communist' ? 0.08 : 0), 0.03, 0.75);
+    E.tau = clamp(0.2 + 0.07 * c.trade.length - effectiveTariff(game, c) * 0.6 - (isAtWar(game, c.id) ? 0.1 : 0) - (c.gov === 'communist' ? 0.08 : 0) - (typeof worldWarTradeDrag === 'function' ? worldWarTradeDrag(game, c) : 0), 0.03, 0.75);
     E.vec = {}; E.cost = {};
     for (const tier in NEEDS) {
       const v = zeroGoods();

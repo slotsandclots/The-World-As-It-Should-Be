@@ -29,6 +29,27 @@ const { chromium } = require('playwright');
   await drain();
   const tabs = await page.$$eval('#tabs [data-tab]', els => els.map(e => e.dataset.tab));
   for (const t of tabs) { await page.click(`#tabs [data-tab="${t}"]`); await drain(); }
+  // Put the history systems on screen: a lost war's wound, a treaty, notable people and a world war.
+  await page.evaluate(() => {
+    const g = App.game, c = g.countries[g.player];
+    const others = g.countries.filter(x => x.alive && x.id !== c.id);
+    const W = woundOf(c); W.since = g.month; W.by = [others[0].id]; W.myth = 0.5; W.humiliation = 0.3; W.armyIntact = true;
+    c.revanchism = 0.45; c.treaty = { until: g.month + 100, milCap: 1.5, by: W.by.slice(), since: g.month };
+    c.figures.push(makeFigure(g, c, 'writer'), makeFigure(g, c, 'inventor'));
+    const war = declareWar(g, others[0].id, others[1].id);
+    for (const x of others.slice(2, 6)) joinWar(g, war, x.id, 'b');
+    becomeWorldWar(g, war, 3);
+  });
+  await drain();
+  for (const t of ['leader', 'politics', 'military', 'world', 'research']) { await page.click(`#tabs [data-tab="${t}"]`); await drain(); }
+  await page.click('#tabs [data-tab="politics"]');
+  await page.hover('[data-tip="revanchism"]');
+  await page.click('#tabs [data-tab="leader"]');
+  const fig = await page.$('[data-act="figure"][data-a="patronize"]:not([disabled])');
+  if (fig) { await fig.click(); await drain(); }
+  for (let i = 0; i < 3; i++) { await drain(); await page.click('#btn-next'); }
+  await drain();
+  await page.click('#tabs [data-tab="world"]');
   const modes = await page.$$eval('#map-modes [data-mode]', els => els.map(e => e.dataset.mode));
   for (const m of modes) { await page.click(`[data-mode="${m}"]`); }
   await page.mouse.move(500, 400);

@@ -573,6 +573,134 @@ test('minorities interest group, secondary schools, and coup/revolution warning 
   assert(r.bad.length === 0, r.bad.join('; '));
 });
 
+test('notable figures come from the pops, publish works, and inventors speed research', () => {
+  const r = run(`(() => {
+    const g = createGame('figs', { size: 'small', countries: 8 }); setPlayer(g, 0);
+    for (let i = 0; i < 36; i++) { tick(g); g.pending.length = 0; }
+    const all = g.countries.filter(c => c.alive).flatMap(c => c.figures || []);
+    const kinds = new Set(all.map(f => f.kind));
+    // A writer in a defeated nation writes about the defeat; the book moves the fascist current.
+    const c = g.countries[1]; c.revanchism = 0.6; c.warExhaustion = 0;
+    const w = makeFigure(g, c, 'writer'); w.ideo = { econ: 0.4, auth: 0.8 }; w.renown = 60; c.figures.push(w);
+    const shock0 = c.ideaShock.fascism || 0;
+    let grievance = 0; for (let i = 0; i < 20; i++) { publish(g, c, w); if (w.works[w.works.length - 1].theme === 'grievance') grievance++; }
+    // An inventor in the field being researched adds research points.
+    const P = g.countries[0]; ensureResearch(P); P.research.current = TECH_KEYS.find(id => techAvailable(P, id));
+    P.figures = P.figures.filter(f => f.kind !== 'inventor');
+    const r0 = researchRate(P);
+    const inv = makeFigure(g, P, 'inventor'); inv.field = TECHS[P.research.current].cat; inv.renown = 80; P.figures.push(inv);
+    const r1 = researchRate(P);
+    // Patronage and bans (with a licensed press).
+    P.pc = 100; P.laws.press = 'licensed';
+    const wr = makeFigure(g, P, 'writer'); P.figures.push(wr);
+    const pat = figureAction(g, wr.id, 'patronize'); const ban = figureAction(g, wr.id, 'ban');
+    // Generals gain renown in battle.
+    const gen = bestGeneral(P); const before = gen.renown || 0; for (let i = 0; i < 20; i++) battleFought(g, P.id, 1, true);
+    return { n: all.length, kinds: kinds.size, grievance, shock: (c.ideaShock.fascism || 0) - shock0, r0, r1, pat: pat.ok, ban: ban.ok, banned: !!wr.banned, genGain: (gen.renown || 0) - before, won: gen.won,
+      named: all.every(f => f.name && f.renown >= 0 && f.renown <= 100), hall: (g.hall || []).length >= 0, top: figuresOfTheAge(g, 5).length };
+  })()`);
+  assert(r.n > 0 && r.kinds >= 2, `figures: ${r.n} of ${r.kinds} kinds`);
+  assert(r.named, 'figures need names and bounded renown');
+  assert(r.grievance >= 10, `a nationalist writer in a defeated nation should write grievance books (${r.grievance}/20)`);
+  assert(r.shock > 0.01, 'grievance literature should feed the fascist current');
+  assert(r.r1 > r.r0 * 1.1, `a famous inventor should speed research (${r.r0.toFixed(2)} -> ${r.r1.toFixed(2)})`);
+  assert(r.pat && r.ban && r.banned, 'patronage and bans should work under a licensed press');
+  assert(r.genGain > 5 && r.won === 20, 'generals gain renown from battles');
+  assert(r.top > 0, 'figures of the age');
+});
+
+test('a lost war leaves a wound: revanchism, the stab-in-the-back myth, a demagogue and an enabling act', () => {
+  const r = run(`(() => {
+    const g = createGame('wound', { size: 'small', countries: 8 }); setPlayer(g, 0);
+    for (let i = 0; i < 3; i++) { tick(g); g.pending.length = 0; }
+    const L = g.countries.find(c => c.id !== 0 && c.alive && getNeighbors(g, c.id).some(n => n !== 0));
+    const W = g.countries[getNeighbors(g, L.id).find(n => n !== 0)];
+    if (L.gov !== 'democracy') changeGovernment(g, L, 'democracy', 'reform', { keepLeader: true });
+    const war = declareWar(g, W.id, L.id);
+    const prov0 = L.provinceCount;
+    applyPeaceTerms(g, W.id, L.id, { provinces: 2, reparations: true });
+    endWar(g, war, 'peace');
+    const wound = L.wound, myth0 = wound ? wound.myth : 0, intact0 = wound && wound.armyIntact;
+    const scheduled = (g.scheduled || []).some(e => e.id === 'stabInBack' && e.cid === L.id);
+    const mil0 = L.factions.military;
+    for (let i = 0; i < 24; i++) { tick(g); g.pending.length = 0; }
+    const rev = L.revanchism, parts = L._why && L._why.revanchism ? L._why.revanchism.parts.map(p => p[0]) : [];
+    // Force the conditions for a demagogue and wait for one to rise.
+    if (GOVS[L.gov].party !== 'multi') changeGovernment(g, L, 'democracy', 'reform', { keepLeader: true });
+    L.revanchism = Math.max(L.revanchism, 0.5); L.movements.nationalist.support = 12;
+    let dem = null; for (let i = 0; i < 400 && !dem; i++) { tickDemagogue(g, L); dem = demagogueOf(L); }
+    const nat = L.parties.find(p => p.id === 'nat');
+    // The demagogue's party takes power, and asks for rule by decree.
+    let fascist = false;
+    if (dem && nat) {
+      setRulingParty(g, L, 'nat');
+      const isDem = !!L.leader.demagogue;
+      tickDemagogue(g, L);
+      const ev = eventById('enablingAct');
+      const ok = ev.cond(g, L, {});
+      resolveEventFor(g, L, ev, 0, {});
+      fascist = isDem && ok && L.gov === 'fascist';
+    }
+    // The myth as a crisis for the AI: every option resolves.
+    const ev2 = eventById('stabInBack'); const errs = [];
+    for (let i = 0; i < ev2.options.length; i++) { try { resolveEventFor(g, L, ev2, i, {}); } catch (e) { errs.push(e.message); } }
+    return { lost: prov0 - L.provinceCount, wound: !!wound, myth: myth0, intact: intact0, scheduled, rev, parts, dem: !!dem, nat: !!(nat && nat.id), fascist, errs, mythArmy: mythOnArmy(Object.assign({}, L, { gov: 'democracy', wound: { myth: 0.5 } })) };
+  })()`);
+  assert(r.lost === 2 && r.wound, 'the loser should remember the defeat');
+  assert(r.intact && r.myth > 0.3 && r.scheduled, `an undefeated army and a civilian peace should seed the myth (myth ${r.myth})`);
+  assert(r.rev > 0.05, `revanchism should build after losing land and paying reparations (${r.rev})`);
+  assert(r.parts.includes('Our lost provinces') && r.parts.includes('Reparations we pay'), 'revanchism has a breakdown');
+  assert(r.dem && r.nat, 'a demagogue should rise and lead a nationalist party');
+  assert(r.fascist, 'a demagogue in power can end the republic with an enabling act');
+  assert(r.errs.length === 0, r.errs.join('; '));
+  assert(r.mythArmy < 0, 'the myth turns the army against a civilian government');
+});
+
+test('wars draw nations in and become world wars that end at a peace conference', () => {
+  const r = run(`(() => {
+    const g = createGame('ww', { size: 'small', countries: 12 });
+    for (let i = 0; i < 3; i++) { tick(g); g.pending.length = 0; }
+    const gp = greatPowers(g);
+    const A = g.countries[gp[0]];
+    const B = g.countries[getNeighbors(g, A.id)[0] ?? gp[1]];
+    for (const x of g.countries) { x.allies = []; }
+    g.blocs = [];
+    const war = declareWar(g, A.id, B.id);
+    // Draw in other nations: great powers on both sides.
+    const inWar = id => war.a.includes(id) || war.b.includes(id);
+    for (const id of gp) if (!inWar(id)) { const na = war.a.filter(x => gp.includes(x)).length, nb = war.b.filter(x => gp.includes(x)).length; joinWar(g, war, id, na <= nb ? 'a' : 'b'); }
+    for (const x of g.countries.filter(x => x.alive && !inWar(x.id)).slice(0, 3)) joinWar(g, war, x.id, 'b');
+    // An ally of a losing side wants in.
+    const outsider = g.countries.find(x => x.alive && !inWar(x.id));
+    let wish = null;
+    if (outsider) { outsider.allies.push(war.b[0]); g.countries[war.b[0]].allies.push(outsider.id); wish = entryWish(g, war, outsider, 'b'); }
+    war.start -= 6; // a world war has to last a few months
+    tickWorldWars(g);
+    const isWorld = !!war.world, name = war.name;
+    // Side b wins: it occupies most of side a's land.
+    for (const p of g.world.provinces) if (war.a.includes(p.owner) && p.id !== g.countries[p.owner].capital && g.rng.chance(0.7)) p.occ = war.b[0];
+    const losers = war.a.slice();
+    endWar(g, war, 'peace');
+    const rec = (g.worldWars || [])[0] || {};
+    const treaties = losers.filter(id => g.countries[id].alive && g.countries[id].treaty).length;
+    const wounded = losers.filter(id => g.countries[id].alive && g.countries[id].wound && g.countries[id].wound.since === g.month).length;
+    const reps = (g.reparations || []).filter(x => losers.includes(x.from)).length;
+    // Disarmament holds for AI nations that don't dare break it.
+    const L = g.countries[losers.find(id => g.countries[id].alive && g.countries[id].treaty)];
+    let capped = null;
+    if (L) { L.revanchism = 0; L.policy.military = 8; tickTreaty(g, L); capped = L.policy.military; }
+    const s = serializeGame(g), h = deserializeGame(s);
+    return { isWorld, name, wish: wish && wish.w > 0, ended: rec.end === g.month, outcome: rec.outcome, treaty: rec.treaty, treaties, wounded, reps, capped, cap: L && L.treaty.milCap, saved: (h.worldWars || []).length === (g.worldWars || []).length && h.worldWarCount === g.worldWarCount, gone: !g.wars.includes(war) };
+  })()`);
+  assert(r.isWorld && r.name === 'Great War', `a war of great powers on both sides should become the Great War (${r.name})`);
+  assert(r.wish, 'an ally of the losing side should want to enter the war');
+  assert(r.ended && r.outcome === 'b' && /^Treaty of /.test(r.treaty || ''), `the peace conference should record the victors (${r.outcome}, ${r.treaty})`);
+  assert(r.wounded >= 1, 'the losers should carry the wound');
+  assert(r.treaties >= 1 && r.reps >= 1, `great powers that lose are disarmed and pay reparations (${r.treaties} treaties, ${r.reps} reparations)`);
+  assert(r.capped === null || r.capped === r.cap, 'an AI that does not dare break the treaty stays under its limit');
+  assert(r.saved && r.gone, 'world wars survive a save');
+});
+
 test('the campaign can be completed', () => {
   const r = run(`(() => {
     const g = startCampaign(); const c = g.countries[g.player]; const cs = g.campaign;

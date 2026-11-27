@@ -333,6 +333,8 @@ function tickCountry(game, c) {
   ft.minorities = 52 - (c._grievance || 0) * 250 - Math.max(0, 40 - (E.strataSol.lower || 40)) * 0.3;
   // Interest groups also judge the state by how their own people live, and by whether their demands are met.
   ft.military += ((E.solType && E.solType.soldiers) || 40) * 0.15 - 6;
+  // The myth of the stab in the back turns the officers against the civilians who signed the peace (revanchism.js).
+  if (typeof mythOnArmy === 'function') ft.military += mythOnArmy(c);
   ft.clergy += ((E.solType && E.solType.clergy) || 50) * 0.12 - 6;
   const unmet = {};
   for (const f of FACTION_KEYS) { const d = interestDemand(c, f); unmet[f] = d ? -Math.min(6, lawPreference(c, d.cat, d.opt, f) * 0.35) : 0; ft[f] += unmet[f] - radicalWingPressure(c, f); }
@@ -370,7 +372,7 @@ function tickCountry(game, c) {
   // --- Legitimacy
   // Autocracies grow stale: legitimacy erodes the longer a regime rules without renewal.
   const fatigue = g.elections === 'free' ? 0 : Math.min(18, Math.max(0, c.monthsInRegime - 96) / 20);
-  const legT = g.legitimacy + LF.legitimacy + (c.emergency ? -20 : 0) + (M.legitimacy || 0) - fatigue - (c.nonCoreShare || 0) * 15;
+  const legT = g.legitimacy + LF.legitimacy + (c.emergency ? -20 : 0) + (M.legitimacy || 0) - fatigue - (c.nonCoreShare || 0) * 15 + (typeof mythOnLegitimacy === 'function' ? mythOnLegitimacy(c) : 0);
   c.legitimacy += (clamp(legT, 0, 100) - c.legitimacy) * 0.02;
 
   // --- Stability
@@ -392,6 +394,7 @@ function tickCountry(game, c) {
   c.army += (armyTarget(c) - c.army) * 0.06;
   c.warMomentum *= 0.7;
   if (!atWar) c.warExhaustion = Math.max(0, c.warExhaustion - 2);
+  if (c.bled) c.bled = c.bled > 1e-5 ? c.bled * 0.996 : 0; // the generation that fought passes on
 
   // --- Political capital & bookkeeping
   c.pc = clamp(c.pc + pcIncome(c), 0, 100);
@@ -434,6 +437,8 @@ function computePolls(c) {
     const face = p.id === c.rulingParty ? c.leader : p.leader;
     if (face && face.skills) s *= 1 + (face.skills.cha - 5) * 0.04;
     s *= 1 + p.boost;
+    // A mass nationalist movement brings votes to the nationalist party, and a famous demagogue more (revanchism.js).
+    if (p.id === 'nat' && c.movements && c.movements.nationalist) s *= (1 + c.movements.nationalist.support / 15) * (face && face.demagogue ? 1 + (face.renown || 0) / 100 : 1);
     return Math.max(0.001, s);
   });
   const tot = raw.reduce((a, b) => a + b, 0);
@@ -614,7 +619,7 @@ function pickRevolution(game, c) {
   const wasMon = c.prevGov === 'absMonarchy' || c.prevGov === 'constMonarchy';
   const opts = [
     { gov: 'junta', how: 'coup', w: Math.max(0, 55 - F.military) * 1.2 + 8 },
-    { gov: 'communist', how: 'revolution', w: Math.max(0, -I.econ) * 45 + Math.max(0, 50 - F.workers) * 0.8 },
+    { gov: 'communist', how: 'revolution', w: Math.max(0, -I.econ) * 45 + Math.max(0, 50 - F.workers) * 0.8 + c.warExhaustion * 0.12 * clamp((40 - ((c.econ && c.econ.strataSol && c.econ.strataSol.lower) || 40)) / 20 + 0.5, 0.3, 1.5) },
     { gov: 'fascist', how: 'revolution', w: Math.max(0, I.econ) * 20 + Math.max(0, I.auth) * 30 + c.warExhaustion * 0.15 },
     { gov: 'democracy', how: 'revolution', w: Math.max(0, -I.auth) * 45 + Math.max(0, 50 - F.intelligentsia) * 0.6 },
     { gov: 'theocracy', how: 'revolution', w: Math.max(0, 50 - F.clergy) * 0.3 + Math.max(0, I.auth) * 8 + 2 },
@@ -670,6 +675,7 @@ function declareWar(game, aId, bId, opts) {
   const A = game.countries[aId], B = game.countries[bId];
   const war = { id: game.nextWarId++, name: `${A.adj}–${B.adj} War`, a: [aId], b: [bId], start: game.month, exA: 0, exB: 0, gainsA: 0, gainsB: 0, offered: -99, startProv: {} };
   war.startProv[aId] = A.provinceCount; war.startProv[bId] = B.provinceCount;
+  war.armyStart = { [aId]: A.army, [bId]: B.army }; war.dead = {};
   if (opts.coalition) war.coalition = true;
   game.wars.push(war);
   game.stats.wars++;
@@ -714,6 +720,7 @@ function joinWar(game, war, id, side) {
   if (war.a.includes(id) || war.b.includes(id)) return;
   war[side].push(id);
   war.startProv[id] = game.countries[id].provinceCount;
+  (war.armyStart = war.armyStart || {})[id] = game.countries[id].army;
   const enemies = side === 'a' ? war.b : war.a;
   for (const e of enemies) { setRel(game, id, e, -100); removeAlly(game, id, e); removeTrade(game, id, e); }
   const c = game.countries[id];
@@ -784,6 +791,7 @@ function capitulate(game, war, loserId, takerId) {
   const loser = game.countries[loserId];
   const side = war.a.includes(loserId) ? 'a' : 'b';
   const enemies = side === 'a' ? war.b : war.a;
+  if (typeof recordDefeat === 'function') recordDefeat(game, loserId, enemies, 'capitulation', { provinces: 2 }, war);
   // Tribute: the victor takes what it occupies, up to three provinces.
   for (let i = 0; i < 3; i++) {
     const t = pickFrontProvince(game, [takerId], [loserId]);
@@ -792,6 +800,11 @@ function capitulate(game, war, loserId, takerId) {
     addInfamy(game, takerId, INFAMY.province);
   }
   war[side] = war[side].filter(x => x !== loserId);
+  if (war.world) (war.fallen = war.fallen || {})[loserId] = side; // still answers to the peace conference
+  // Out of the war: the armies on both sides of its borders go home.
+  for (const p of game.world.provinces) if ((p.owner === loserId && p.occ != null && enemies.includes(p.occ)) || p.occ === loserId) p.occ = undefined;
+  game.mapDirty = true;
+  loser.bled = (loser.bled || 0) + ((war.dead && war.dead[loserId]) || 0) / Math.max(1, loser.pop);
   for (const e of enemies) { game.truces[truceKey(loserId, e)] = game.month + 60; setRel(game, loserId, e, -60); }
   adjust(loser, { stability: -10, approval: -10 });
   logNews(game, `${loser.name} capitulates in the ${war.name} and cedes territory to ${game.countries[takerId].name}.`, 'war', [loserId, takerId]);
@@ -803,6 +816,9 @@ function capitulate(game, war, loserId, takerId) {
 function endWar(game, war, reason) {
   const idx = game.wars.indexOf(war);
   if (idx < 0) return;
+  // A world war ends at a peace conference, decided while the armies still hold their ground (worldwar.js).
+  if (war.world && typeof peaceConference === 'function') peaceConference(game, war);
+  if (typeof countTheDead === 'function') countTheDead(game, war);
   game.wars.splice(idx, 1);
   clearOccupation(game, war);
   if (war.independence) settleIndependence(game, war);
@@ -835,9 +851,13 @@ function tickWars(game) {
 
     const involvesPlayer = war.a.includes(game.player) || war.b.includes(game.player);
     const months = game.month - war.start;
-    if (!involvesPlayer) {
-      const ex = Math.max(war.exA, war.exB);
-      if ((ex > 45 && rng.chance(0.06 + (ex - 45) * 0.004)) || months > 120) {
+    // In a world war the great powers decide the peace, even if we fight in it.
+    const aiPeace = !involvesPlayer || (war.world && war.a[0] !== game.player && war.b[0] !== game.player);
+    if (aiPeace) {
+      // Total war: belligerents in a world war hold on longer before they seek peace.
+      const ex = Math.max(war.exA, war.exB), exLimit = war.world ? 60 : 45;
+      if ((ex > exLimit && rng.chance(0.06 + (ex - exLimit) * 0.004)) || months > 120) {
+        if (war.world) { endWar(game, war, 'peace'); continue; }
         const sa = warScore(game, war, war.a[0]);
         const W = sa > 0 ? war.a[0] : war.b[0], Lo = sa > 0 ? war.b[0] : war.a[0];
         const weak = strength(game.countries[Lo]) < strength(game.countries[W]) * 0.4;
@@ -884,6 +904,8 @@ function peaceChance(game, war, id, terms) {
 function applyPeaceTerms(game, winnerId, loserId, terms) {
   const W = game.countries[winnerId], L = game.countries[loserId];
   const out = [];
+  // The loser remembers (revanchism.js).
+  if (peaceTermsCost(terms) > 0 && typeof recordDefeat === 'function') recordDefeat(game, loserId, [winnerId], 'peace', terms, warBetween(game, winnerId, loserId));
   let taken = 0;
   for (let i = 0; i < (terms.provinces || 0) && L.alive; i++) {
     const t = pickFrontProvince(game, [winnerId], [loserId]);
@@ -933,6 +955,9 @@ function offerPeaceTerms(game, warId, terms) {
   war.lastPlayerOffer = game.month;
   if (!game.rng.chance(peaceChance(game, war, pid, terms))) return { ok: false, msg: 'The enemy rejects our terms. They will not negotiate again for six months.' };
   const result = applyPeaceTerms(game, pid, enemy, terms);
+  (war.settledWith = war.settledWith || []).push(enemy);
+  // If we lead our side, the peace we sign is the peace of the whole war (worldwar.js).
+  if (war[side][0] === pid) war.peaceBy = { winner: peaceTermsCost(terms) > 0 ? side : null };
   settleWar(game, war, side, 'peace');
   logNews(game, `Peace between ${game.countries[pid].name} and ${game.countries[enemy].name}${result ? ': ' + result : ' (white peace)'}.`, 'war', [pid, enemy]);
   return { ok: true, msg: `Peace is signed${result ? ': ' + result : ''}.` };
@@ -1026,14 +1051,21 @@ function tickDiplomacy(game) {
     for (const n of getNeighbors(game, c.id)) {
       const rel = relation(game, c.id, n);
       const claims = claimsOn(game, c, n);
-      if (rel > (claims ? 5 : -15) || c.allies.includes(n) || hasTruce(game, c.id, n) || game.countries[n].overlord === c.id) continue;
+      // A grudge from a lost war, and partners who will join in (worldwar.js).
+      const ap = typeof warAppetite === 'function' ? warAppetite(game, c, n) : { revenge: 0, need: 1.4, mult: 1, partners: 0 };
+      if (rel > (claims || ap.revenge > 0.1 ? 5 : -15) || c.allies.includes(n) || hasTruce(game, c.id, n) || game.countries[n].overlord === c.id) continue;
       const target = game.countries[n];
       const theirs = strength(target) + target.allies.reduce((s, x) => s + (game.countries[x].alive ? strength(game.countries[x]) * 0.5 : 0), 0);
-      const ratio = strength(c) / (theirs + 0.001);
-      if (ratio < 1.4) continue;
+      const ratio = (strength(c) + ap.partners) / (theirs + 0.001);
+      if (ratio < ap.need) continue;
       // Nationalists want their people home: claims make war far more likely.
-      const p = g.aggression * leaderAggression(c) * 0.012 * Math.min(2, ratio - 1) * Math.max(0.3, -rel / 50) * (1 + Math.min(3, claims) * 0.8) * (claims && c.laws && c.laws.citizenship === 'persecution' ? 1.5 : 1);
-      if (rng.chance(p)) { declareWar(game, c.id, n); if (claims) logNews(game, `${c.name} vows to bring its people in ${game.countries[n].name} home.`, 'war', [c.id, n]); break; }
+      const p = g.aggression * leaderAggression(c) * 0.012 * Math.min(2, Math.max(0.15, ratio - 1)) * Math.max(0.3, -rel / 50) * (1 + Math.min(3, claims) * 0.8) * (claims && c.laws && c.laws.citizenship === 'persecution' ? 1.5 : 1) * ap.mult;
+      if (rng.chance(p)) {
+        declareWar(game, c.id, n);
+        if (ap.revenge > 0.1) logNews(game, `${c.name} goes to war to avenge its defeat by ${game.countries[n].name}.`, 'war', [c.id, n]);
+        else if (claims) logNews(game, `${c.name} vows to bring its people in ${game.countries[n].name} home.`, 'war', [c.id, n]);
+        break;
+      }
     }
   }
 }
@@ -1108,7 +1140,10 @@ function aiPolicy(game, c) {
   else if (c.treasury > (c.gdpNom || c.gdp) * 0.15) { p.tax -= 0.01; p.welfare += 0.2; p.education += 0.1; p.infrastructure += 0.1; }
   // Arms races: threatened nations arm up.
   const threat = threatLevel(game, c);
-  const milT = isAtWar(game, c.id) ? Math.max(d.military * 1.8, 5) : d.military * clamp(1 + (threat - 1) * 0.6, 1, 2.4);
+  // A revanchist government rearms; a world war turns the factories to arms.
+  const rearm = 1 + (c.revanchism || 0) * (GOVS[c.gov].aggression >= 0.3 || c.leader.demagogue ? 1.6 : 0.8);
+  let milT = isAtWar(game, c.id) ? Math.max(d.military * 1.8, 5) : d.military * clamp(1 + (threat - 1) * 0.6, 1, 2.4) * rearm;
+  if (typeof worldWarOf === 'function' && worldWarOf(game, c.id)) milT = Math.max(milT, d.military * 2.4, 7);
   p.military += (milT - p.military) * 0.2;
   if (c.unrest > 45 && g.repression >= 1) p.police += 0.2;
   else p.police += (d.police - p.police) * 0.1;
@@ -1150,7 +1185,11 @@ function tickPolitics(game, c) {
   tickLaws(game, c);
   tickArena(game, c);
   tickMobilization(game, c);
+  // Notable people, the memory of defeat and its demagogues (figures.js, revanchism.js).
+  if (typeof tickFigures === 'function') { tickFigures(game, c); tickWarHeroes(game, c); }
+  if (typeof tickRevanchism === 'function') { tickRevanchism(game, c); tickDemagogue(game, c); }
   if (!isPlayer(game, c)) { aiPolicy(game, c); aiShock(game, c); }
+  if (typeof tickTreaty === 'function') tickTreaty(game, c);
   checkCrisis(game, c);
 }
 
@@ -1170,6 +1209,7 @@ function tick(game) {
   if (game.month % 12 === 6) tickUnification(game);
   for (const c of game.countries) if (c.alive) tickCountry(game, c);
   tickWars(game);
+  if (typeof tickWorld === 'function') tickWorld(game);
   tickBalance(game);
   tickSubjects(game);
   aiEmpire(game);
@@ -1580,6 +1620,8 @@ function resolvePeaceOffer(game, item, accept) {
   const pid = game.player;
   const side = war.a.includes(pid) ? 'a' : 'b';
   const result = item.terms && peaceTermsCost(item.terms) > 0 ? applyPeaceTerms(game, item.from, pid, item.terms) : '';
+  (war.settledWith = war.settledWith || []).push(pid);
+  if (war[side][0] === pid) war.peaceBy = { winner: item.terms && peaceTermsCost(item.terms) > 0 ? (side === 'a' ? 'b' : 'a') : null };
   settleWar(game, war, side, 'peace');
   return `Peace is signed${result ? ': ' + result : ''}.`;
 }
@@ -1615,6 +1657,7 @@ function serializeGame(game) {
     lastEvents: game.lastEvents, stats: game.stats, playerMonths: game.playerMonths || 0, nextCharId: game.nextCharId,
     flags: game.flags || {}, scheduled: game.scheduled || [], campaign: game.campaign || null, reparations: game.reparations || [],
     blocs: game.blocs || [], nextBlocId: game.nextBlocId || 1, priceHist: game.priceHist || {},
+    hall: game.hall || [], worldWars: game.worldWars || [], worldWarCount: game.worldWarCount || 0,
   }, saveReplacer);
 }
 
@@ -1652,6 +1695,7 @@ function deserializeGame(str) {
     playerMonths: d.playerMonths, worldMarket: d.worldMarket, cultures: d.cultures || null, faiths: d.faiths || null, families: d.families || null, nextCharId: d.nextCharId || 1,
     flags: d.flags || {}, scheduled: d.scheduled || [], campaign: d.campaign || null, reparations: d.reparations || [],
     blocs: d.blocs || [], nextBlocId: d.nextBlocId || 1, priceHist: d.priceHist || {},
+    hall: d.hall || [], worldWars: d.worldWars || [], worldWarCount: d.worldWarCount || 0,
   };
   game.rng.setState(d.rng);
   refreshAll(game);

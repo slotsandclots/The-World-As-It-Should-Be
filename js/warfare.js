@@ -65,13 +65,18 @@ function fightFronts(game, war) {
       const home = p.owner === defId && p.core === defId ? 1.15 : 1;
       const terrain = 1 + (p.rough || 0.3) * 0.9;
       const dP = posture(war, defId);
-      const atk = mA / sectors.length * supply * P.attack;
-      const dfn = mD / defSectors * terrain * home * dP.defense * (1 + techSum(def, 'defense'));
+      // Generals who have learned their trade in battle command better (figures.js).
+      const cmdA = typeof commandBonus === 'function' ? commandBonus(lead, 'attack') : 0, cmdD = typeof commandBonus === 'function' ? commandBonus(def, 'defense') : 0;
+      const atk = mA / sectors.length * supply * P.attack * (1 + cmdA);
+      const dfn = mD / defSectors * terrain * home * dP.defense * (1 + techSum(def, 'defense')) * (1 + cmdD);
       const odds = atk / (atk + dfn);
       const win = rng.chance(clamp(odds * 0.9, 0.04, 0.85));
       const lossA = 0.006 * P.losses * (win ? 0.8 : 1.3), lossD = 0.006 * dP.losses * (win ? 1.3 : 0.8);
-      for (const id of side) game.countries[id].army *= 1 - lossA;
-      for (const id of other) game.countries[id].army *= 1 - lossD;
+      // The dead are counted: they are mourned, and remembered (revanchism.js).
+      war.dead = war.dead || {};
+      for (const id of side) { const x = game.countries[id]; war.dead[id] = (war.dead[id] || 0) + x.army * lossA; x.army *= 1 - lossA; }
+      for (const id of other) { const x = game.countries[id]; war.dead[id] = (war.dead[id] || 0) + x.army * lossD; x.army *= 1 - lossD; }
+      if (typeof battleFought === 'function') battleFought(game, win ? s.from : defId, win ? defId : s.from, win);
       if (!win) continue;
       const taker = s.from;
       const liberated = side.includes(p.owner);

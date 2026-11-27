@@ -142,7 +142,8 @@ function tickIdeas(game) {
     for (const b of blocsOf(game, c.id)) for (const m of b.members) if (m !== c.id && game.countries[m].alive) add(game.countries[m], 0.4);
     const press = typeof pressStrength === 'function' ? 0.6 + pressStrength(c) * 0.6 : 1;
     for (const k of CURRENT_KEYS) {
-      const t = clamp((totP ? w[k] / totP : 0) * 0.25 * press + c.ideaShock[k], 0, 1);
+      // The memory of defeat breeds fascism at home (revanchism.js).
+      const t = clamp((totP ? w[k] / totP : 0) * 0.25 * press + c.ideaShock[k] + (k === 'fascism' ? (c.revanchism || 0) * 0.2 : 0), 0, 1);
       c.currents[k] += (t - c.currents[k]) * 0.03;
       c.ideaShock[k] *= 0.97;
       // Ideas pull public opinion a little.

@@ -77,6 +77,12 @@ function gatherAlerts(game, c) {
     add('war', sc < -30 ? 'bad' : 'warn', `${w.name}: war score ${fmtSigned(sc, 0)}`);
   }
   if (c.warExhaustion > 50) add('war', 'bad', `War exhaustion ${Math.round(c.warExhaustion)}`);
+  // World wars, the memory of defeat and treaty limits (worldwar.js, revanchism.js).
+  if (typeof worldWarRaging === 'function' && worldWarRaging(game) && !worldWarOf(game, c.id)) for (const w of game.wars.filter(x => x.world)) add('war', 'warn', `The ${w.name} rages: ${w.a.length + w.b.length} nations at war, and shipping is disrupted`);
+  if ((c.revanchism || 0) > 0.35) add('politics', c.revanchism > 0.55 ? 'bad' : 'warn', `Revanchism ${Math.round(c.revanchism * 100)}: nationalists feed on the defeat`);
+  const dem = typeof demagogueOf === 'function' ? demagogueOf(c) : null;
+  if (dem && dem !== c.leader) add('politics', 'bad', `Demagogue ${dem.name} leads the nationalists (${Math.round(c.movements.nationalist.support)}% support)`);
+  if (c.treaty && c.treaty.until > game.month && !c.treaty.broken && c.policy.military > c.treaty.milCap) add('war', 'bad', `Military spending breaks the treaty limit (${c.treaty.milCap}% of GDP)`);
   if ((c.infamy || 0) > INFAMY.coalitionAt * 0.8) add('war', 'warn', `Infamy ${Math.round(c.infamy)}: neighbors may unite against us`);
   // Decisions waiting
   const vacant = POST_KEYS.filter(p => !c.cabinet[p]);

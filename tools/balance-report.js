@@ -8,15 +8,18 @@ const { run } = require('./load').loadGame();
 
 const args = process.argv.slice(2);
 const opt = (k, d) => { const i = args.indexOf('--' + k); return i >= 0 ? args[i + 1] : d; };
-const SEEDS = +opt('seeds', 6), YEARS = +opt('years', 40);
+const SEEDS = +opt('seeds', 6), YEARS = +opt('years', 40), FROM = +opt('from', 0);
 const MODELS = ['continents', 'pangaea', 'archipelago'];
 
 const worlds = [];
 const t0 = Date.now();
-for (let i = 0; i < SEEDS; i++) {
+for (let i = FROM; i < FROM + SEEDS; i++) {
   const seed = 'bal-' + i, model = MODELS[i % MODELS.length];
   const w = run(`(() => {
     const g = createGame(${JSON.stringify(seed)}, { model: ${JSON.stringify(model)}, countries: 14 });
+    // Count events from every news item, not just the 600 the game keeps.
+    const FULL = [], keepNews = logNews;
+    logNews = (game, text, kind, ids) => { FULL.push({ m: game.month, text, kind: kind || 'info', ids: ids || [] }); keepNews(game, text, kind, ids); };
     const months = ${YEARS} * 12, t = Date.now();
     ensurePeoples(g); tickPeoples(g);
     const pop0 = g.countries.reduce((t, c) => t + (c.alive ? c.pop : 0), 0);
@@ -24,11 +27,12 @@ for (let i = 0; i < SEEDS; i++) {
     let migrants = 0;
     const warStart = {}, warLen = [], yearGdp = {}, unemp = [], stab = [], lowStab = { n: 0, of: 0 }, accY = {};
     const startPrices = {}; const priceSeries = {}; const infl = [], rates = [], creditGdp = [], conf = [];
+    const revSamples = [], figCount = [], famousCount = [];
     for (let m = 0; m < months; m++) {
       tick(g); g.pending.length = 0;
       for (const w of g.wars) if (warStart[w.id] == null) warStart[w.id] = g.month;
       for (const id in warStart) if (warStart[id] >= 0 && !g.wars.some(w => w.id === +id)) { warLen.push(g.month - warStart[id]); warStart[id] = -1; }
-      if (g.month % 12 === 0) for (const c of g.countries) if (c.migYear) migrants += c.migYear.in / Math.max(1, c.pop);
+      if (g.month % 12 === 0) for (const c of g.countries) if (c.alive && c.migYear && c.pop > 0) migrants += c.migYear.in / c.pop;
       for (const c of g.countries) {
         if (!c.alive) continue;
         stab.push(c.stability); lowStab.of++; if (c.stability < CRISIS_LEVEL) lowStab.n++;
@@ -36,6 +40,7 @@ for (let i = 0; i < SEEDS; i++) {
         // Annual totals of real output, as statistics offices measure them; years with a war or a regime change are flagged.
         const a = accY[c.id] || (accY[c.id] = { y: 0, pop: 0, war: false, gov: c.gov });
         a.y += c.econ.gdpRealM || c.econ.gdpM; a.pop += c.pop; if (isAtWar(g, c.id)) a.war = true; if (c.gov !== a.gov) a.reg = true;
+        if (g.month % 12 === 0) { revSamples.push(c.revanchism || 0); figCount.push((c.figures || []).length); famousCount.push((c.figures || []).filter(f => f.renown >= 50).length); }
         if (g.month % 12 === 0) { (yearGdp[c.id] = yearGdp[c.id] || []).push({ gdp: a.y, pc: a.y / Math.max(1, a.pop), prov: c.provinceCount, calm: !a.war && !a.reg }); accY[c.id] = { y: 0, pop: 0, war: false, gov: c.gov }; if (g.month > 60) { infl.push(inflationYoY(c)); rates.push(c.econ.rate || 0); creditGdp.push((c.econ.credit || 0) / Math.max(1, (c.econ.gdpRealM || c.econ.gdpM) * 12)); conf.push(c.econ.conf || 1); } }
       }
       if (g.worldMarket && g.worldMarket.prices) for (const k in GOODS) { const p = g.worldMarket.prices[k]; if (p != null) (priceSeries[k] = priceSeries[k] || []).push(p / GOODS[k].base); }
@@ -69,7 +74,8 @@ for (let i = 0; i < SEEDS; i++) {
     const sd = a => { const m = mean(a); return Math.sqrt(mean(a.map(x => (x - m) ** 2))); };
     const priceCV = mean(Object.values(priceSeries).map(s => sd(s.slice(60)) / Math.max(1e-9, mean(s.slice(60)))));
     const priceRange = mean(Object.values(priceSeries).map(s => { const t = s.slice(60); return Math.max(...t) / Math.max(1e-9, Math.min(...t)); }));
-    const L = g.log;
+    logNews = keepNews;
+    const L = FULL;
     const count = re => L.filter(n => re.test(n.text)).length;
     const crisisKinds = {};
     for (const n of L) if (n.kind === 'crisis') { const m = n.text.match(/: ([a-z' -]+)\\./); const k = m ? m[1] : /into the streets/.test(n.text) ? 'interest group takes to the streets' : 'other'; crisisKinds[k] = (crisisKinds[k] || 0) + 1; }
@@ -107,6 +113,11 @@ for (let i = 0; i < SEEDS; i++) {
       stateDebt: +(mean(alive.map(c => Math.max(0, -c.treasury) / Math.max(1e-6, c.gdpNom || c.gdp))) * 100).toFixed(1),
       acf: acfPairs.slice(1).map(P => { if (P.length < 10) return 0; const mx = mean(P.map(x => x[0])), my = mean(P.map(x => x[1])); let a = 0, bx = 0, by = 0; for (const [x, y] of P) { a += (x - mx) * (y - my); bx += (x - mx) ** 2; by += (y - my) ** 2; } return +(a / Math.sqrt(bx * by)).toFixed(2); }),
       sane: g.countries.filter(c => c.alive && ![c.stability, c.approval, c.gdp, c.treasury, c.pop].every(isFinite)).length,
+      worldWars: (g.worldWars || []).length, worldWarMonths: +mean((g.worldWars || []).map(r => (r.end != null ? r.end : g.month) - r.start)).toFixed(1),
+      joinedLate: count(/ enters the /), separatePeace: count(/separate peace/), revengeWars: count(/to avenge its defeat/), demagogues: count(/takes the lead of the .* nationalists/),
+      stabInBack: count(/the stab in the back\./), mythSeeded: count(/army was never beaten in the field/), demagoguesInPower: count(/the demagogue of the defeat, comes to power/), enablingActs: count(/Parliament votes itself out of existence/), treatiesBroken: count(/repudiates the disarmament/), axisPacts: count(/ Axis\./),
+      revanchismMean: +mean(revSamples).toFixed(3), revanchismHigh: +(revSamples.filter(x => x > 0.4).length / Math.max(1, revSamples.length)).toFixed(3),
+      figures: +mean(figCount).toFixed(2), famous: +mean(famousCount).toFixed(2), worksPublished: count(/ publishes "| unveils /),
     };
   })()`);
   worlds.push(w);
@@ -114,18 +125,20 @@ for (let i = 0; i < SEEDS; i++) {
 }
 
 const NUM = ['regimeChanges', 'wars', 'warMonthsMean', 'capitulations', 'negotiatedPeace', 'elections', 'hung', 'lawsAdopted', 'referendums', 'survivors',
-  'growthMean', 'growthSd', 'growthTotalSd', 'calmFalling', 'recessionShare', 'depressions', 'priceCV', 'priceRange', 'sol', 'inequality', 'unemployment', 'unemploymentMax', 'inflation', 'inflationSd', 'deflationShare', 'hyperinflation', 'rate', 'creditGdp', 'confidence', 'bankingCrises', 'bankruptcyWaves', 'sovDefaults', 'debtCrises', 'stateDebt', 'unifications', 'uni', 'currentMax', 'gini', 'pensionShare', 'minorityLeague', 'urbanShare', 'slumShare', 'rentBurden', 'elderly', 'popGrowth', 'minorityStart', 'minorityEnd', 'grievance', 'immigration', 'claimWars', 'claimsHeld', 'stability', 'crisisShare', 'msPerMonth'];
+  'growthMean', 'growthSd', 'growthTotalSd', 'calmFalling', 'recessionShare', 'depressions', 'priceCV', 'priceRange', 'sol', 'inequality', 'unemployment', 'unemploymentMax', 'inflation', 'inflationSd', 'deflationShare', 'hyperinflation', 'rate', 'creditGdp', 'confidence', 'bankingCrises', 'bankruptcyWaves', 'sovDefaults', 'debtCrises', 'stateDebt', 'unifications', 'uni', 'currentMax', 'gini', 'pensionShare', 'minorityLeague', 'urbanShare', 'slumShare', 'rentBurden', 'elderly', 'popGrowth', 'minorityStart', 'minorityEnd', 'grievance', 'immigration', 'claimWars', 'claimsHeld', 'stability', 'crisisShare', 'worldWars', 'worldWarMonths', 'joinedLate', 'separatePeace', 'revengeWars', 'demagogues', 'stabInBack', 'mythSeeded', 'demagoguesInPower', 'enablingActs', 'treatiesBroken', 'axisPacts', 'revanchismMean', 'revanchismHigh', 'figures', 'famous', 'worksPublished', 'msPerMonth'];
 const LABEL = {
   regimeChanges: 'Regime changes / world', wars: 'Wars / world', warMonthsMean: 'War length (months)', capitulations: 'Capitulations', negotiatedPeace: 'Negotiated peaces',
   elections: 'Free elections', hung: 'Hung parliaments', lawsAdopted: 'Laws adopted', referendums: 'Referendum news', survivors: 'Nations surviving (of 14)',
   growthMean: 'GDP per person growth, mean %/yr', growthSd: 'GDP per person growth, std dev (pp)', growthTotalSd: 'Total GDP growth std dev, incl. borders', calmFalling: 'Calm years with falling GDP/person (target <0.2)', recessionShare: 'Share of nation-years with falling GDP/person', depressions: 'Depressions (GDP/person >10% below peak)',
   priceCV: 'World price volatility (CV)', priceRange: 'World price max/min ratio', sol: 'Living standard (end)', inequality: 'Upper/lower living standard',
   inflation: 'Inflation, mean %/yr', inflationSd: 'Inflation, std dev (pp)', deflationShare: 'Share of nation-years with deflation', hyperinflation: 'Nation-years above 50% inflation', rate: 'Interest rate, mean %', creditGdp: 'Private debt, % of GDP', confidence: 'Business confidence, mean', bankingCrises: 'Banking crises / world', bankruptcyWaves: 'Bankruptcy waves / world', sovDefaults: 'Sovereign defaults / world', debtCrises: 'Sovereign debt crises / world', stateDebt: 'State debt, % of GDP (end)', unifications: 'Peaceful unifications / world', uni: 'University-educated, % (end)', currentMax: 'Strongest idea from abroad, mean (0-1)', gini: 'Income inequality (Gini)', pensionShare: 'Pensions, % of welfare (end)', minorityLeague: 'Minority Rights League news', urbanShare: 'City dwellers, % of people (end)', slumShare: 'In slums, % of people (end)', rentBurden: 'Excess rent, % of urban income', elderly: 'Elderly, % of people (end)', popGrowth: 'World population growth, %/yr',
-  minorityStart: 'Minorities, % of people (start)', minorityEnd: 'Minorities, % of people (end)', grievance: 'Minority grievance (x100)', immigration: 'Immigration, % of pop per year', claimWars: 'Wars to bring our people home', claimsHeld: 'Provinces claimed by nationalists (end)', unemployment: 'Unemployment, mean %', unemploymentMax: 'Unemployment, worst %', stability: 'Stability, mean', crisisShare: 'Share of nation-months in crisis', msPerMonth: 'Speed (ms/month)',
+  minorityStart: 'Minorities, % of people (start)', minorityEnd: 'Minorities, % of people (end)', grievance: 'Minority grievance (x100)', immigration: 'Immigration, % of pop per year', claimWars: 'Wars to bring our people home', worldWars: 'World wars / world', worldWarMonths: 'World war length (months, if any)', joinedLate: 'Nations joining wars in progress', separatePeace: 'Separate peaces', revengeWars: 'Wars of revenge', demagogues: 'Demagogues rising', stabInBack: 'Stab-in-the-back crises', mythSeeded: 'Defeats with an undefeated army', demagoguesInPower: 'Demagogues coming to power', enablingActs: 'Enabling acts passed', treatiesBroken: 'Disarmament treaties broken', axisPacts: 'Revisionist pacts founded', revanchismMean: 'Revanchism, mean (0-1)', revanchismHigh: 'Share of nation-years revanchism > 0.4', figures: 'Notable figures per nation', famous: 'Famous figures (renown 50+) / nation', worksPublished: 'Works published (in the news) / world', claimsHeld: 'Provinces claimed by nationalists (end)', unemployment: 'Unemployment, mean %', unemploymentMax: 'Unemployment, worst %', stability: 'Stability, mean', crisisShare: 'Share of nation-months in crisis', msPerMonth: 'Speed (ms/month)',
 };
 const avg = k => worlds.reduce((s, w) => s + w[k], 0) / worlds.length;
 const summary = {};
 for (const k of NUM) summary[k] = +avg(k).toFixed(3);
+// World-war length is averaged over the worlds that had one.
+{ const ww = worlds.filter(w => w.worldWars > 0); summary.worldWarMonths = ww.length ? +(ww.reduce((s, w) => s + w.worldWarMonths, 0) / ww.length).toFixed(1) : 0; }
 const crises = {};
 for (const w of worlds) for (const k in w.crises) crises[k] = (crises[k] || 0) + w.crises[k] / worlds.length;
 
@@ -136,7 +149,7 @@ if (cmp && fs.existsSync(cmp)) base = JSON.parse(fs.readFileSync(cmp, 'utf8'));
 
 console.log(`\nBalance report: ${SEEDS} worlds × ${YEARS} years (${((Date.now() - t0) / 1000).toFixed(0)}s)\n`);
 for (const k of NUM) {
-  const v = summary[k], b = base && base.summary[k];
+  const v = summary[k], b = base && base.summary[k] != null ? base.summary[k] : null;
   const delta = b != null ? `   (baseline ${b}${b ? `, ${v >= b ? '+' : ''}${((v / b - 1) * 100).toFixed(0)}%` : ''})` : '';
   console.log(`  ${LABEL[k].padEnd(38)} ${String(v).padStart(9)}${delta}`);
 }

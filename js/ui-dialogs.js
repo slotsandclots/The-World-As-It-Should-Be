@@ -248,7 +248,7 @@ Object.assign(UI, {
         this.openModal({
           art: sceneSVG('war', 'ally' + g.month), kicker: 'A call to arms',
           title: 'Our Ally Calls for Aid',
-          body: `<p>${esc(formalName(enemy))} has attacked our ally, the ${esc(formalName(ally))}. They invoke our alliance and ask us to join the war.</p>
+          body: `<p>${it.late ? `Our ally, the ${esc(formalName(ally))}, is losing the ${esc((g.wars.find(w => w.id === it.warId) || {}).name || 'war')} against ${esc(formalName(enemy))}. They beg us to enter the war at their side.` : `${esc(formalName(enemy))} has attacked our ally, the ${esc(formalName(ally))}. They invoke our alliance and ask us to join the war.`}</p>
             <p class="small muted">Enemy strength ${strength(enemy).toFixed(0)} · ours ${strength(c).toFixed(0)}. Refusing dissolves the alliance.</p>`,
           buttons: [
             { label: 'Honor the alliance: join the war', cls: 'danger', fn: () => done(resolveAllyCall(g, it, true)) },

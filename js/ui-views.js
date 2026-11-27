@@ -358,11 +358,13 @@ Object.assign(UI, {
     for (const ch of c.generals) {
       const danger = ch.loyalty < 25 ? `<div class="small bad">⚠ Disloyal${ch.ambition > 45 ? ' and ambitious: may attempt a coup' : ''}</div>` : '';
       h += `<div class="person"><div class="pp">${portraitSVG(ch, { size: 54, gov: c.gov })}</div><div class="pinfo">
-        <div class="ptitle">General</div><div><b>${esc(ch.name)}</b>, ${ch.age}</div><div class="small">Military <b>${ch.skills.mil}</b> · ambition ${Math.round(ch.ambition)}</div>
-        <div>${this.traitChips(ch)}</div>${bar('Loyalty', ch.loyalty)}${danger}</div>
+        <div class="ptitle">General</div><div><b>${esc(ch.name)}</b>, ${ch.age}</div><div class="small">Military <b>${ch.skills.mil}</b> · ambition ${Math.round(ch.ambition)}${ch.won || ch.lost ? ` · battles won ${ch.won || 0}, lost ${ch.lost || 0}` : ''}</div>
+        <div>${this.traitChips(ch)}</div>${bar('Loyalty', ch.loyalty)}${(ch.renown || 0) >= 1 ? bar('Renown', ch.renown, { color: 'var(--gold)', tip: 'Won in battle. Famous generals learn to command, but grow ambitious; after a war they may enter politics.' }) : ''}${danger}</div>
         <div class="pact">${['honor', 'retire', 'arrest'].map(a => `<button class="small" data-act="char" data-a="${a}" data-id="${ch.id}" title="${esc(CHAR_ACTIONS[a].desc)} (${CHAR_ACTIONS[a].pc} PC)" ${c.pc < CHAR_ACTIONS[a].pc ? 'disabled' : ''}>${CHAR_ACTIONS[a].name}</button>`).join('')}</div></div>`;
     }
     h += '</div>';
+
+    h += this.figuresHtml(c, g);
 
     const opp = c.parties.filter(p => p.leader).map(p => p.leader).concat(c.dissidents || []);
     h += `<div class="card"><h3>${GOVS[c.gov].party === 'multi' ? 'Opposition' : 'Dissidents'}</h3>`;
@@ -442,6 +444,7 @@ Object.assign(UI, {
     }
     h += `<div class="card"><h3>Political compass</h3>${compassSVG(c)}<p class="small muted" style="text-align:center">● public · ■ regime${gv.party === 'multi' ? ' · small dots: parties' : ''}</p></div>`;
     h += this.coalitionHtml(c, g);
+    h += this.woundHtml(c, g);
     h += this.movementsHtml(c);
     h += this.regionsHtml(c, g);
     h += `<div class="card"><h3>Domestic actions</h3><p class="small muted">You have <b>${Math.floor(c.pc)}</b> political capital.</p><div class="actions">`;
@@ -473,7 +476,7 @@ Object.assign(UI, {
     for (const k of Object.keys(POLICY_LIMITS)) {
       const L = POLICY_LIMITS[k];
       h += `<div class="slider-row"><label><span>${L.label}</span><b id="pv-${k}">${this.policyValue(c, k)}</b></label>
-        <input type="range" data-policy="${k}" min="${L.min}" max="${L.max}" step="${L.step}" value="${c.policy[k]}" ${k === 'tariff' && effectiveTariff(g, c) !== c.policy.tariff ? 'disabled' : ''}><small>${k === 'tariff' && effectiveTariff(g, c) !== c.policy.tariff ? `Set by the ${esc(economicBloc(g, c.id).name)}: ${pct(effectiveTariff(g, c))} on imports from outside the bloc.` : L.hint}</small></div>`;
+        <input type="range" data-policy="${k}" min="${L.min}" max="${L.max}" step="${L.step}" value="${c.policy[k]}" ${k === 'tariff' && effectiveTariff(g, c) !== c.policy.tariff ? 'disabled' : ''}><small>${k === 'military' && c.treaty && c.treaty.until > g.month && !c.treaty.broken ? `<b class="warn">Treaty limit: ${c.treaty.milCap}% of GDP until ${gameDate(g, c.treaty.until)}. Going over it breaks the treaty.</b> ` : ''}${k === 'tariff' && effectiveTariff(g, c) !== c.policy.tariff ? `Set by the ${esc(economicBloc(g, c.id).name)}: ${pct(effectiveTariff(g, c))} on imports from outside the bloc.` : L.hint}</small></div>`;
     }
     h += '</div>';
     h += `<div class="card"><h3>History</h3><div class="lbl small muted">GDP over the last 10 years</div>${spark(c.hist.gdp, '#5b8cff')}</div>`;
@@ -598,7 +601,9 @@ Object.assign(UI, {
       <div class="kv"><span>Infamy</span><span class="${(c.infamy || 0) >= INFAMY.coalitionAt ? 'bad' : ''}">${Math.round(c.infamy || 0)} / ${INFAMY.coalitionAt}</span></div>
       <div class="kv"><span>Occupied land</span><span>${pct(occupiedShare(g, c))} of pop</span></div>
       <div class="kv"><span>Allies</span><span>${c.allies.length}</span></div>
+      <div class="kv"><span>Standing</span><span>${isGreatPower(g, c.id) ? '<b style="color:var(--gold)">Great power</b>' : 'Minor power'}</span></div>
     </div>
+    ${c.treaty && c.treaty.until > g.month ? `<div class="alert ${c.treaty.broken ? 'bad' : 'warn'} small">${c.treaty.broken ? `We repudiated the disarmament clauses in ${gameDate(g, c.treaty.broken)}. The victors (${c.treaty.by.map(id => esc(g.countries[id].name)).join(', ')}) watch us closely.` : `Disarmed by treaty until ${gameDate(g, c.treaty.until)}: military spending may not exceed ${c.treaty.milCap}% of GDP. Going over it breaks the treaty (infamy, and the victors' anger).`}</div>` : ''}
     <div class="card">${bar('Military loyalty', c.factions.military)}<p class="small muted">Conquest has a price: every war of aggression and every province taken adds <b>infamy</b>, which sours relations and, above ${INFAMY.coalitionAt}, can unite your neighbors in a coalition against you. In war, captured land is <b>occupied</b> (half output, unrest) and only changes hands at the peace. Annexed land stays unsettled for five years.</p><p class="small muted">Strength depends on army size (set by military spending and population), wealth, stability and the loyalty of the officers. Defenders fight with a 30% bonus.</p>
       <button data-act="tab" data-tab="economy">Adjust military spending →</button></div>`;
     const wars = warsOf(g, c.id);
@@ -610,8 +615,8 @@ Object.assign(UI, {
       const mine = w.a.includes(c.id) ? 'a' : 'b', theirs = mine === 'a' ? 'b' : 'a';
       const us = w[mine].map(id => g.countries[id]), them = w[theirs].map(id => g.countries[id]);
       const sU = sideStrength(g, w[mine]) * (mine === 'b' ? 1.3 : 1), sT = sideStrength(g, w[theirs]) * (theirs === 'b' ? 1.3 : 1);
-      h += `<div class="card war-card"><h3>⚔ ${esc(w.name)}</h3>
-        <div class="small muted">Since ${gameDate(g, w.start)} · ${g.month - w.start} months</div>
+      h += `<div class="card war-card${w.world ? ' world-war' : ''}"><h3>⚔ ${esc(w.name)}${w.world ? ' <span class="badge" style="background:#8a2b2b">World war</span>' : ''}</h3>
+        <div class="small muted">Since ${gameDate(g, w.start)} · ${g.month - w.start} months${w.world ? ` · began as the ${esc(w.oldName)}. The great powers will settle it at a peace conference.` : ''}</div>
         <div class="kv"><span>Our side</span><span>${us.map(x => swatch(x) + ' ' + esc(x.name)).join(', ')}</span></div>
         <div class="kv"><span>Enemy</span><span>${them.map(x => swatch(x) + ' ' + esc(x.name)).join(', ')}</span></div>
         <div class="kv"><span>Occupied</span><span><span class="good">${g.world.provinces.filter(p => them.some(x => x.id === p.owner) && p.occ != null && us.some(x => x.id === p.occ)).length} enemy provinces</span> · <span class="bad">${g.world.provinces.filter(p => us.some(x => x.id === p.owner) && p.occ != null).length} of ours</span></span></div>
@@ -860,6 +865,7 @@ Object.assign(UI, {
     const counts = {};
     for (const x of rows) counts[x.gov] = (counts[x.gov] || 0) + 1;
     h += `<h4>Systems of the world</h4>${GOV_ORDER.filter(k2 => counts[k2]).map(k2 => `<div class="kv"><span>${govBadge(k2)} ${GOVS[k2].name}</span><span>${counts[k2]}</span></div>`).join('')}`;
+    h += this.worldHistoryHtml(c, g);
     return h;
   },
 
@@ -913,6 +919,66 @@ Object.assign(UI, {
     return h + '</div>';
   },
 
+  figureRow(c, f, own) {
+    const K = FIGURE_KINDS[f.kind], last = f.works[f.works.length - 1];
+    const what = f.kind === 'inventor' ? `${f.field} · ${f.lab > 0 ? '<span class="good">laboratory funded</span> · ' : ''}+${Math.round(((c.research && c.research.current && TECHS[c.research.current].cat === f.field ? 0.3 : 0.06) * f.renown) * (f.lab > 0 ? 1.5 : 1))}% research`
+      : f.kind === 'thinker' ? `School: ${CURRENTS[f.field].name}` : last && last.theme ? `${THEMES[last.theme].name} writing` : 'Writer';
+    const status = f.exile != null ? `<span class="warn">in exile in ${esc(App.game.countries[f.exile].name)}</span>` : f.banned ? '<span class="bad">banned</span>' : f.patron > App.game.month ? '<span class="good">state patronage</span>' : '';
+    const acts = own && f.exile == null ? Object.entries(FIGURE_ACTIONS).filter(([k]) => !(k === 'ban' && (f.kind === 'inventor' || f.banned))).map(([k, A]) => { const why = costOk(c, A) || (k === 'ban' && pressStrength(c) === 1 ? 'Not possible with a free press.' : ''); return `<button class="small" data-act="figure" data-a="${k}" data-id="${f.id}" title="${esc(A.desc)}${why ? ' — ' + esc(why) : ''}" ${why ? 'disabled' : ''}>${A.name} (${A.pc} PC)</button>`; }).join('') : '';
+    return `<div class="person"><div class="pp">${portraitSVG(f, { size: 48, gov: c.gov })}</div><div class="pinfo">
+      <div class="ptitle">${K.icon} ${K.name}${own ? '' : ` · ${esc(c.name)}`}</div><div><b>${esc(f.name)}</b>, ${f.age} ${status}</div>
+      <div class="small">${what} · talent ${f.talent} · ${ideologyText(f.ideo)}</div>
+      ${last ? `<div class="small muted">Latest: <i>${f.kind === 'inventor' ? esc(last.title) : '“' + esc(last.title) + '”'}</i> (${gameDate(App.game, last.m).split(' ')[1]})</div>` : ''}
+      ${bar('Renown', f.renown, { color: 'var(--gold)', tip: 'How widely their work is read or used. Renown grows with each work and fades slowly; famous writers and thinkers are translated abroad.' })}</div>
+      ${acts ? `<div class="pact">${acts}</div>` : ''}</div>`;
+  },
+
+  figuresHtml(c, g) {
+    const F = (c.figures || []).slice().sort((a, b) => b.renown - a.renown);
+    let h = `<div class="card"><h3>Notable people</h3><p class="small muted">Writers come from a literate public, thinkers and inventors from the universities. A writer's books move public opinion, and their themes follow the times: defeat breeds grievance or anti-war novels, slumps breed social novels, censorship breeds dissidents. Thinkers found schools of thought that travel abroad and give movements a doctrine. Inventors speed research in their field.</p>`;
+    if (!F.length) return h + '<p class="small muted">No one of note yet. Literacy, secondary schools and universities produce them.</p></div>';
+    for (const f of F) h += this.figureRow(c, f, true);
+    return h + '</div>';
+  },
+
+  woundHtml(c, g) {
+    const W = c.wound, rev = c.revanchism || 0;
+    if ((!W || W.since < 0) && rev < 0.02) return '';
+    const victors = W ? W.by.map(id => g.countries[id]).filter(x => x && x.alive) : [];
+    const dem = demagogueOf(c);
+    let h = `<div class="card"><h3>The memory of defeat</h3>
+      ${bar('Revanchism', rev * 100, { invert: true, why: 'revanchism', tip: 'The grievance of defeat: lost provinces, harsh terms, reparations and the war dead. It feeds the nationalist movement and fascist ideas, and makes revenge thinkable.' })}`;
+    if (W && W.myth > 0.05) h += bar('The stab-in-the-back myth', W.myth * 100, { invert: true, tip: 'The belief that the army was never beaten but betrayed at home. It turns the officers against a civilian government and drains its legitimacy.' });
+    h += `<p class="small">${W && W.since >= 0 ? `Last defeat: ${gameDate(g, W.since)}${victors.length ? `, by ${victors.map(x => esc(x.name)).join(', ')}` : ''}. ` : ''}${W && W.armyIntact ? 'Our army came home undefeated in the field, and many believe it was betrayed. ' : ''}${dem ? `<b>${esc(dem.name)}</b> ${dem === c.leader ? 'rules the nation on the promise of revenge.' : 'leads the nationalists, a demagogue who promises revenge.'}` : ''}</p>
+      <p class="small muted">Revanchism fades as the generation that lived through the defeat passes on, faster in good times and when relations with the victors warm; it festers in hard times. Anti-war writers soften it, nationalist writers and agitators sharpen it.</p></div>`;
+    return h;
+  },
+
+  worldHistoryHtml(c, g) {
+    let h = `<h4>Great powers</h4><p class="small muted">The strongest quarter of the world by army and economy. When three of them are drawn into one war, it becomes a world war.</p>`;
+    h += greatPowers(g).map(id => { const x = g.countries[id]; return `<div class="kv click" data-act="select" data-id="${id}"><span>${swatch(x)} ${esc(x.name)}${id === c.id ? ' <span class="muted">(us)</span>' : ''}</span><span>${govBadge(x.gov)} ${strength(x).toFixed(0)}</span></div>`; }).join('');
+    const WW = g.worldWars || [];
+    if (WW.length) {
+      h += '<h4>World wars</h4>';
+      for (const r of WW) {
+        const names = ids => ids.map(id => esc(g.countries[id].name)).join(', ');
+        const out = r.end == null ? '<span class="bad">raging</span>' : r.outcome === 'stalemate' ? 'ended in an armistice' : `won by ${names(r.victors || [])}${r.treaty ? ` · ${esc(r.treaty)}` : ''}`;
+        h += `<div class="card small"><b>The ${esc(r.name)}</b> <span class="muted">${gameDate(g, r.start).split(' ')[1]}–${r.end != null ? gameDate(g, r.end).split(' ')[1] : ''}</span><br>Began as the ${esc(r.origin)} · ${out}<br><span class="muted">${names(r.a)} against ${names(r.b)}</span></div>`;
+      }
+    }
+    const top = figuresOfTheAge(g, 8);
+    if (top.length) {
+      h += '<h4>Figures of the age</h4><div class="card">';
+      for (const { f, c: x } of top) {
+        if (f.role === 'figure') h += this.figureRow(x, f, x.id === c.id);
+        else h += `<div class="person"><div class="pp">${portraitSVG(f, { size: 48, gov: x.gov })}</div><div class="pinfo"><div class="ptitle">⚔ General · ${esc(x.name)}</div><div><b>${esc(f.name)}</b>, ${f.age}</div><div class="small">Battles won ${f.won || 0} · lost ${f.lost || 0}</div><div>${this.traitChips(f)}</div>${bar('Renown', f.renown, { color: 'var(--gold)' })}</div></div>`;
+      }
+      h += '</div>';
+    }
+    if ((g.hall || []).length) h += `<h4>Remembered</h4><table class="list"><tr><th>Name</th><th>Nation</th><th>Known for</th></tr>${g.hall.slice(0, 12).map(e => `<tr><td>${FIGURE_KINDS[e.kind] ? FIGURE_KINDS[e.kind].icon : ''} ${esc(e.name)} <span class="muted small">${e.born}–${e.died}</span></td><td>${esc(e.nation)}</td><td class="small"><i>${esc(e.work)}</i></td></tr>`).join('')}</table>`;
+    return h;
+  },
+
   viewResearch(c, g) {
     const R = ensureResearch(c);
     const rate = researchRate(c);
@@ -920,7 +986,7 @@ Object.assign(UI, {
     let h = `<div class="card"><h3>Research</h3>
       ${cur ? `<div class="kv"><span>Researching <b>${cur.name}</b></span><span>${Math.floor(R.progress)} / ${cur.cost}</span></div>${bar('', R.progress / cur.cost * 100, { text: `~${Math.ceil((cur.cost - R.progress) / rate)} months`, color: 'var(--accent2)' })}`
         : '<div class="alert warn">No research project selected. Pick one below; our scientists are idle.</div>'}
-      <p class="small muted">${rate.toFixed(1)} research points per month, from education spending, literacy (${pct(c.econ.literacy)}) and the size of the economy. Switching projects loses half the progress. ${R.done.length} of ${TECH_KEYS.length} technologies discovered.</p></div>`;
+      <p class="small muted">${rate.toFixed(1)} research points per month, from education spending, literacy (${pct(c.econ.literacy)}), the size of the economy${inventorBonus(c) > 0.005 ? ` and our inventors (+${pct(inventorBonus(c))}, see the Leader tab)` : ''}. Switching projects loses half the progress. ${R.done.length} of ${TECH_KEYS.length} technologies discovered.</p></div>`;
     for (const cat of TECH_CATS) {
       h += `<div class="card"><h3>${cat}</h3>`;
       for (const id of TECH_KEYS.filter(k => TECHS[k].cat === cat)) {
