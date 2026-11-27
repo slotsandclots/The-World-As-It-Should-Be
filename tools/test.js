@@ -701,6 +701,41 @@ test('wars draw nations in and become world wars that end at a peace conference'
   assert(r.saved && r.gone, 'world wars survive a save');
 });
 
+test('trade view: bilateral flows add up to every nation\'s trade and leave the economy unchanged', () => {
+  const code = `(() => {
+    const g = createGame('flows', { size: 'small', countries: 12 }); setPlayer(g, 0);
+    for (let i = 0; i < 36; i++) { tick(g); g.pending.length = 0; }
+    return { g, digest: JSON.stringify({ w: g.worldMarket.prices, c: g.countries.map(c => [c.alive, c.treasury, c.gdp, c.stability, c.unrest, c.econ.prices, c.econ.exports, c.econ.imports, c.econ.reserves == null ? null : c.econ.reserves]), m: g.month, rng: g.rng.getState() }) };
+  })()`;
+  const withFlows = run(code);
+  const B = loadGame(); B.run('tickTradeFlows = null;');
+  assert(B.run('typeof tickTradeFlows') !== 'function', 'the control world must run without the trade flows');
+  const without = B.run(code);
+  assert(withFlows.digest === without.digest, 'the economy must come out identical with and without the trade flows');
+  const r = run(`(() => {
+    const g = createGame('flows', { size: 'small', countries: 12 }); setPlayer(g, 0);
+    for (let i = 0; i < 36; i++) { tick(g); g.pending.length = 0; }
+    const M = g._flows.map; let worst = 0, checked = 0, traded = 0;
+    for (const c of g.countries) {
+      if (!c.alive) continue;
+      GOOD_KEYS.forEach((k, gi) => {
+        let out = 0, inn = 0;
+        for (const key in M) { const [a, b, x] = key.split(':').map(Number); if (x !== gi) continue; if (a === c.id) out += M[key][0]; if (b === c.id) inn += M[key][0]; }
+        const ex = c.econ.exports[k] || 0, im = c.econ.imports[k] || 0;
+        worst = Math.max(worst, Math.abs(out - ex) / Math.max(1, ex), Math.abs(inn - im) / Math.max(1, im));
+        checked++; if (ex > 0 || im > 0) traded++;
+      });
+    }
+    const me = tradeOf(g, 0), gp = goodPartners(g, 0, 0);
+    const shares = gp.buy.reduce((s, x) => s + x[2], 0);
+    return { worst, checked, traded, pairs: tradePairs(g).length, avg: Object.keys(g._flowAvg || {}).length, meIn: me.in, shares, gpBuy: gp.buy.length };
+  })()`);
+  assert(r.traded > 10, `the test world should trade (${r.traded} nation-goods)`);
+  assert(r.worst < 1e-6, `per-good flows must sum to each nation's exports and imports (worst relative error ${r.worst})`);
+  assert(r.pairs > 0 && r.avg > 0, 'flows and their 12-month average are recorded');
+  assert(r.gpBuy === 0 || Math.abs(r.shares - 1) < 1e-9, 'partner shares for a good sum to 1');
+});
+
 test('the campaign can be completed', () => {
   const r = run(`(() => {
     const g = startCampaign(); const c = g.countries[g.player]; const cs = g.campaign;

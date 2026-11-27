@@ -30,6 +30,7 @@ const MAP_MODES = {
   culture: { name: 'Culture', legend: 'Each province\'s largest people; paler where it is mixed', province: (p, game) => peopleColor(p, game, 'cult') },
   religion: { name: 'Religion', legend: 'Each province\'s largest faith; paler where it is mixed', province: (p, game) => peopleColor(p, game, 'rel') },
   relations: { name: 'Relations', legend: 'Your relations: red = hostile, green = friendly' },
+  trade: { name: 'Trade', legend: '' },
 };
 
 // Smooth value noise in [0,1], used for paper texture and wobbly borders.
@@ -212,6 +213,7 @@ class MapRenderer {
         if (me.allies.includes(c.id)) return [60, 150, 230];
         return rampRgb((relation(game, player, c.id) + 100) / 2);
       }
+      case 'trade': return c.id === player ? mixRgb(c.rgb, [235, 200, 90], 0.35) : mixRgb(c.rgb, [62, 66, 78], 0.62);
       case 'blocs': {
         const eb = economicBloc(game, c.id), mb = militaryBloc(game, c.id);
         if (eb) return eb.color;
@@ -366,7 +368,8 @@ class LabelLayer {
     this.ctx = canvas.getContext('2d');
   }
 
-  draw(game, selected, player) {
+  // `before(ctx, project)` draws under the labels; project(x, y) maps world tiles to the overlay.
+  draw(game, selected, player, before) {
     const dpr = window.devicePixelRatio || 1;
     const wr = this.wrap.getBoundingClientRect();
     if (this.canvas.width !== Math.round(wr.width * dpr) || this.canvas.height !== Math.round(wr.height * dpr)) {
@@ -378,6 +381,7 @@ class LabelLayer {
     if (!game || !this.r.world) return;
     const mr = this.r.canvas.getBoundingClientRect();
     const sx = mr.width / this.r.world.W, sy = mr.height / this.r.world.H;
+    if (before) before(ctx, (x, y) => [mr.left - wr.left + x * sx, mr.top - wr.top + y * sy]);
     const placed = [];
     // Capitals: small crisp dots at any zoom.
     const provs = this.r.world.provinces;
