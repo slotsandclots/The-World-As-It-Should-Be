@@ -67,10 +67,11 @@ function tickSociety(game) {
 function developmentOf(p) { return clamp((provinceSol(p) - 30) / 45 + (p.lit || 0) * 0.5 - 0.2, 0, 1); }
 
 // Monthly natural growth for a class in a province: births minus deaths.
-function naturalGrowth(p, fb) {
+function naturalGrowth(p, fb, c) {
   const dev = developmentOf(p);
   const birth = 0.00235 * (1 - 0.5 * dev);
-  const death = 0.0017 - 0.0006 * fb - 0.0002 * dev;
+  // Healthcare saves lives (healthCare: 0 = none, ~0.33 = typical, 1 = lavish).
+  const death = 0.0017 - 0.0006 * fb - 0.0002 * dev - (c ? (healthCare(c) - 0.33) * 0.0004 : 0);
   return { birth, death, net: birth - death };
 }
 
@@ -94,3 +95,6 @@ function giniOf(game, c) {
   for (const [y, n] of groups) { const ny = cumY + y * n; area += (n / N) * (cumY + ny) / 2 / Y; cumN += n; cumY = ny; }
   return clamp(1 - 2 * area, 0, 1);
 }
+
+// How well-funded healthcare is: 0 none, ~0.33 at a typical 2% of GDP, 1 at 6% or more.
+function healthCare(c) { return clamp(((c.policy && c.policy.health) || 0) / 6, 0, 1); }

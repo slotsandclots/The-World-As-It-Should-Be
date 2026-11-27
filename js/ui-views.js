@@ -31,7 +31,7 @@ Object.assign(UI, {
     const any = g.world.provinces.find(p => p.owner === c.id && p.pops);
     const ng = any ? naturalGrowth(any, 1) : null;
     let births = 0, deaths = 0, pop = 0;
-    for (const p of g.world.provinces) if (p.owner === c.id && p.pops) { const n = naturalGrowth(p, (p.fb && p.fb.peasants) || 1); births += n.birth * p.pop; deaths += n.death * p.pop; pop += p.pop; }
+    for (const p of g.world.provinces) if (p.owner === c.id && p.pops) { const n = naturalGrowth(p, (p.fb && p.fb.peasants) || 1, c); births += n.birth * p.pop; deaths += n.death * p.pop; pop += p.pop; }
     const yr = v => ((Math.pow(1 + v / Math.max(1, pop), 12) - 1) * 1000).toFixed(1);
     let h = `<div class="card"><h3>${icon('world', 16)} Cities and people</h3>
       <p class="small muted" style="margin-top:0">When cities outgrow their housing, rents rise (paid by laborers, workers, clerks and officials to landlords and owners) and people crowd into slums, which breed unrest. Builders add housing when rents pay; generous welfare (above 11% of GDP) adds public housing. As living standards and literacy rise, families have fewer children and the society ages.</p>

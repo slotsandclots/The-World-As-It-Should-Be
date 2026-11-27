@@ -155,5 +155,8 @@ const TRAITS = {
 const TRAIT_KEYS = Object.keys(TRAITS);
 
 function defaultPolicy(govId) {
-  return Object.assign({}, BASE_POLICY, GOVS[govId].policy || {});
+  const p = Object.assign({}, BASE_POLICY, GOVS[govId].policy || {});
+  // A quarter of each regime's social budget goes to healthcare.
+  if (p.health == null) { p.health = Math.round(p.welfare * 0.25 * 10) / 10; p.welfare = Math.round((p.welfare - p.health) * 10) / 10; }
+  return p;
 }

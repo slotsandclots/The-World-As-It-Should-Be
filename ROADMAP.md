@@ -163,7 +163,7 @@ Built on top of 4a–4b, so it can use wages, savings and debt. Every item state
   - economic and political metrics unchanged
 
 **Still to do in Milestone 3:**
-- **Public services as goods:** healthcare and schooling staffed by doctors and teachers, replacing part of the welfare and education sliders.
+- ✅ **Healthcare** is its own spending line, carved out of each regime's welfare budget. It pays clerks as doctors and nurses, lowers death rates and improves living standards. Approval and the workers count it as social spending. Still to do: schooling as a service staffed by teachers, with levels.
 - **Levels of schooling:** universities feeding research and the intelligentsia.
 - **Interest groups for large minorities and faiths** (beyond the Minority Rights League movement).
 - **Pan-national unification** once released or split nations share a culture.

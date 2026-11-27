@@ -182,7 +182,7 @@ function tipHtml(key) {
       if (Math.abs(B.stateProfit) > 1e-4) h += money('State enterprises', B.stateProfit);
       const gN = c.gdpNom || c.gdp;
       h += money(`Running the state (${ADMIN_COST}% of GDP)`, -gN * ADMIN_COST / 1200);
-      const NAMES = { military: 'Military', welfare: 'Welfare', education: 'Education', police: 'Police', infrastructure: 'Infrastructure', investment: 'State investment' };
+      const NAMES = { military: 'Military', welfare: 'Welfare and pensions', health: 'Healthcare', education: 'Education', police: 'Police', infrastructure: 'Infrastructure', investment: 'State investment' };
       for (const k of SPEND_KEYS) if (c.policy[k] > 0) h += money(`${NAMES[k]} (${c.policy[k]}% of GDP)`, -gN * c.policy[k] / 1200);
       if (B.interest > 0) h += money(`Interest on debt (${((c.econ.rate || 0) * 100).toFixed(1)}%)`, -B.interest);
       if (c.econ.printed > 0) h += money('Printed money covering the deficit', c.econ.printed);

@@ -7,14 +7,15 @@ const ADMIN_COST = 3; // % of GDP spent on running the state regardless of polic
 const POLICY_LIMITS = {
   tax: { min: 0.05, max: 0.7, step: 0.01, label: 'Tax rate', hint: 'Revenue. High taxes slow growth and anger business and workers.' },
   military: { min: 0, max: 12, step: 0.1, label: 'Military', hint: 'Army size and military loyalty.' },
-  welfare: { min: 0, max: 25, step: 0.1, label: 'Welfare', hint: 'Approval and worker loyalty.' },
+  welfare: { min: 0, max: 25, step: 0.1, label: 'Welfare and pensions', hint: 'Pensions first, then relief for the poor. Approval and worker loyalty.' },
+  health: { min: 0, max: 10, step: 0.1, label: 'Healthcare', hint: 'Doctors and hospitals: fewer deaths and better living standards. Pays clerks as doctors and nurses.' },
   education: { min: 0, max: 10, step: 0.1, label: 'Education', hint: 'Growth and intelligentsia loyalty; makes the public more liberal.' },
   police: { min: 0, max: 8, step: 0.1, label: 'Police & security', hint: 'Suppresses unrest and props up stability, but erodes freedom.' },
   infrastructure: { min: 0, max: 10, step: 0.1, label: 'Infrastructure', hint: 'Productivity of every building, and business loyalty. Buys steel, timber and tools.' },
   investment: { min: 0, max: 12, step: 0.1, label: 'State investment', hint: 'Funds state construction of new buildings (see Industry below).' },
   tariff: { min: 0, max: 0.5, step: 0.01, label: 'Tariffs', hint: 'Tax on imports: revenue and protection for local producers, but dearer goods and less trade.' },
 };
-const SPEND_KEYS = ['military', 'welfare', 'education', 'police', 'infrastructure', 'investment'];
+const SPEND_KEYS = ['military', 'welfare', 'health', 'education', 'police', 'infrastructure', 'investment'];
 
 // ------------------------------------------------------------------ helpers
 
@@ -70,7 +71,7 @@ function avgLoyalty(c) {
 }
 
 function clampPolicy(p) {
-  for (const k in POLICY_LIMITS) p[k] = clamp(p[k], POLICY_LIMITS[k].min, POLICY_LIMITS[k].max);
+  for (const k in POLICY_LIMITS) { if (p[k] == null) p[k] = k === 'health' ? 1.5 : (BASE_POLICY[k] != null ? BASE_POLICY[k] : POLICY_LIMITS[k].min); p[k] = clamp(p[k], POLICY_LIMITS[k].min, POLICY_LIMITS[k].max); }
 }
 
 function formalName(c) { return federalFormal(c, GOVS[c.gov].formal(c.name, c.provinceCount)); }
@@ -316,7 +317,7 @@ function tickCountry(game, c) {
   const growthA = c.growthAvg * 1200; // annualized %
   const ft = {
     military: 32 + p.military * 4.5 + (g.base.military ? 10 : 0) + (atWar ? (c.warMomentum > 0 ? 8 : c.warMomentum < 0 ? -10 : 0) : 0),
-    workers: 48 + techSum(c, 'workers') - (c.sezCount || 0) * 3 + (p.welfare - 8) * 1.5 - (p.tax - 0.25) * 40 - g.econ * 12 - Math.max(0, p.police - 3) * 3 + growthA + (E.strataSol.lower - 35) * 0.4 - E.unemployment * 40,
+    workers: 48 + techSum(c, 'workers') - (c.sezCount || 0) * 3 + (p.welfare + (p.health || 0) - 8) * 1.5 - (p.tax - 0.25) * 40 - g.econ * 12 - Math.max(0, p.police - 3) * 3 + growthA + (E.strataSol.lower - 35) * 0.4 - E.unemployment * 40,
     business: 46 + g.econ * 12 - (p.tax - 0.25) * 80 + (p.infrastructure - 3) * 2 - c.corruption * 0.1 + growthA * 2 + (E.strataSol.upper - 75) * 0.3 - p.tariff * 10,
     clergy: 48 + g.clergyBonus - (c.freedom - 50) * 0.12 + c.ideo.auth * 10 + (c.flags.clericalSchools ? 10 : 0),
     intelligentsia: 28 - (c.flags.clericalSchools ? 6 : 0) + c.freedom * 0.35 + (p.education - 4) * 3 - p.police * 2.5 - (c.emergency ? 15 : 0) + (E.strataSol.middle - 65) * 0.2,
@@ -349,7 +350,7 @@ function tickCountry(game, c) {
 
   // --- Approval
   const apParts = [
-    ['Baseline', 50], ['Economic growth', clamp(growthA * 2, -15, 10)], ['Welfare spending', (p.welfare - 8) * 0.6], ['Education spending', (p.education - 4) * 0.5],
+    ['Baseline', 50], ['Economic growth', clamp(growthA * 2, -15, 10)], ['Welfare and healthcare spending', (p.welfare + (p.health || 0) - 8) * 0.6], ['Education spending', (p.education - 4) * 0.5],
     ['Infrastructure spending', (p.infrastructure - 3) * 0.4], ['Taxes', -(p.tax - 0.25) * 60], ['Corruption', -c.corruption * 0.12], ['War exhaustion', -c.warExhaustion * 0.25],
     ['Public opinion vs. the regime', -mismatch * 8], ['Leader\'s traits', T.approval || 0], ['Temporary effects', M.approval || 0], ['National debt', -Math.max(0, debtRatio - 0.6) * 15],
     ['Contentment of the people', E.contentment * 0.5], ['Unemployment', -E.unemployment * 50], ['Leader\'s charisma', (L.cha - 5) * 0.8], ['Cabinet', CF.approval], ['Laws', LF.approval], ['The press', pressApproval(c)], ['Mobilization', c.mobilized ? -3 : 0], ['Technology', techSum(c, 'approval')],

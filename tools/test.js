@@ -441,6 +441,18 @@ test('aging dilutes relief, inequality is measured, minorities organize', () => 
   assert(r.bad.length === 0, r.bad.join('; '));
 });
 
+test('healthcare: a funded health service lowers deaths and pays doctors', () => {
+  const r = run(`(() => { const g = createGame('health1', { size: 'small', countries: 6 }); setPlayer(g, 0); const c = g.countries[0];
+    for (let i = 0; i < 3; i++) { tick(g); g.pending.length = 0; }
+    const p = g.world.provinces.find(x => x.owner === 0);
+    c.policy.health = 0; const d0 = naturalGrowth(p, 1, c).death; tick(g); g.pending.length = 0; const pay0 = c.econ.govWagePC.clerks;
+    c.policy.health = 6; const d1 = naturalGrowth(p, 1, c).death; tick(g); g.pending.length = 0; const pay1 = c.econ.govWagePC.clerks;
+    return { fewer: d1 < d0, paid: pay1 > pay0, inBudget: SPEND_KEYS.includes('health') && projectBudget(c).spendPct > 0 }; })()`);
+  assert(r.fewer, 'healthcare should lower deaths');
+  assert(r.paid, 'healthcare should pay doctors (clerks)');
+  assert(r.inBudget, 'healthcare should be in the budget');
+});
+
 test('the campaign can be completed', () => {
   const r = run(`(() => {
     const g = startCampaign(); const c = g.countries[g.player]; const cs = g.campaign;

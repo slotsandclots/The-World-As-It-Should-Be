@@ -324,7 +324,7 @@ function tickEconomy(game, warmup) {
     const gm = E.budgetBase, pol = c.policy;
     E.gov = {
       military: gm * pol.military / 100, welfare: gm * pol.welfare / 100, education: gm * pol.education / 100,
-      police: gm * pol.police / 100, infrastructure: gm * pol.infrastructure / 100, admin: gm * ADMIN_COST / 100,
+      police: gm * pol.police / 100, infrastructure: gm * pol.infrastructure / 100, admin: gm * ADMIN_COST / 100, health: gm * (pol.health || 0) / 100,
       investment: gm * pol.investment / 100,
     };
     E.construction = 0;
@@ -456,12 +456,12 @@ function tickEconomy(game, warmup) {
     E.govWagePC = {
       officials: N.officials > 0 ? (G.admin * (1 - theo) + G.police * 0.7) / N.officials * rw : 0,
       soldiers: N.soldiers > 0 ? G.military * 0.5 / N.soldiers * rw : 0,
-      clerks: N.clerks > 0 ? G.education * 0.7 / N.clerks * rw : 0,
+      clerks: N.clerks > 0 ? (G.education * 0.7 + (G.health || 0) * 0.7) / N.clerks * rw : 0,
       clergy: N.clergy > 0 ? (G.education * 0.3 + G.admin * theo) / N.clergy * rw : 0,
       laborers: N.laborers > 0 ? (G.infrastructure * 0.4 + E.construction * 0.5) / N.laborers * rw : 0,
     };
-    E.gdpNew += G.admin + G.police * 0.7 + G.military * 0.5 + G.education + G.infrastructure * 0.4 + E.construction * 0.5;
-    E.gdpRealNew += G.admin + G.police * 0.7 + G.military * 0.5 + G.education + G.infrastructure * 0.4 + E.construction * 0.5;
+    E.gdpNew += G.admin + G.police * 0.7 + G.military * 0.5 + G.education + (G.health || 0) + G.infrastructure * 0.4 + E.construction * 0.5;
+    E.gdpRealNew += G.admin + G.police * 0.7 + G.military * 0.5 + G.education + (G.health || 0) + G.infrastructure * 0.4 + E.construction * 0.5;
     // Pensions come first and grow with the elderly; what is left is relief for the poor.
     const pensionShare = clamp((c.elderly || 0.06) * 3, 0.1, 0.8);
     E.pensionShare = pensionShare;
@@ -514,7 +514,7 @@ function tickEconomy(game, warmup) {
       const lux = Math.min(1, lGot / (E.cost.luxury * 3));
       p.fb = p.fb || {};
       p.fb[t] = fbA;
-      p.sol[t] = clamp(45 * fbA + 30 * feA + 25 * lux, 0, 100);
+      p.sol[t] = clamp(45 * fbA + 30 * feA + 25 * lux + healthCare(c) * 6 - 2, 0, 100);
     }
     p.rentIn = rentNew;
   }
@@ -550,7 +550,7 @@ function tickEconomy(game, warmup) {
       for (const t of POP_KEYS) {
         const fb = p.fb ? (p.fb[t] === undefined ? 1 : p.fb[t]) : 1;
         // The demographic transition: births fall as living standards and literacy rise (society.js).
-        p.pops[t] *= 1 + (naturalGrowth(p, fb).net - war + techSum(c, 'popGrowth') * fb);
+        p.pops[t] *= 1 + (naturalGrowth(p, fb, c).net - war + techSum(c, 'popGrowth') * fb);
       }
       const litT = clamp(0.05 + c.policy.education * 0.08 + c.econ.tech * 0.08 + techSum(c, 'literacy'), 0, 0.98);
       p.lit += (litT - p.lit) * 0.008;
