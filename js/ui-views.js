@@ -2,6 +2,28 @@
 // Side-panel tab views. Each view returns HTML for the tab body.
 
 Object.assign(UI, {
+  // ------------------------------------------------------------------ credit
+
+  creditHtml(c, g) {
+    const E = ensureCredit(c), law = c.laws.banking || 'regulated';
+    const phase = cyclePhase(c), lev = E.credit / Math.max(1, (E.gdpRealM || E.gdpM) * 12);
+    const capR = E.bankCap / Math.max(1, E.credit);
+    let h = `<div class="card"><h3>${icon('ledger', 16)} Credit and the business cycle</h3>
+      <p class="small muted" style="margin-top:0"><b>${esc(LAW_CATS.banking.opts[law].name)}</b>: ${BANKING_INFO[law]} Businesses borrow to build when confidence is high and money is cheap; new capacity arrives later, often after demand has peaked, and debts that outrun profits end in bankruptcies.</p>`;
+    if (E.bankCrisis > 0) h += `<div class="alert bad"><b>Banking crisis:</b> lending is frozen for about ${E.bankCrisis} more months. <button class="danger" data-act="bailout" ${c.pc < BAILOUT_PC ? 'disabled' : ''} style="margin-left:6px">Bail out the banks (${BAILOUT_PC} PC, ${fmtMoney(Math.max(0, E.credit * CREDIT.CAP_TARGET - E.bankCap) / 1e6 * (E.pl || 1))})</button></div>`;
+    h += `<div class="grid2">
+        <div class="kv"><span>Cycle</span><span class="${['recession', 'crisis', 'slowdown'].includes(phase) ? 'bad' : ['boom', 'peak'].includes(phase) ? 'warn' : 'good'}">${CYCLE_NAMES[phase]}</span></div>
+        <div class="kv"><span>Output vs trend</span><span>${fmtSigned(E.gap * 100)}%</span></div>
+        <div class="kv" data-tip="confidence"><span>Business confidence</span><span class="${E.conf < 0.8 ? 'bad' : E.conf > 1.2 ? 'warn' : ''}">${Math.round(E.conf * 100)}</span></div>
+        <div class="kv"><span>Private debt</span><span>${pct(lev)} of GDP</span></div>
+        <div class="kv" title="Debt service as a share of owners' profits. Above 40%, firms start to default."><span>Debt burden</span><span class="${E.dsr > 0.4 ? 'bad' : E.dsr > 0.3 ? 'warn' : ''}">${pct(E.dsr)} of profits</span></div>
+        <div class="kv" title="Bank capital as a share of loans. Below 4%, a banking crisis breaks out."><span>Bank capital</span><span class="${capR < 0.05 ? 'bad' : ''}">${pct(capR, 1)}</span></div>
+        <div class="kv"><span>New lending</span><span>${pct(E.lending / Math.max(1, E.gdpRealM || E.gdpM), 1)} of output</span></div>
+        <div class="kv"><span>Defaults</span><span class="${E.defaults > 0.003 ? 'bad' : ''}">${pct(E.defaults * 12, 1)} a year</span></div>
+      </div></div>`;
+    return h;
+  },
+
   // ------------------------------------------------------------------ money
 
   moneyHtml(c, g) {
@@ -95,6 +117,7 @@ Object.assign(UI, {
         { pts: monthly(c.hist.unrest), color: '#e2705f', label: 'Unrest' },
       ], { min: 0, max: 100, fmt: v => v.toFixed(0) });
       h += chart('Prices and money', [{ pts: monthly(c.hist.infl), color: '#e2705f', label: 'Inflation %/yr' }, { pts: monthly(c.hist.rate), color: '#8fb0dc', label: 'Interest rate %' }], { fmt: v => v.toFixed(1) + '%', zero: true });
+      h += chart('Credit and confidence', [{ pts: monthly(c.hist.credit), color: '#e3a64e', label: 'Private debt, % of GDP' }, { pts: monthly(c.hist.conf), color: '#8fb0dc', label: 'Business confidence' }], { fmt: v => v.toFixed(0), zero: true });
       h += chart('Real wages (100 = keeping up with prices)', [{ pts: monthly(c.hist.rwage), color: '#7fc98f', label: 'Real wages' }], { fmt: v => v.toFixed(0) });
       h += chart('Living standard', [{ pts: series(c, 'sol'), color: '#8fb0dc', label: 'Average standard of living' }], { fmt: v => v.toFixed(0) });
       h += chart('Population (millions)', [{ pts: series(c, 'pop'), color: '#c9a0dc', label: 'Population' }], { fmt: v => v.toFixed(1) + 'M' });
@@ -349,7 +372,7 @@ Object.assign(UI, {
 
   viewEconomy(c, g) {
     const E = c.econ;
-    let h = this.moneyHtml(c, g) + `<div class="card grid2">
+    let h = this.moneyHtml(c, g) + this.creditHtml(c, g) + `<div class="card grid2">
       <div class="kv"><span>GDP</span><span>${fmtMoney(c.gdp)}</span></div>
       <div class="kv"><span>Per capita</span><span>$${(c.gdpPerCap * 1000).toFixed(0)}</span></div>
       <div class="kv"><span>Growth</span><span class="${c.growthAvg < 0 ? 'bad' : 'good'}">${fmtSigned(c.growthAvg * 1200)}%/yr</span></div>

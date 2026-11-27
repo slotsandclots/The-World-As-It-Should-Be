@@ -280,6 +280,7 @@ function tickCountry(game, c) {
   if (debtRatio > 0.8) techG -= (debtRatio - 0.8) * 0.002;
   E.tech = Math.max(0.1, E.tech * (1 + techG));
   tickMoney(game, c);
+  tickCredit(game, c);
   c.gdpNom = c.gdp * E.pl;
   const gr = (E.gdpRealM && E.prevGdpRealM ? E.gdpRealM / E.prevGdpRealM : E.gdpM / E.prevGdpM) - 1;
   c.lastGrowth = gr;
@@ -545,7 +546,7 @@ function changeGovernment(game, c, newGov, how, opts) {
   // Coups and reforms keep society's institutions; revolutions remake them.
   const oldLaws = c.laws;
   c.laws = presetLaws(newGov);
-  if (oldLaws && how !== 'revolution') for (const k of ['church', 'economy', 'labor', 'electoral', 'monetary']) if (oldLaws[k]) c.laws[k] = oldLaws[k];
+  if (oldLaws && how !== 'revolution') for (const k of ['church', 'economy', 'labor', 'electoral', 'monetary', 'banking']) if (oldLaws[k]) c.laws[k] = oldLaws[k];
   c.reform = null;
   if (g.party === 'multi' && GOVS[old].party === 'multi') {
     // keep the existing party system
@@ -1115,6 +1116,8 @@ function recordHistory(game) {
     push(H, 'sol', r1(c.econ.avgSol));
     push(H, 'pl', Math.round((c.econ.pl || 1) * 1e4) / 1e4);
     push(H, 'rgdp', r1((c.econ.gdpRealM || c.econ.gdpM) * 12 / 1e6));
+    push(H, 'credit', Math.round((c.econ.credit || 0) / Math.max(1, (c.econ.gdpRealM || c.econ.gdpM) * 12) * 1000) / 10);
+    push(H, 'conf', Math.round((c.econ.conf || 1) * 100));
     if (c.id === game.player) {
       // Keep the player's series aligned with the shared ones.
       for (const k of ['unrest', 'treasury', 'army', 'unemp', 'pc', 'revenue', 'spend', 'infl', 'rate', 'rwage']) if (!H[k]) H[k] = new Array(Math.max(0, H.gdp.length - 1)).fill(null);

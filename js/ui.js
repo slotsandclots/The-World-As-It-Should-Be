@@ -198,6 +198,11 @@ function tipHtml(key) {
       h += `<div class="tt-row"><span>Real wages (100 = keeping up)</span><span class="${(E.realWage || 1) < 0.98 ? 'bad' : (E.realWage || 1) > 1.02 ? 'good' : ''}">${Math.round((E.realWage || 1) * 100)}</span></div>`;
       return h + `<div class="tt-note">${MONETARY_INFO[c.laws.monetary] || ''} Prices follow money growth beyond real growth, slowly, because people expect what they have seen. Wages lag prices, so inflation squeezes workers and fixed incomes and erodes savings and debts alike.</div>`;
     }
+    case 'confidence': {
+      const E = c.econ;
+      return title('Business confidence', Math.round((E.conf || 1) * 100)) + tipParts(confidenceParts(c)) +
+        `<div class="tt-note">Confidence decides how much businesses borrow and build. Growth breeds optimism and more borrowing; defaults and banking crises breed fear. It moves a tenth of the way toward its target each month.</div>`;
+    }
     case 'infamy':
       return title('Infamy', Math.round(c.infamy || 0)) + `<div class="tt-note">Wars of aggression, conquest and harsh peace terms raise infamy. Above ${INFAMY.coalitionAt}, other nations may form a coalition against you. It fades by about 0.6% a month in peacetime.</div>`;
     case 'war': {
@@ -397,6 +402,7 @@ const UI = {
         med('stability', 'stability', Math.round(c.stability), 'Stability', '', `color:${statColor(c.stability)}`) +
         ((c.infamy || 0) >= 1 ? med('infamy', 'infamy', Math.round(c.infamy), 'Infamy', '', `color:${statColor(100 - (c.infamy || 0) * 2)}`) : '') +
         (Math.abs(inflationYoY(c)) > 0.06 ? med('inflation', 'coin', fmtSigned(inflationYoY(c) * 100, 0) + '%', inflationYoY(c) > 0 ? 'Inflation' : 'Deflation', 'war') : '') +
+        (c.econ.bankCrisis > 0 ? med('confidence', 'alert', 'Banking crisis', `${c.econ.bankCrisis} months`, 'war') : '') +
         (atWar ? med('war', 'military', 'At war', `${warsOf(g, c.id).length} front${warsOf(g, c.id).length > 1 ? 's' : ''}`, 'war') : '') +
         (c.emergency ? med('emergency', 'alert', 'Emergency', 'Martial law', 'war') : '');
     } else $('#tb-stats').innerHTML = '';
@@ -475,6 +481,7 @@ const UI = {
       case 'press': { const r = pressAction(g, +ds.i, ds.a); this.track('press:' + ds.a, r.ok); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }
       case 'posture': { const r = setPosture(g, +ds.war, ds.p); this.toast(r.msg, r.ok ? 'info' : 'bad'); App.afterAction(); return; }
       case 'mobilize': { const r = setMobilized(g, this.player(), ds.on === '1'); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }
+      case 'bailout': { const r = bailoutBanks(g); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }
       case 'monetize': { const c = this.player(); c.policy.monetize = !c.policy.monetize; this.renderTab(); return; }
       case 'lawact': { const r = lawAction(g, ds.a); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }
       case 'ledger': this.ledger = Object.assign(this.ledger || {}, { [ds.k]: ds.v }); this.renderTab(); return;

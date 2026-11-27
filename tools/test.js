@@ -266,6 +266,7 @@ test('AI nations face crises; regional elections, referendums and the press work
     c.laws.electoral = 'constituencies';
     for (let i = 0; i < 360; i++) { tick(g); g.pending.length = 0; }
     const aiCrises = g.log.filter(n => n.kind === 'crisis' && !n.ids.includes(0)).length;
+    if (!c.lastElection || c.lastElection.sham || !c.lastElection.prov) { if (GOVS[c.gov].elections !== "free") changeGovernment(g, c, "democracy", "reform", { keepLeader: true }); runElection(g, c); g.pending.length = 0; }
     const E = c.lastElection, provOk = E && E.prov && Object.keys(E.prov).length > 0 && E.results.reduce((s, x) => s + x.seats, 0) === 200;
     c.pc = 100; c.reform = null; const cat = 'church', opt = Object.keys(LAW_CATS.church.opts).find(o => o !== c.laws.church);
     const ref = holdReferendum(g, c, cat, opt);
@@ -337,6 +338,29 @@ test('money: central banks hit their target, printing inflates and erodes debt, 
   assert(r.debt1 < r.debt0, 'inflation should erode the debt ratio');
   assert(r.minWage < 0.97, 'real wages should lag rising prices');
   assert(r.kept, 'price level lost on save/load');
+  assert(r.bad.length === 0, r.bad.join('; '));
+});
+
+test('credit: an over-borrowed economy defaults, closes buildings, and can trigger a banking crisis', () => {
+  const r = run(`(() => { const g = createGame('credit1', { size: 'small', countries: 6 }); setPlayer(g, 0); const c = g.countries[0];
+    for (let i = 0; i < 24; i++) { tick(g); g.pending.length = 0; }
+    const E = c.econ; c.laws.banking = 'unregulated';
+    const levels0 = c._provs.reduce((s, p) => s + p.buildings.reduce((t, b) => t + b.level, 0), 0);
+    const wealth0 = c._provs.reduce((s, p) => s + Object.values(p.wealth || {}).reduce((a, b) => a + b, 0), 0);
+    // Pile on debt: three years of GDP.
+    E.credit = (E.gdpRealM || E.gdpM) * 36; E.creditTrend = E.credit; E.bankCap = E.credit * 0.05;
+    let maxDef = 0, crisis = false;
+    for (let i = 0; i < 36; i++) { tick(g); g.pending.length = 0; maxDef = Math.max(maxDef, E.defaults); if (E.bankCrisis > 0) crisis = true; }
+    const levels1 = c._provs.reduce((s, p) => s + p.buildings.reduce((t, b) => t + b.level, 0), 0);
+    if (!E.bankCrisis) { E.bankCrisis = 5; }
+    c.pc = 100; const bail = bailoutBanks(g).ok;
+    const h = deserializeGame(serializeGame(g));
+    return { maxDef, crisis, closed: levels1 < levels0, bail, conf: E.conf, phase: cyclePhase(c), kept: Math.abs(h.countries[0].econ.credit - E.credit) < 1e-6 * E.credit + 1, bad: __sane(g) }; })()`);
+  assert(r.maxDef > 0.001, 'no defaults under a mountain of debt');
+  assert(r.closed, 'defaults should close real buildings');
+  assert(r.crisis, 'thin bank capital and defaults should cause a banking crisis');
+  assert(r.bail, 'bailout failed');
+  assert(r.kept, 'credit lost on save/load');
   assert(r.bad.length === 0, r.bad.join('; '));
 });
 

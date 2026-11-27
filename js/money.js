@@ -55,7 +55,8 @@ function tickMoney(game, c) {
   }
 
   // The price level: money chasing real output, with inertia from expectations.
-  const plT = E.money / (Y * MONEY_MONTHS);
+  const broad = E.money + 0.6 * ((E.credit || 0) - (E.creditTrend == null ? (E.credit || 0) : E.creditTrend));
+  const plT = Math.max(E.money * 0.5, broad) / (Y * MONEY_MONTHS);
   const pi = clamp(E.piE + 0.15 * Math.log(plT / E.pl), -0.02, 0.5);
   E.pi = pi;
   E.pl *= 1 + pi;
@@ -69,7 +70,8 @@ function tickMoney(game, c) {
   // Interest rates.
   const piEa = annual(E.piE);
   if (law === 'gold') E.rate = clamp(0.04 + Math.max(0, -piEa) * 0.5, 0.02, 0.12);
-  else if (law === 'centralBank') E.rate = clamp(0.02 + piEa + 0.5 * (piEa - INFLATION_TARGET), 0, 0.3);
+  // The central bank also leans against booms and slumps (output gap from credit.js).
+  else if (law === 'centralBank') E.rate = clamp(0.02 + piEa + 0.5 * (piEa - INFLATION_TARGET) + 0.6 * (E.gap || 0), 0, 0.3);
   else E.rate = clamp(0.01 + 0.7 * piEa, 0, 0.8);
 
   // Savings: inflation eats their real value; savers earn part of the interest rate.

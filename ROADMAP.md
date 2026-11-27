@@ -223,7 +223,32 @@ The economy is already dynamic: goods prices move with supply and demand every m
   - *government-controlled money*: you set rates and can print
 - **Interest rates:** they drive investment, consumer credit, the exchange rate and what debt costs to service.
 
-### 4b. Credit, confidence and the business cycle
+### 4b. Credit, confidence and the business cycle ✅ (first pass)
+
+**Done:**
+- **Credit:** private debt that pays for real construction projects, driven by confidence, the real interest rate and existing leverage.
+- **Debt service** comes out of owners' profits. When it exceeds about 40%, firms default and real buildings close, least profitable first, so workers lose their jobs.
+- **Banks:** defaults eat bank capital, and below 4% a banking crisis freezes lending for 18 months.
+  - Under free banking, a bank run wipes out a fifth of savings.
+  - With insured deposits, the treasury pays to recapitalize.
+  - The player can bail out the banks to restart lending sooner, which angers workers and pleases business.
+- **Confidence** rises with growth above trend and falls with defaults, crises and unrest.
+- **Credit affects prices:** credit above trend adds to broad money (booms inflate), and credit contraction deflates.
+- **Central banks lean against booms and slumps.**
+- **New banking law:** free banking, regulated banks with insured deposits, or state banks.
+- **Interface:** a credit card with the cycle phase, confidence, debt burden, bank capital and defaults; a confidence breakdown; a top-bar warning during a banking crisis; Ledger charts.
+- **Measured (6 worlds × 40 years):**
+  - growth unchanged at about 1.6% a year per person
+  - calm years with falling output: 21%
+  - depressions: 4.5 per world
+  - banking crises: about 3 per world
+  - worst unemployment: 18%
+  - growth persists year to year (autocorrelation 0.38)
+
+**Still open:**
+- **No regular cycle yet:** growth carries over from year to year but doesn't swing back at 3–5 years (no negative autocorrelation), so these are booms and busts rather than a regular cycle. Stronger construction delays and inventory cycles in 4c should help.
+- **A stock or land market** (optional).
+
 - **Private credit:** businesses borrow to invest when rates are low and confidence is high, so private debt builds up through the boom.
 - **Overshooting:** construction takes time, so new capacity opens after demand has peaked. Prices and profits fall just as the debts come due.
 - **The bust:** defaults lead to a credit crunch, cancelled projects, layoffs and falling demand. High debt plus falling prices can turn a recession into a depression (debt deflation).
