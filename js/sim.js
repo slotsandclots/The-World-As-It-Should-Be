@@ -255,12 +255,15 @@ function projectBudget(c) {
   const revenue = taxes + tariffs + stateProfit;
   const spendPct = ADMIN_COST + SPEND_KEYS.reduce((s, k) => s + p[k], 0);
   const gN = c.gdpNom || c.gdp;
-  const spend = gN * spendPct / 100 / 12;
+  // Unemployment benefits are paid on top of the budget, as a share of output (economy.js).
+  const ui = E && E.uiShare ? gN * E.uiShare / 12 : 0;
+  const uiContrib = E && E.uiAvg ? gN * E.uiAvg / 12 : 0;
+  const spend = gN * spendPct / 100 / 12 + ui;
   // Interest follows the money system's rate, plus a premium as debt piles up.
   const debtR = Math.max(0, -c.treasury) / Math.max(1e-6, gN);
   const rate = (E && E.rate != null ? E.rate : 0.048) + Math.max(0, debtR - 0.6) * 0.05;
   const interest = c.treasury < 0 ? -c.treasury * rate / 12 : 0;
-  return { revenue, taxes, tariffs, stateProfit, spend, interest, net: revenue - spend - interest, spendPct };
+  return { revenue, taxes, tariffs, stateProfit, spend, ui, interest, uiContrib, net: revenue + uiContrib - spend - interest, spendPct };
 }
 
 function tickCountry(game, c) {
@@ -1036,13 +1039,59 @@ function tickDiplomacy(game) {
 
 // ------------------------------------------------------------------ AI governance
 
+// How a government leans on the economy: the ruling party's in a multi-party
+// state, the regime's otherwise. Left leans toward spending, right toward thrift.
+function econLean(c) {
+  const g = GOVS[c.gov];
+  if (g.party === 'multi' && c.parties && c.parties.length) { const r = rulingPartyObj(c); if (r && r.econ != null) return r.econ; }
+  return g.econ || 0;
+}
+
+// The AI's fiscal stance through the cycle (4c). In a slump, governments on the
+// left (and any with room to borrow) spend; orthodox ones with debts cut. In a
+// boom, prudent governments cool things down.
+function fiscalStance(c, debt) {
+  const E = c.econ, gap = (E && E.gap) || 0, lean = econLean(c);
+  const crisis = E && E.bankCrisis > 0;
+  if (gap < -0.035 || crisis) {
+    if (lean > 0.35 && debt > 0.35) return 'austerity';
+    if (debt < 0.6 - lean * 0.3 && c.treasury > -(c.gdpNom || c.gdp) * 0.6) return 'stimulus';
+    return debt > 0.6 ? 'austerity' : 'steady';
+  }
+  if (gap > 0.04 && lean > -0.3 && debt > 0.1) return 'cooling';
+  return 'steady';
+}
+
+// AI governments recapitalize their banks in a crisis, if their politics allow it.
+function aiBailout(game, c) {
+  const E = c.econ;
+  if (!E || !(E.bankCrisis > 0) || c.laws.banking === 'state' || E.bankCap == null || E.credit == null) return;
+  const lean = econLean(c), debt = -c.treasury / (c.gdpNom || c.gdp);
+  if (debt > 0.9 || !game.rng.chance(0.06 + Math.max(0, 0.3 - Math.abs(lean)) * 0.2)) return;
+  const need = Math.max(0, E.credit * CREDIT.CAP_TARGET - E.bankCap);
+  c.treasury -= need / 1e6 * (E.pl || 1);
+  E.bankCap += need;
+  E.bankCrisis = Math.ceil(E.bankCrisis / 3);
+  adjust(c, { workers: -6, business: 6 });
+  logNews(game, `${c.name} bails out its banks.`, 'econ', [c.id]);
+}
+
 function aiPolicy(game, c) {
   aiMoney(game, c);
+  aiBailout(game, c);
   const rng = game.rng;
   if (!rng.chance(0.35)) return;
   const p = c.policy, d = defaultPolicy(c.gov), g = GOVS[c.gov];
   const debt = -c.treasury / (c.gdpNom || c.gdp);
-  if (debt > 0.3) { p.tax += 0.01; p.welfare -= 0.3; p.infrastructure -= 0.1; }
+  const stance = fiscalStance(c, debt);
+  c.fiscalStance = stance;
+  if (stance === 'steady') p.infrastructure += (d.infrastructure - p.infrastructure) * 0.05;
+  // A stance steers toward a temporary target around the regime's normal budget, and lapses with the slump.
+  const toward = (k, t, r) => { p[k] += (t - p[k]) * r; };
+  if (stance === 'stimulus') { toward('infrastructure', d.infrastructure * 1.15 + 0.2, 0.25); toward('welfare', d.welfare + 0.4, 0.25); }
+  else if (stance === 'austerity') { toward('welfare', d.welfare * 0.9, 0.25); toward('infrastructure', d.infrastructure * 0.85, 0.25); }
+  else if (stance === 'cooling') toward('infrastructure', d.infrastructure * 0.9, 0.2);
+  else if (debt > 0.3) { p.tax += 0.01; p.welfare -= 0.3; p.infrastructure -= 0.1; }
   else if (c.treasury > (c.gdpNom || c.gdp) * 0.15) { p.tax -= 0.01; p.welfare += 0.2; p.education += 0.1; p.infrastructure += 0.1; }
   // Arms races: threatened nations arm up.
   const threat = threatLevel(game, c);

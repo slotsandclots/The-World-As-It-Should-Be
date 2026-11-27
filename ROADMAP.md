@@ -320,11 +320,12 @@ The economy is already dynamic: goods prices move with supply and demand every m
   - *Autocracies:* purges, rigged elections, secret police operations, buying off generals.
   - *Monarchies:* marriages, the succession, the court.
 - **Fewer flat base numbers per government:** growth, corruption, repression and similar bonuses should come from the mechanisms underneath wherever possible.
-- **AI fiscal response to the cycle:** AI governments already have business confidence, private investment, credit and central banks, but they don't yet change their spending with the cycle. Add stimulus in slumps, austerity after crises and discretionary bailouts, chosen by their politics. A populist spends, an orthodox government cuts.
+- ✅ **AI fiscal response to the cycle** (first pass): each AI government takes a stance from the output gap, its debt and its politics (the ruling party's in a democracy). In a slump, the left and anyone with room to borrow stimulate, raising infrastructure and welfare toward a temporary target. Orthodox governments in debt impose austerity. In a boom, prudent ones cool things down. AI governments also bail out their banks in a crisis, centrists most readily.
 - **Labor relations:** unions as organizations with membership, strikes and collective bargaining. Minimum-wage laws change how buildings split value between wages and profits.
-- **Sticky wages:** wages are slow to fall, so a drop in demand becomes layoffs rather than pay cuts. That's what turns a slump into mass unemployment.
-- **Automatic stabilizers:** unemployment insurance and welfare cushion downturns.
-- **The fiscal multiplier:** government spending moves output much more in a slump than in a boom, so stimulus versus austerity is a real choice.
+- ✅ **Sticky wages** (first pass): each building's wage bill follows a smoothed value added, rising within months but falling slowly, slowest under free unions. When demand drops, pay eats the margin; when it eats all of it, private owners lay workers off. A planned economy, or one without private owners, keeps its plants running instead (the first economic-system difference that works through a mechanism).
+- ✅ **Automatic stabilizers** (first pass): unemployment insurance pays laid-off laborers, workers and clerks a share of their class's income. The share is set by the labor law and the welfare budget. It's funded by contributions equal to its long-run cost, so the fund runs a deficit in slumps and a surplus in booms. Shown in the Economy tab with the share of squeezed businesses.
+  - *Measured* (16 worlds × 30 years against main): growth per person 1.42 → 1.35%/yr, worst unemployment 15 → 18%, inflation 1.9 → 3.0%, stability 48.5 → 47.6. Bankruptcy waves roughly double (21 → 44 per world), because squeezed profits can't service debts. Debt deflation is real, but it could be toned down in a later pass.
+- **The fiscal multiplier:** government spending moves output much more in a slump than in a boom, so stimulus versus austerity is a real choice. Partly emergent now: state demand restarts idle, squeezed capacity in a slump, but only bids up prices in a boom. It still needs measuring, and showing to the player.
 
 ### 4d. The world economy
 - **Contagion:** a recession in a big economy cuts world-market demand, and its trading partners feel it.

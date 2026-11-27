@@ -68,6 +68,18 @@ Object.assign(UI, {
         <div class="kv" title="Bank capital as a share of loans. Below 4%, a banking crisis breaks out."><span>Bank capital</span><span class="${capR < 0.05 ? 'bad' : ''}">${pct(capR, 1)}</span></div>
         <div class="kv"><span>New lending</span><span>${pct(E.lending / Math.max(1, E.gdpRealM || E.gdpM), 1)} of output</span></div>
         <div class="kv"><span>Defaults</span><span class="${E.defaults > 0.003 ? 'bad' : ''}">${pct(E.defaults * 12, 1)} a year</span></div>
+      </div>`;
+    // 4c: sticky wages and unemployment insurance.
+    let nb = 0, sq = 0;
+    for (const p of c._provs || []) for (const b of p.buildings) { nb++; if ((b.sq || 0) > 0.9) sq++; }
+    const rr = E.uiRate || 0, uiS = E.uiShare || 0, uiA = E.uiAvg || 0;
+    h += `<h4 style="margin:10px 0 4px">Wages and the jobless</h4>
+      <p class="small muted" style="margin-top:0">Wages are slow to fall, and slowest where unions bargain. When demand drops, pay eats the margin and owners lay workers off instead${c.laws.economy === 'planned' || !ownersAllowed(c) ? ' (a planned economy keeps its plants running instead)' : ''}. Unemployment insurance pays the jobless a share of their class's income. It is funded by contributions set at its long-run cost, so it runs a deficit in slumps and a surplus in booms.</p>
+      <div class="grid2">
+        <div class="kv" title="Businesses where wages take over 90% of value added. Above 100%, owners lay workers off."><span>Businesses with squeezed margins</span><span class="${nb && sq / nb > 0.1 ? 'bad' : ''}">${nb ? pct(sq / nb) : '—'}</span></div>
+        <div class="kv" title="Set by the labor law and the welfare budget."><span>Benefit, share of lost income</span><span>${pct(rr)}</span></div>
+        <div class="kv"><span>Benefits paid</span><span>${pct(uiS, 2)} of output</span></div>
+        <div class="kv"><span>Fund balance</span><span class="${uiA - uiS < -0.002 ? 'warn' : 'good'}">${fmtSigned((uiA - uiS) * 100)}% of output</span></div>
       </div></div>`;
     return h;
   },

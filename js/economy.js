@@ -169,6 +169,22 @@ function constructionCost(c, t) {
 
 function ownersAllowed(c) { return c.gov !== 'communist'; }
 
+// How fast wages can fall each month (4c). Free unions defend pay hardest.
+function wageFall(c) {
+  const l = c.laws && c.laws.labor;
+  return l === 'unions' ? 0.03 : l === 'stateUnions' ? 0.045 : 0.09;
+}
+
+// Unemployment insurance (4c): the replacement rate of lost income. Set by the
+// labor law and the welfare budget; paid on top of the welfare budget, so it
+// rises in a slump on its own (an automatic stabilizer).
+const UI_PAID = { laborers: 1, workers: 1, clerks: 1 };
+function uiRate(c) {
+  const l = c.laws && c.laws.labor;
+  const base = l === 'unions' ? 0.5 : l === 'stateUnions' ? 0.4 : 0.12;
+  return clamp(base * (c.policy.welfare || 0) / 8, 0, 0.7);
+}
+
 function provinceJobs(c, p) {
   const J = zeroPops();
   const owners = ownersAllowed(c);
@@ -431,7 +447,18 @@ function tickEconomy(game, warmup) {
       for (const g in b.inQ) rva -= b.inQ[g] * Math.min(E.fulfillS ? (E.fulfillS[g] ?? E.fulfill[g]) : E.fulfill[g], SUPPORT_GOODS[g] ? 1 : b.inF) * GOODS[g].base;
       E.gdpRealNew += rva;
       // Nominal wages lag prices (money.js): the real wage factor moves value between wages and profits.
-      const wages = Math.min(Math.max(0, va), Math.max(0, va) * ECON.LABOR_SHARE * (E.realWage || 1));
+      // Sticky wages (4c): each building's wage bill per working level rises quickly
+      // with value added (over months) but falls more slowly still, more slowly where unions bargain. When
+      // demand drops, wages eat the margin and owners lay workers off instead.
+      const act = b.level * b.active * (b.staff == null ? 1 : b.staff);
+      const vaA = act > 0.01 ? va / act : 0;
+      // Pay follows a smoothed value added, so only lasting declines (not monthly noise) meet sticky wages.
+      if (act > 0.01) b.vaS = b.vaS == null ? vaA : b.vaS + (vaA - b.vaS) * 0.1;
+      const wT = Math.max(0, b.vaS || 0) * ECON.LABOR_SHARE * (E.realWage || 1);
+      if (!(b.wb >= 0)) b.wb = wT;
+      b.wb += (wT - b.wb) * (wT > b.wb ? 0.15 : wageFall(c));
+      b.sq = vaA > 0 ? b.wb / vaA : (b.wb > 0 ? 2 : 0);
+      const wages = Math.min(Math.max(0, va), b.wb * act);
       const profit = va - wages;
       let w = 0;
       for (const t in def.jobs) if (WAGE_WEIGHT[t]) w += def.jobs[t] * WAGE_WEIGHT[t] * p.fill[t];
@@ -469,6 +496,19 @@ function tickEconomy(game, warmup) {
     const ww = N.peasants * 1.5 + N.laborers + N.workers, all = Math.max(1, POP_KEYS.reduce((s, t) => s + (N[t] || 0), 0));
     E.welfarePC = {};
     for (const t of POP_KEYS) E.welfarePC[t] = pensions / all + (ww > 0 ? relief * (t === 'peasants' ? 1.5 : t === 'laborers' || t === 'workers' ? 1 : 0) / ww : 0);
+    // Unemployment benefits: last month's jobless times a share of what their class earns.
+    const rr = uiRate(c);
+    let ui = 0;
+    for (const t of POP_KEYS) {
+      const U = (E.unempType && E.unempType[t]) || 0;
+      if (!UI_PAID[t] || U < 1 || !(N[t] > 0)) continue;
+      const b = U * rr * Math.max(0, (E.incType && E.incType[t]) || 0);
+      E.welfarePC[t] += b / N[t]; ui += b;
+    }
+    E.uiShare = E.budgetBase > 0 ? Math.min(0.05, ui / E.budgetBase) : 0;
+    E.uiRate = rr;
+    // Contributions match the long-run cost: a deficit in slumps, a surplus in booms.
+    E.uiAvg = E.uiAvg == null ? E.uiShare : E.uiAvg + (E.uiShare - E.uiAvg) / 60;
     E.statePool += G.investment;
   }
   // Pops: taxes, spending, savings, standard of living.
@@ -524,8 +564,11 @@ function tickEconomy(game, warmup) {
     const c = game.countries[p.owner];
     const J = p.jobs;
     for (const b of p.buildings) {
+      // Private owners lay off when wages eat the margin; a planned economy keeps them running.
+      const squeezed = ownersAllowed(c) && c.laws.economy !== 'planned' && (b.sq || 0) > 1;
       if (b.pva <= 0) b.active = Math.max(0, b.active - 0.1);
-      else if (b.staff > 0.85) b.active = Math.min(1, b.active + 0.05);
+      else if (squeezed) b.active = Math.max(0.3, b.active - 0.02);
+      else if (b.staff > 0.85 && (b.sq || 0) < 0.96) b.active = Math.min(1, b.active + 0.05);
       b.idle = b.active < 0.15 ? b.idle + 1 : 0;
     }
     if (!warmup) {

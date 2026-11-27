@@ -127,6 +127,8 @@ The game saves to your browser's local storage (Menu → Save game).
 
 **Ideas and kin.** Liberalism, socialism, fascism and traditionalism spread between nations through borders, trade and alliances; a revolution next door inspires your own radicals. Related peoples can unite peacefully, and universities speed research and staff the state.
 
+**Slumps hurt like real ones.** Wages are slow to fall, so a drop in demand becomes layoffs, and unemployment insurance cushions the jobless. AI governments spend, cut or bail out banks through the cycle, according to their politics.
+
 **Warnings before it's too late.** An alert bar under the top bar shows coup and revolution risk building up, and flags trouble in politics, the economy, society and war, plus decisions waiting for you.
 
 **Seeing why.** Hover approval, stability, unrest, political capital or the treasury for a breakdown of what drives it. The Ledger tab charts your nation over time, compares you with your rivals, and tracks world market prices.

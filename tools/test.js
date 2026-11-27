@@ -341,6 +341,40 @@ test('money: central banks hit their target, printing inflates and erodes debt, 
   assert(r.bad.length === 0, r.bad.join('; '));
 });
 
+test('4c: sticky wages, unemployment insurance and the AI fiscal stance', () => {
+  const r = run(`(() => { const g = createGame('wages1', { size: 'small', countries: 6 }); setPlayer(g, 0); const c = g.countries[0];
+    for (let i = 0; i < 24; i++) { tick(g); g.pending.length = 0; }
+    const E = c.econ;
+    const b = c._provs.flatMap(p => p.buildings).find(b => b.wb > 0);
+    // Value added halves: the wage bill falls only slowly, so the margin is squeezed.
+    const wb0 = b.wb; b.vaS = b.vaS * 0.5;
+    c.laws.labor = 'unions'; const fallU = wageFall(c); c.laws.labor = 'none'; const fallN = wageFall(c); c.laws.labor = 'unions';
+    tick(g); g.pending.length = 0;
+    const sticky = b.wb > wb0 * 0.9;
+    c.policy.welfare = 8; const rrU = uiRate(c); c.laws.labor = 'none'; const rrN = uiRate(c); c.laws.labor = 'unions';
+    // Make people jobless: benefits flow and the fund runs a deficit.
+    for (const p of c._provs) for (const bb of p.buildings) bb.active = 0.3;
+    for (let i = 0; i < 3; i++) { tick(g); g.pending.length = 0; }
+    const ui = E.uiShare, avg = E.uiAvg, bud = projectBudget(c);
+    // AI stances: a left government spends in a slump, an indebted right one cuts.
+    const a = g.countries[1]; a.econ.gap = -0.08; a.econ.bankCrisis = 0; a.treasury = 0;
+    const left = (() => { a.gov = 'communist'; return fiscalStance(a, 0.1); })();
+    const right = (() => { a.gov = 'fascist'; return fiscalStance(a, 0.5); })();
+    a.econ.gap = 0.06; const boom = fiscalStance(a, 0.3);
+    deserializeGame(serializeGame(g));
+    return { sticky, fallU, fallN, rrU, rrN, ui, avg, bud: bud.ui > 0 && bud.uiContrib >= 0, left, right, boom,
+      bad: __sane(g) }; })()`);
+  assert(r.fallU < r.fallN, 'unions should make wages fall more slowly');
+  assert(r.sticky, 'wages should not fall at once with value added');
+  assert(r.rrU > r.rrN, 'free unions should give a higher benefit');
+  assert(r.ui > 0 && r.ui > r.avg, 'mass layoffs should raise benefits above their long-run cost: ' + r.ui + ' vs ' + r.avg);
+  assert(r.bud, 'benefits and contributions should show in the budget');
+  assert(r.left === 'stimulus', 'a left government should spend in a slump: ' + r.left);
+  assert(r.right === 'austerity', 'an indebted right government should cut in a slump: ' + r.right);
+  assert(r.boom === 'cooling', 'a boom should bring cooling: ' + r.boom);
+  assert(r.bad.length === 0, r.bad.join('; '));
+});
+
 test('credit: an over-borrowed economy defaults, closes buildings, and can trigger a banking crisis', () => {
   const r = run(`(() => { const g = createGame('credit1', { size: 'small', countries: 6 }); setPlayer(g, 0); const c = g.countries[0];
     for (let i = 0; i < 24; i++) { tick(g); g.pending.length = 0; }
