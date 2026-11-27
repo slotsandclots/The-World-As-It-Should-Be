@@ -2,12 +2,31 @@
 
 Where the game is going. Sizes are rough: **S** = a session, **M** = a few, **L** = a major milestone.
 
-**Priorities:**
+**Priorities** (see the design philosophy below for how we build):
 1. The economic and social simulation comes first.
 2. Politics is just as central.
 3. The military strategy layer is developed after those.
 
-The milestones below are ordered that way.
+The order at the end of this file follows these priorities, with the economic foundation (money and credit) laid before the social layer that depends on it.
+
+## Design philosophy
+
+These rules apply to every milestone. A feature that breaks them should be redesigned before it's built.
+
+1. **Emergence over scripting.** Stories should come out of the simulation, not out of events written in advance. That needs four ingredients:
+   - *things that build up* (debt, money, grievances, clout, experience)
+   - *delays* (construction, sticky wages, expectations, integration)
+   - *tipping points* (defaults, bank runs, coups, secession, encirclement)
+   - *coupling* between classes, politics and nations
+
+   Every feature should add at least one of them.
+2. **Real causes, not bonuses.** No "+5 approval" shortcuts. Every new quantity either *is* a pop or goods quantity (people, prices, wages, savings, jobs, goods, services) or changes one directly. Approval, stability and politics move because pops' living standards, jobs and beliefs change, through the existing pop → ideology → interest groups → politics chain.
+3. **Everything goes through pops and goods.** Housing, healthcare and schooling are goods or services with workers and costs. Discrimination changes who gets which jobs. Armies are drawn from pops and fed by goods. War production competes for steel and workers.
+4. **Fewer, clearer meters.** Each meter has one job: *legitimacy* (the right to rule), *support* (interest-group approval weighted by clout), *unrest* (pressure in the streets), and *stability* (derived from those three). New systems feed one of these instead of adding a parallel meter, and new features extend existing systems (separatism, movements, interest groups) instead of duplicating them.
+5. **Emergent must also be interesting.** Avoid a dead steady state, constant noise and runaway collapse. Every layer is measured with balance runs across many seeds before the next layer goes on top, against stated targets (for example, business cycles every 7–10 years).
+6. **The AI plays the same game.** Every system is used by AI nations as it is built (crises, laws, referendums, mobilization already work this way). AI mistakes should come from their politics, not from random noise.
+7. **You have to be able to see why.** Every important number has a breakdown, every system has a chart or a map mode, and the news explains what happened. A crash the player can't explain feels random, not emergent.
+8. **Build one layer at a time:** build, measure, play-test, then move on.
 
 ## Done
 
@@ -23,6 +42,16 @@ The milestones below are ordered that way.
 - **Milestone 1:** subjects and empires, releases, blocs (pacts, free-trade zones, customs unions, confederations), province designations, separatism, federations, parliamentary coalitions. Still open from it: war coalitions with joint war goals and joint peace deals, and bloc councils voting on shared policy.
 
 ---
+
+## Next: foundations (M)
+
+Before the next big milestone:
+
+- **Finish the consolidation:** fold political movements into radicalized interest groups, and cut down to the four meters in the design philosophy.
+- **Balance report:** headless runs across many seeds after every change, with statistics on regime changes, wars, crises, growth, prices, living standards and inequality. Philosophy rule 5 depends on it.
+- **Economy baseline:** measure today's GDP and price swings over 50 years as the starting point for Milestone 4.
+- **Performance:** run the simulation in a Web Worker before credit cycles and weekly war turns make each month more expensive.
+- **Play-test and campaign:** a real play session, and campaign chapters that teach laws, interest groups and the new war system.
 
 ## Milestone 1: Empires, blocs and coalitions (L) ✓
 
@@ -84,15 +113,25 @@ The biggest multiplier for political depth. Governments become combinations of l
 
 ## Milestone 3: Society, peoples and culture (L)
 
-- **Cultures and religions on pops:** majority and minority groups, with discrimination or acceptance laws, assimilation and religious conversion.
-- **Migration:** pops move between provinces and nations toward jobs and safety, and refugees flee wars.
-- **Nationalism:** irredentist claims ("our people across the border"), pan-national unification movements and separatism. These feed 1c and Milestone 3.
-- **Cities and urbanization:** cities on the map that grow with industry; housing shortages, slums and urban unrest.
-- **Demographics:** age structure, birth rates falling as living standards rise, and pensions and an aging society as an expense and an electorate.
-- **Social mobility:** pops move between classes through education and wealth (a worker's child becomes a clerk), not just through job vacancies. Inequality is measured explicitly (a Gini-style figure) and feeds movements.
-- **Designing the welfare state:** separate policies for healthcare, pensions, unemployment insurance and housing instead of one welfare slider. Each has its own costs, constituencies and effects on living standards.
-- **Education system:** primary, secondary and university levels, which produce literacy, clerks, engineers and an intelligentsia. Research depends on it, and so does political liberalization.
-- **Labor relations:** unions as organizations with membership, strikes, collective bargaining and minimum wages that change how buildings split value between wages and profits.
+Built on top of 4a–4b, so it can use wages, savings and debt. Every item states its mechanism.
+
+- **Cultures and religions on pops:** each pop has a culture and a faith.
+  - *Discrimination and acceptance laws* decide which jobs and classes a minority can hold, and whether it can vote. Exclusion shows up as unemployment, lower living standards and grievances in that group, not as an unrest modifier.
+  - *Assimilation and conversion* are slow drifts driven by schooling, cities and the law.
+- **Nationalism (extends separatism and movements, not a parallel system):**
+  - *irredentism:* our people across the border, which becomes war goals in Milestone 5
+  - *pan-national unification*
+  - *minority separatism:* grows from discrimination and living standards
+- **Migration:** pops move between provinces and nations toward higher wages, jobs and safety, out of famines and wars. Refugees are pops, with costs and politics. Migration laws decide who can enter.
+- **Cities and housing:**
+  - Housing is a good, built by construction and consumed by pops.
+  - Cities grow where jobs are.
+  - Housing shortages raise rents (eating into pop incomes), create slums, and concentrate urban unrest.
+- **Demographics:** birth and death rates by class and living standard. Births fall as living standards rise. Age structure creates pensioners, who are a cost and a voting bloc.
+- **Social mobility and inequality:** children move between classes through schooling and family wealth, not just through job vacancies. Inequality is measured (a Gini-style figure) and feeds interest groups and movements.
+- **Public services as goods:** healthcare, pensions and housing support replace the single welfare slider. Each is a service with workers (doctors, teachers, clerks), costs and the classes it serves. Unemployment insurance belongs to 4c.
+- **Education system:** primary, secondary and university schooling, staffed by teachers. It produces literacy, clerks, engineers and an intelligentsia. Research and political liberalization depend on it.
+- **Interest groups from culture and faith:** a religious minority or a national movement can become an interest group with its own clout and demands, folded into the existing interest-group system.
 
 ## Milestone 4: Deeper economy (L)
 
@@ -101,7 +140,7 @@ The biggest multiplier for political depth. Governments become combinations of l
 ### Starting point: what the economy does today
 The economy is already dynamic: goods prices move with supply and demand every month, buildings run or go idle on profitability, investors build where it pays, pop incomes and living standards follow what each class can afford, and markets trade nationally, in blocs and with the world. But it settles back to normal: after a shock it drifts back toward a stable state. Nothing accumulates (no private debt or credit), there is no money or price level (prices are relative to fixed bases and capped at 0.25–4× base, so economy-wide inflation is impossible), and there are few delays and no expectations. Milestone 4 adds the missing ingredients. Before starting, measure today's behavior (GDP and price swings over 50 years across many seeds) as a baseline to compare against.
 
-### Design rules
+### Design rules (the game-wide philosophy, applied to the economy)
 1. **Emergence comes from four ingredients:**
    - *accumulating quantities* (debt, money, confidence)
    - *delays* (construction time, sticky wages, lagging expectations)
@@ -151,6 +190,7 @@ The economy is already dynamic: goods prices move with supply and demand every m
 - **Optional asset market:** a stock or land index with bubbles in the boom and crashes at the turn.
 
 ### 4c. Labor, unemployment and fiscal policy
+- **Labor relations:** unions as organizations with membership, strikes and collective bargaining. Minimum-wage laws change how buildings split value between wages and profits.
 - **Sticky wages:** wages are slow to fall, so a drop in demand becomes layoffs rather than pay cuts. That's what turns a slump into mass unemployment.
 - **Automatic stabilizers:** unemployment insurance and welfare cushion downturns.
 - **The fiscal multiplier:** government spending moves output much more in a slump than in a boom, so stimulus versus austerity is a real choice.
@@ -196,6 +236,14 @@ The economy is already dynamic: goods prices move with supply and demand every m
 
 **Order inside the milestone:** 4a, then 4b (most of the gain is in these two), then 4c, then 4d. The remaining items slot in as they become relevant.
 
+## AI ambitions and personalities (M)
+
+Most AI work happens inside each milestone, because the AI uses every system as it's built. This milestone adds what's left: long-term direction. It must come before the war layer, because a war AI needs aims.
+
+- **Long-term goals per nation:** expand, industrialize, unify our people, dominate the market, form a bloc, seek revenge. Goals are shaped by the leader's personality, the ruling interest groups and the nation's situation.
+- **Diplomatic memory:** grudges, trust and broken promises.
+- **Recognizable national personalities,** so each world's history feels different.
+
 ## Milestone 5: Military strategy, an operational layer (L)
 
 **Design principle:** war should be an economic and political act, not a separate game. We take the parts of Hearts of Iron that make war about places and timing (fronts, breakthroughs, supply, encirclement) and skip the parts that demand constant micromanagement (division templates, combat width, daily ticks). The war layer runs itself; the player steps in for the big decisions and goes back to running the country.
@@ -229,22 +277,18 @@ Already in place (first pass): occupation until peace, fighting along the front 
   - a monarch's ("The Last Crown")
   - a revolutionary's ("Year Zero")
   - an imperial collapse ("The Long Retreat")
-- **Journal / national goals:** objectives like "Industrialize", "Unify our people" or "Survive the crisis", with rewards. These make the sandbox feel directed.
+- **Journal / national goals:** objectives that come from the simulation, like "Survive the depression" when one actually hits, "Integrate the new provinces" after a conquest, or "Industrialize" for an agrarian nation. They give the sandbox direction without scripting its history, and could be pulled forward because they help pacing.
 - **A history book:** a generated chronicle of your reign, and a "verdict of history" score at an optional end date.
 
-## Milestone 7: Smarter AI (M, ongoing)
-
-- **Strategic goals per nation** shaped by the leader's personality: expand, industrialize, form a bloc, or seek revenge.
-- **AI that uses every system the player can:** blocs, subjects, laws, research.
-- **Diplomatic memory:** grudges, trust and broken promises.
-- **Difficulty levels.**
-
 ## Milestone 8: Intrigue and dynasties (M)
+
+The furthest from the pop-and-goods core, so it comes last, and every item ties into an existing system.
+
 
 - **Relationships between characters:** friends, rivals, lovers, mentors. Opinions between characters affect loyalty and plots.
 - **Secrets and schemes:** blackmail, smear campaigns and assassination plots against you or by you. These build on the existing character actions.
 - **Dynasties and family trees:** marriage alliances between royal houses, contested successions, regencies for child monarchs, and education of heirs.
-- **Espionage:** spy networks, stealing technology, sabotage, election interference abroad.
+- **Espionage:** spy networks, stealing technology (through the research system), sabotage (of real buildings and supply), election interference abroad (through the press and regional elections).
 - **Play as a character:** optionally play a person instead of a state, so losing power doesn't end your game. You could be the opposition leader or an exiled general.
 
 ---
@@ -264,21 +308,26 @@ Already in place (first pass): occupation until peace, fighting along the front 
 
 ## Platform (M each)
 
-- **Performance:** run the simulation in a Web Worker so the UI never stutters on large Earth maps. Compress saves.
+- **Save compression.** (The Web Worker moved to the foundations.)
 - **Data-driven content:** governments, goods, buildings, events, techs and campaigns defined in JSON so they're easy to extend.
 - **Modding:** a mod loader for custom events, campaigns, governments and world models.
 - **Editors:** a scenario and map editor to paint borders, place nations and write starting conditions.
 - **Multiplayer:** hotseat first (the simulation is deterministic, which makes it feasible), later asynchronous online play.
-- **Balance reports:** headless runs across hundreds of seeds, giving statistics on regime changes, wars, growth and living standards per version.
 
 ---
 
 ## Order
 
-1. **Milestone 1:** empires, blocs, coalitions. It leans on the economy (customs unions, free-trade zones, special economic zones, investment treaties) as much as on politics.
-2. ✅ **Quick wins:** number breakdowns, the ledger, the province panel and save slots, plus a visual overhaul. A deep economic simulation is only fun if you can see why things happen.
-3. **Milestone 2:** laws and interest groups (first pass done).
-4. **Milestone 3:** society, peoples and culture.
-5. **Milestone 4:** deeper economy: money and inflation, credit and the business cycle, sticky wages and fiscal policy, then the world economy.
-6. **Milestone 5:** military strategy as an operational layer (armies, orders, supply, encirclement, generals), built on everything above: war economy, mobilization from pops, war goals from nationalism.
-7. **Milestones 6–8** as we go. Each big milestone ships with a new campaign chapter or campaign, and the AI improves alongside every system.
+1. ✅ **Milestone 1:** empires, blocs, coalitions.
+2. ✅ **Quick wins:** number breakdowns, the ledger, the province panel, save slots, the visual overhaul.
+3. ✅ **Milestone 2:** laws, interest groups and their leaders, constitutional crises, regional elections, referendums, the press.
+4. ✅ **Consolidation and war on the map (first pass).**
+5. **Foundations:** finish the consolidation (fewer meters, movements folded into interest groups), balance report, economy baseline, Web Worker, play-test and campaign chapters.
+6. **Milestone 4a–4b:** money, inflation, credit and the business cycle. The economic foundation the social layer builds on.
+7. **Milestone 3:** society, peoples and culture, built on wages, savings and debt.
+8. **Milestone 4c–4d:** labor relations and fiscal policy, then the world economy.
+9. **AI ambitions and personalities.**
+10. **Milestone 5:** military strategy as an operational layer.
+11. **Milestones 6 and 8:** eras and scenarios, intrigue and dynasties. National goals from Milestone 6 can be pulled forward for pacing.
+
+Throughout: each milestone follows the design philosophy, the AI uses every new system as it's built, and each big milestone ships with a campaign chapter.
