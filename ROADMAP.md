@@ -53,8 +53,9 @@ Before the next big milestone:
   - **Still to do:** a peasant interest group (the agrarian league has none yet), and retiring separate meters that only feed one of the four (for example coalition satisfaction, which could become support from partner parties).
 - ✅ **Balance report:** `npm run report` (and `--compare tools/baseline.json`) runs AI-only worlds and summarizes regime changes, wars, crises, elections, laws, growth, recessions, prices, living standards, inequality, unemployment and stability. Philosophy rule 5 depends on it.
 - ✅ **Economy baseline:** measured (see Milestone 4). Still to do: calm the remaining GDP noise before 4b.
-- **Performance:** run the simulation in a Web Worker before credit cycles and weekly war turns make each month more expensive.
-- **Play-test and campaign:** a real play session, and campaign chapters that teach laws, interest groups and the new war system.
+- **Performance (deferred):** a month takes 14–36 ms today, so the UI doesn't stutter yet. Moving the simulation into a Web Worker means the interface can no longer read game state directly, a large refactor that pays off once weekly war turns (Milestone 5) or credit cycles (4b) make months more expensive. Revisit then; the balance report tracks ms/month.
+- ✅ **Campaign:** chapter VIII, "The Constitution", teaches laws, bills and referendums, interest groups and their radical wings, and war on the map.
+- **Play-test:** a real play session by a human. This is the one Foundations item only you can do.
 
 ## Milestone 1: Empires, blocs and coalitions (L) ✓
 

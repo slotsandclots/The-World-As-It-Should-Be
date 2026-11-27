@@ -16,7 +16,7 @@ Then visit http://localhost:8000. It can also be hosted as-is on GitHub Pages.
 
 ## What's in it
 
-**The First Republic: a story campaign and tutorial.** Lead the young Republic of Velmora after its king abdicates, guided by your chief of staff through seven chapters:
+**The First Republic: a story campaign and tutorial.** Lead the young Republic of Velmora after its king abdicates, guided by your chief of staff through eight chapters:
 - forming a cabinet
 - balancing the budget, plus markets, construction and pops
 - a first election against the opposition leader
@@ -24,6 +24,7 @@ Then visit http://localhost:8000. It can also be hosted as-is on GitHub Pages.
 - a hostile junta next door
 - research and a dockyard strike
 - a common market with a neighbor, and a special economic zone
+- the constitution, interest groups and their radical wings, and how wars are fought on the map
 
 Briefings are written as dialogue with portraits. Objectives are checked against the live simulation and highlight the part of the screen to use. The ending depends on what kind of state you built.
 

@@ -342,6 +342,8 @@ test('the campaign can be completed', () => {
       if (s === 14) { c.pc = 100; movementAction(g, 'labor', 'enact'); cs.actions['move:enact'] = true; }
       if (s === 15) { c.pc = 100; const b = foundBloc(g, c.id, 'freeTrade'); joinBloc(g, b, cs.nations.aldmark); }
       if (s === 16) { c.pc = 100; setDesignation(g, provincesOf(g, c.id).find(p => p.id !== c.capital).id, 'sez'); }
+      if (s === 17) { c.pc = 100; c.reform = null; proposeLaw(g, c, 'church', Object.keys(LAW_CATS.church.opts).find(o => o !== c.laws.church)); }
+      if (s === 18) cs.tabsSeen.push('military');
       // Resolve whatever the simulation asks of the player, then let a month pass.
       for (const p of g.pending.splice(0)) {
         if (p.type === 'event') resolveEvent(g, p, eventOptions(g, c, p)[0].i);

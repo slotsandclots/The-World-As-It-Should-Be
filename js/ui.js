@@ -462,7 +462,7 @@ const UI = {
       case 'propose': { const r = proposeLaw(g, this.player(), ds.cat, ds.opt); this.track('law:' + ds.cat, r.ok); this.toast(r.msg, r.ok ? 'good' : 'bad'); if (r.ok) this.lawPick = null; App.afterAction(); return; }
       case 'ig': { const r = igAction(g, ds.f, ds.a); this.track('ig:' + ds.a, r.ok); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }
       case 'referendum': { const r = holdReferendum(g, this.player(), ds.cat, ds.opt); this.track('referendum', r.ok); this.toast(r.msg, r.ok && r.passed ? 'good' : 'bad'); if (r.ok) this.lawPick = null; App.afterAction(); return; }
-      case 'press': { const r = pressAction(g, +ds.i, ds.a); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }
+      case 'press': { const r = pressAction(g, +ds.i, ds.a); this.track('press:' + ds.a, r.ok); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }
       case 'posture': { const r = setPosture(g, +ds.war, ds.p); this.toast(r.msg, r.ok ? 'info' : 'bad'); App.afterAction(); return; }
       case 'mobilize': { const r = setMobilized(g, this.player(), ds.on === '1'); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }
       case 'lawact': { const r = lawAction(g, ds.a); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }

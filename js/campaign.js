@@ -363,6 +363,30 @@ const CAMPAIGN_STEPS = [
     highlight: { tab: 'overview', sel: '[data-act="designate"][data-key="sez"]' },
     check: (game, c) => game.world.provinces.some(p => p.owner === c.id && p.designation === 'sez'),
   },
+  // ---------------------------------------------- VIII
+  {
+    chapter: 'VIII. The Constitution', title: 'A Law of Our Own',
+    brief: [
+      ['mara', 'Mr. President, a republic is its laws. Open the Politics tab and look at the Constitution: who may vote, how free the press is, how the church and the economy are run. Each regime has its traditions; break with them and you feel it.'],
+      ['ilse', 'Below it are the interest groups: workers, business, clergy, the army, the intelligentsia. Each has a leader, moderate or radical, its clout in the country, and a law it wants. Their movements are their radical wings: an angry group grows a dangerous one.'],
+      ['mara', 'Pick one law and put it before parliament. A bill costs political capital and takes months; it needs a majority, and the groups it hurts grow restless while it is debated. Or take it straight to the people in a referendum.'],
+    ],
+    objective: 'Propose a law to parliament, or put one to a referendum.',
+    hint: 'Politics tab → The Constitution → "change" next to a law → Propose or Referendum.',
+    highlight: { tab: 'politics', sel: '[data-act="lawpick"]' },
+    check: (game, c, ui, cs) => !!c.reform || !!(cs.actions && Object.keys(cs.actions).some(k => k.startsWith('law:') || k === 'referendum')),
+  },
+  {
+    chapter: 'VIII. The Constitution', title: 'If War Comes',
+    brief: [
+      ['stoll', 'One last thing, from the General Staff. Wars are fought province by province along the front now. Captured land is only occupied until the peace; hills and mountains favor the defender; a province that is half surrounded falls fast; land reached only by sea is hard to supply.'],
+      ['stoll', 'In a war you choose a posture for each front: offensive, balanced or defensive. And you can call a general mobilization: a bigger army, but fewer hands in the factories. Look over the Military tab so you know where things are.'],
+    ],
+    objective: 'Open the Military tab.',
+    hint: 'Click the Military tab. During a war, each war card has posture buttons and the Mobilization card appears.',
+    highlight: { tab: 'military', sel: '#tabs [data-tab="military"]' },
+    check: (game, c, ui, cs) => (cs.tabsSeen || []).includes('military') && game.month > cs.stepStart,
+  },
   // ---------------------------------------------- Epilogue
   {
     chapter: 'Epilogue', title: 'What Kind of Country?',
