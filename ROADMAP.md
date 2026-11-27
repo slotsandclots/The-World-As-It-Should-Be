@@ -320,7 +320,7 @@ The economy is already dynamic: goods prices move with supply and demand every m
   - *Democracies:* campaigning, negotiating bills, managing the press.
   - *Autocracies:* purges, rigged elections, secret police operations, buying off generals.
   - *Monarchies:* marriages, the succession, the court.
-- **Fewer flat base numbers per government:** growth, corruption, repression and similar bonuses should come from the mechanisms underneath wherever possible.
+- **Fewer flat base numbers per government:** growth, corruption, repression and similar bonuses should come from the mechanisms underneath wherever possible. This is step 1 of "Governments that play differently" below.
 - ✅ **AI fiscal response to the cycle** (first pass): each AI government takes a stance from the output gap, its debt and its politics (the ruling party's in a democracy). In a slump, the left and anyone with room to borrow stimulate, raising infrastructure and welfare toward a temporary target. Orthodox governments in debt impose austerity. In a boom, prudent ones cool things down. AI governments also bail out their banks in a crisis, centrists most readily.
 - **Labor relations:** unions as organizations with membership, strikes and collective bargaining. Minimum-wage laws change how buildings split value between wages and profits.
 - ✅ **Sticky wages** (first pass): each building's wage bill follows a smoothed value added, rising within months but falling slowly, slowest under free unions. When demand drops, pay eats the margin; when it eats all of it, private owners lay workers off. A planned economy, or one without private owners, keeps its plants running instead (the first economic-system difference that works through a mechanism).
@@ -534,6 +534,37 @@ New: world wars in 12 of 24 worlds (0.67 per world, about 28 months each), and a
 - artists and industrialists among the notable people
 - inventions that spread to other nations
 - a campaign chapter
+
+## Governments that play differently (M each)
+
+Today the seven government types differ mostly in numbers: freedom, repression, growth, corruption, army size, political capital and their power base. Only a few have systems of their own (elections and coalitions in democracies, heirs and successions in absolute monarchies, no private owners under communism). Each type should play differently because of how it works, not because of its modifiers.
+
+**What each type needs:**
+
+| Type | Has now | Needs |
+|---|---|---|
+| Communist state | No private owners, high welfare, sham elections | A real planned economy: production quotas, fixed prices that cause shortages, queues and black markets, five-year plans as the gameplay loop. Party factions, purges, a succession decided by the leadership. |
+| Military junta | A big army; disloyal generals stage coups | The officer corps as the electorate: commanders kept loyal with posts and budgets, a presidency that may rotate among them, a promised "return to civilian rule" as a legitimacy clock, coup-proofing that trades a weaker army for a safer regime. |
+| Theocracy | A clergy loyalty bonus | Faith as legitimacy that literacy erodes, a clerical council that chooses the successor, religious law that shapes the economy (limits on lending), religious police, holy sites tied to the faiths, spreading the faith abroad. |
+| Fascist state | Aggression and military bonuses | A leader cult fed by victories and spectacle (building on demagogue renown), corporatism (the state sets wages and prices with unions and business cartels), party militias competing with the army, a push for self-sufficiency. |
+| Constitutional monarchy | A decorative monarch | Reserve powers: appointing a prime minister in a hung parliament, dismissing a government in a crisis, abdication crises, the monarch's popularity as a source of legitimacy. |
+| Absolute monarchy | Heirs and disputed successions | The court: nobles and landowners as power holders, royal marriages that make alliances and claims to thrones, regencies, the crown's own income (with Milestone 8). |
+| Liberal democracy | Elections, coalitions, polls, press, referendums | The parliament screen, bargaining over bills party by party, courts that can strike down laws, lobbying with money. This is where lawmaker play would live. |
+
+**New types, emerging from combinations of laws** (as the hybrid names already do) rather than new presets:
+- **Technocracy:** a merit-based civil service with parties sidelined. Ministers chosen by skill; legitimacy from performance (growth, prices, living standards) rather than votes.
+- **Corporate state:** the largest companies govern, with influence weighted by ownership. Needs corporations as actors, after phase 3 of the closed-loop economy.
+- **Competitive authoritarian:** real but tilted elections, through media control, electoral rules and a captured election commission. Partly possible already through the laws.
+- **Also possible:** worker-council republics, and merchant oligarchies where the vote depends on wealth.
+
+**Order:**
+1. Replace the flat per-type numbers with mechanisms (with 4c).
+2. Communist planning (ties into the economy milestone), junta officer politics, and the crown's reserve powers.
+3. Technocracy as a law-based hybrid.
+4. The corporate state, after corporations exist.
+5. The monarchies' court and dynasties, with Milestone 8.
+
+**Kept in mind, not scheduled:** playing as a lawmaker (second to the grand-strategy layer; the parliament screen is its first step) and playing as a corporation or a church.
 
 ## AI ambitions and personalities (M)
 
@@ -771,7 +802,7 @@ Ideas for after (or alongside) the milestones. They follow the same design philo
 6. ✅ **Milestone 4a–4b:** money, inflation, credit and the business cycle (first pass).
 7. ✅ **Milestone 3** (first pass), with ideas spreading through the world folded in: 3a peoples, 3b cities and demographics, 3c aging, inequality, minority movements and healthcare, 3d universities, kinship and unification, idea spread, 3e secondary schools, the minorities interest group, unification by force. Also done: **the alert bar** (see Quality of life).
 8. ✅ **History makers (first pass):** notable people, the memory of defeat and its demagogues, world wars and peace conferences. Pulled forward at the player's request; it uses the existing war layer and leaves the operational war layer to Milestone 5.
-9. **Milestone 4c–4e:** labor relations and fiscal policy (including AI governments responding to the cycle), the world economy (with distance that matters, from World scale), and the stock and land markets, with the **closed-loop economy** running through all three (phase 1, the state's budget and debt, is done).
+9. **Milestone 4c–4e,** with step 1 of "Governments that play differently" (mechanisms instead of flat per-type numbers) in 4c: labor relations and fiscal policy (including AI governments responding to the cycle), the world economy (with distance that matters, from World scale), and the stock and land markets, with the **closed-loop economy** running through all three (phase 1, the state's budget and debt, is done).
 10. **AI ambitions and personalities, with the graphics-card map**, plus the first art commissions: an art direction document, map textures and an icon set. The war layer needs the new map for army counters, fronts, plan arrows and supply routes.
 11. **Milestone 5:** the war layer, an operational layer.
 12. **The world newspaper and history book.** This can move earlier. World wars, treaties and the figures of the age are natural headlines and chapters.
