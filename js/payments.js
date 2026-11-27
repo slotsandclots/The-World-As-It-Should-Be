@@ -42,7 +42,7 @@
 // c.econ.attack { since, flight } · c.econ.fxCrisis (months left) · c.econ.fxHist (last 13 rates)
 
 const PAY = {
-  RESERVE_MONTHS: 3, LEND_LIMIT: 0.6, BASE_RATE: 0.04, FX_MIN: 0.3, FX_MAX: 1.6, DEFAULT_MEMORY: 60,
+  RESERVE_MONTHS: 3, LEND_LIMIT: 0.25, BASE_RATE: 0.04, FX_MIN: 0.3, FX_MAX: 1.6, DEFAULT_MEMORY: 60,
   ATTACK_AT: -0.08,     // reserves (share of GDP) at which speculators attack a gold parity
   ATTACK_OVER: -0.03,   // ... and above which the attack is beaten off
   FLIGHT: 0.02,         // share of owners' capital that flees each month in an attack
@@ -50,7 +50,7 @@ const PAY = {
   FX_CRISIS_DROP: 0.2,  // a floating currency down this much in a year is in crisis
   FX_CRISIS_MONTHS: 6,
   HOT_MONEY: 3,         // a defended parity draws this many times more foreign capital (the premium)
-  BANK_LEND: 0.03,      // share of their surplus reserves banks offer abroad each month
+  BANK_LEND: 0.01,      // share of their surplus reserves banks offer abroad each month
   REPAY: 1 / 120,       // foreign loans are paid down over about ten years
   RATE_CUT: 8,          // borrowing falls by this much per point of rate above the base plus 2%
 };
@@ -77,7 +77,7 @@ function extRateParts(game, c) {
   const E = c.econ, G = Math.max(0.01, c.gdp);
   return [
     ['Base rate', PAY.BASE_RATE + 0.02],
-    ['Debt abroad', extDebtOf(c) / G * 0.1],
+    ['Debt abroad', extDebtOf(c) / G * 0.2],
     ['At war', game && isAtWar(game, c.id) ? 0.02 : 0],
     ['Reserves short', E.reserves != null && E.reserves < 0 ? Math.min(0.06, -E.reserves / G * 0.3) : 0],
   ];
