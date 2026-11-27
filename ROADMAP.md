@@ -638,6 +638,14 @@ Already in place (first pass): occupation until peace, fighting along the front 
 - **Time:** the game runs in weekly steps while a war is on, and monthly in peace. On the map: army counters, battle markers, the front line between the sides, plan arrows, and highlighted encircled pockets.
 - **AI:** fights with the same fronts and orders, so it can spearhead and encircle too.
 
+**Retune world wars** (built early in History makers, on the first-pass war layer):
+- **Pacing:** their length, the exhaustion limit for seeking peace, and the four-month test before a war counts as a world war, all tuned to monthly fronts.
+- **Total war:** replace the stand-ins with the war economy (rationing, converted factories, war bonds) and naval blockades. Today AI powers simply mobilize, and every nation's trade openness drops.
+- **Peace terms:** decided by war goals, not war score.
+- **War dead:** taken out of the soldier pops, not only counted.
+- **The memory of defeat:** "army intact" should come from the armies on the map, not from a strength ratio.
+- **Measure again:** world wars per world, their length, and war finance side effects (hyperinflation, defaults).
+
 **Skip on purpose:** division templates, combat width, daily ticks, unit-level air and naval combat, a production line for every weapon.
 
 **Later:** military doctrines in the tech tree, officer quality tied to education and the military interest group, proxy wars and arming rebels for later eras.
