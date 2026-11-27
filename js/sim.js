@@ -1175,7 +1175,7 @@ function playerMonthly(game) {
   } else if (c.stability > CRISIS_LEVEL + 7) c.flags.warned = false;
   runScheduledEvents(game, c);
   const learning = game.campaign && !game.campaign.ended && game.campaign.step < 7;
-  if (!learning && !game.pending.some(p => p.type !== 'toast') && game.rng.chance(0.15)) maybeEvent(game, c);
+  if (!learning && !game.pending.some(p => p.type !== 'toast') && game.rng.chance(0.08)) maybeEvent(game, c);
 }
 
 function setPlayer(game, id) {

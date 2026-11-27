@@ -261,7 +261,7 @@ function tickLaws(game, c) {
     const name = LAW_CATS[R.cat].opts[R.opt].name;
     if (R.progress >= 100) {
       enactLaw(game, c, R.cat, R.opt);
-      if (isPlayer(game, c)) notify(game, 'A Law Is Passed', `"${name}" is now the law of the land.`);
+      if (isPlayer(game, c)) toastPlayer(game, `A law is passed: "${name}" is now the law of the land.`, 'good');
     } else if (sup < 0.5 && R.months > 3 && game.rng.chance(0.1)) {
       c.reform = null;
       adjust(c, { legitimacy: -3 });

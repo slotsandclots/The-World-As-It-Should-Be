@@ -466,7 +466,7 @@ function maybeEvent(game, c) {
   if (!cands.length) return;
   const ev = game.rng.weighted(cands, e => e.weight);
   game.lastEvents.push(ev.id);
-  if (game.lastEvents.length > 6) game.lastEvents.shift();
+  if (game.lastEvents.length > 12) game.lastEvents.shift();
   presentEvent(game, c, ev, {});
 }
 

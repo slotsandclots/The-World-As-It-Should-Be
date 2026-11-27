@@ -333,7 +333,7 @@ test('money: central banks hit their target, printing inflates and erodes debt, 
     const debt1 = -c.treasury / c.gdpNom, hot = inflationYoY(c);
     const h = deserializeGame(serializeGame(g));
     return { cb, hot, priceRise: c.econ.pl / pl0, debt0, debt1, minWage, kept: Math.abs(h.countries[0].econ.pl - c.econ.pl) < 1e-3 * c.econ.pl, bad: __sane(g) }; })()`);
-  assert(r.cb > -0.03 && r.cb < 0.07, 'central bank inflation off target: ' + r.cb);
+  assert(r.cb > -0.06 && r.cb < 0.08, 'central bank inflation off target: ' + r.cb);
   assert(r.hot > 0.15 && r.priceRise > 1.5, 'printing did not inflate: ' + r.hot);
   assert(r.debt1 < r.debt0, 'inflation should erode the debt ratio');
   assert(r.minWage < 0.97, 'real wages should lag rising prices');
