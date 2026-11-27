@@ -40,7 +40,7 @@ const MOVEMENTS = {
   nationalist: {
     name: 'Nationalist Movement', icon: '⚑', gov: 'fascist',
     desc: 'Veterans and patriots demanding a strong army and national revenge.',
-    support: c => (share(c, 'soldiers') * 3 + share(c, 'officials') * 1.5 + share(c, 'peasants') * 0.25 + share(c, 'workers') * 0.3) * 100 * clamp(c.warExhaustion / 40 + Math.max(0, c.ideo.auth) + (c.flags.lostLand ? 0.6 : 0), 0, 1.6),
+    support: c => (share(c, 'soldiers') * 3 + share(c, 'officials') * 1.5 + share(c, 'peasants') * 0.25 + share(c, 'workers') * 0.3) * 100 * clamp(c.warExhaustion / 40 + Math.max(0, c.ideo.auth) + (c.revanchism || 0) * 0.5, 0, 1.6),
     demand: { text: 'Raise military spending to 5% of GDP', met: c => c.policy.military >= 5, enact: c => { c.policy.military = Math.max(c.policy.military, 5); } },
   },
   clerical: {
@@ -88,7 +88,7 @@ function tickMovements(game, c) {
   const repressive = c.policy.police > 3.5 || c.freedom < 30;
   for (const k of MOVEMENT_KEYS) {
     const def = MOVEMENTS[k], m = M[k];
-    const target = clamp(def.support(c) * (typeof ideaBoost === 'function' ? ideaBoost(c, k) : 1), 0, 60);
+    const target = clamp(def.support(c) * (typeof ideaBoost === 'function' ? ideaBoost(c, k) : 1) * (typeof demagogueDraw === 'function' ? demagogueDraw(c, k) : 1), 0, 60);
     m.support += (target - m.support) * 0.05;
     const met = def.demand.met(c);
     const ig = MOVEMENT_IG[k];
@@ -109,7 +109,6 @@ function tickMovements(game, c) {
     if (m.support < 3) m.leader = null;
     // Keep the group and its radical wing under one leader.
     if (ig && m.leader && c.igLeaders && m.support > 8) { m.leader.ig = ig; c.igLeaders[ig] = m.leader; m.leader.stance = m.radicalism > 55 ? 'radical' : m.radicalism < 35 ? 'moderate' : (m.leader.stance || 'moderate'); }
-    if (m.leader && game.month % 12 === 0) m.leader.age++;
   }
   // Uprisings: radical, popular movements may try to seize power.
   for (const k of MOVEMENT_KEYS) {
@@ -194,7 +193,8 @@ function movementAction(game, k, action) {
   const ch = m.leader;
   if (!game.rng.chance(clamp(0.45 - m.radicalism / 200 + (c.leader.skills.cha - 5) * 0.05, 0.1, 0.8))) return { ok: false, msg: `${ch.name} rejects our overtures.` };
   m.leader = null; m.radicalism *= 0.6; m.support *= 0.85;
-  ch.role = 'minister'; ch.loyalty = 50;
+  for (const p of c.parties) if (p.leader === ch) p.leader = null;
+  ch.role = 'minister'; ch.loyalty = 50; ch.demagogue = false;
   const post = POST_KEYS.find(p => !c.cabinet[p]) || 'chief';
   candidatesFor(game, c, post).push(ch);
   return { ok: true, msg: `${ch.name} accepts a seat at the table and is now a candidate for ${CABINET_POSTS[post].name}. The movement loses its fire.` };

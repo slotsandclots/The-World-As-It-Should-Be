@@ -39,7 +39,8 @@ These rules apply to every milestone. A feature that breaks them should be redes
 - Tutorial campaign "The First Republic"
 - Map zoom and pan, test suites, CI
 - Checks on runaway conquest (infamy, coalitions, occupation, core land, arms races) and four difficulty levels
-- **Milestone 1:** subjects and empires, releases, blocs (pacts, free-trade zones, customs unions, confederations), province designations, separatism, federations, parliamentary coalitions. Still open from it: war coalitions with joint war goals and joint peace deals, and bloc councils voting on shared policy.
+- **Milestone 1:** subjects and empires, releases, blocs (pacts, free-trade zones, customs unions, confederations), province designations, separatism, federations, parliamentary coalitions. Still open from it: joint war goals for ordinary wars (world wars now end at a joint peace conference), and bloc councils voting on shared policy.
+- **History makers (first pass):** notable people (writers, thinkers, inventors, famous generals), the memory of defeat (revanchism, the stab-in-the-back myth, demagogues, disarmament treaties), and world wars that grow out of ordinary wars and end at a peace conference. See the section below.
 
 ---
 
@@ -470,9 +471,75 @@ The asset side of the cycle. Through pops and goods: asset prices change what th
 
 **Order inside the milestone:** 4a, then 4b (most of the gain is in these two), then 4c, then 4d. The remaining items slot in as they become relevant.
 
+## History makers: notable people, the memory of defeat, world wars ✅ (first pass)
+
+Asked for by the player: the people who shape an age, a lost war that a demagogue turns into a grievance and a grievance into a world war, and world wars themselves. Everything goes through systems that already existed (pops, idea currents, movements, interest groups, research, alliances and blocs, the war on the map), so the story is not scripted: each link happens only when its causes are there.
+
+**Notable people** (`js/figures.js`):
+- **Where they come from:** writers from the literate public (more with secondary schools and a free press), thinkers and inventors from university graduates. Each has a talent, politics of their own drawn from the public around them, and a renown that grows with every work and fades slowly.
+- **Writers** publish books whose theme follows the times: grievance after a defeat, national epics where our people live abroad, anti-war novels after heavy losses, social novels in a slump, dissident writing under censorship, faith, or modernism in good times. A book is an idea shock to its current and a nudge to public opinion at home; famous books are translated by trade partners and neighbors with a free press. Grievance and anti-war books sharpen or soften the memory of defeat.
+- **Thinkers** found schools (liberalism, socialism, fascism, traditionalism) chosen by their politics and pulled by the times. A treatise is a larger idea shock at home and abroad, worldwide for famous ones, and radicalizes the matching movement.
+- **Inventors** add research in their field (up to about +30% for a famous one, more with a funded laboratory). Breakthroughs add progress to the current project, and AI research leans toward their fields.
+- **Generals** gain renown and experience from battles won, learn command traits (Blitz Commander +15% attack, Defensive Genius +15% defense), grow less loyal as they grow famous, and after a war a hero may lead an opposition party.
+- **Censorship and exile:** without a free press, a government can ban a writer or thinker; banned works circulate underground, and about a third of the banned flee abroad and write from exile. AI governments patronize those in tune with the regime and ban the rest.
+
+**The memory of defeat** (`js/revanchism.js`):
+- **The wound:** every losing peace (terms, a capitulation, a peace conference) records the victors, the humiliation of the terms and the war dead. *Revanchism* is a stock built from our former core land still ruled by others (weighted by our people there), the terms, the reparations still paid, the war dead and a disarmament treaty, amplified by hard times and the myth, sharpened by nationalist writers and demagogues, and softened by prosperity and warm relations with the victors. It rises quickly and fades over a generation, with a breakdown in the Politics tab.
+- **Where it goes:** the nationalist movement's support (replacing the old permanent "lost land" flag), the fascist current, AI rearmament and revenge.
+- **The stab in the back:** if the army comes home undefeated in the field (at least 55% of its prewar strength, under a quarter of the homeland occupied, no capitulation), veterans say it was never beaten. The myth is stronger when elected politicians, or a government or leader that took over during the war, signed the peace, and when a famous general says so. A crisis (player and AI) asks whether to tell the truth, honor the army and blame traitors at home, or seek reconciliation. The myth turns the military interest group against a civilian government and drains its legitimacy.
+- **Demagogues:** when revanchism is high and the nationalist movement has a following, a demagogue takes its lead: a famous general, a grievance writer or a decorated veteran. Their charisma and renown draw crowds, and in a democracy they lead a nationalist party (founded if needed) whose vote grows with the movement. In power in a republic, they ask for an enabling act (player and AI).
+- **Disarmament treaties** cap military spending for fifteen years. AI governments break them only when the victors look beatable (weakened, or matched by revisionist partners); breaking one costs infamy and the victors' goodwill.
+
+**World wars** (`js/worldwar.js`):
+- **Great powers:** the strongest quarter of the world by army and economy.
+- **Wars grow:** each month, nations outside a war weigh joining it: allies whose friend is losing, pact members (defensive pacts defend; revisionist pacts attack together; pacts close ranks against their leader's great-power rival), neighbors with claims or a grudge, ideological crusaders, and great powers alarmed that one side will dominate. The player is asked when an ally is losing.
+- **Alliance systems:** great powers facing a hostile rival of similar weight found pacts and recruit friends; nations nursing a defeat sign revisionist pacts ("Axis").
+- **A world war:** great powers on both sides, three in all (or seven nations and half the world's output), the weaker side holding at least a third of the other's strength (half, for one nation against the world), for at least four months. Then AI belligerents mobilize and switch to war production, every nation's trade openness falls (shipping), exhaustion feeds communist revolutions in hungry nations, and new governments sign separate peaces.
+- **The peace conference:** decided by the war score when the great powers are exhausted. The victors keep occupied land where their people live, free peoples the losers had conquered (new states take the victors' system), impose ten years of reparations and fifteen years of disarmament on the great powers that lost, and replace a beaten aggressor regime (always after its second world war lost). Nations that capitulated along the way come to the conference too. The victors draw together in an alliance.
+- **War weariness:** every belligerent remembers its war dead (as a share of its people) for a generation, which lowers its appetite for war and for joining others' wars.
+- **Interface:** the Notable people card (Leader tab), the Memory of defeat card with a breakdown (Politics tab), world-war badges, great-power standing and treaty limits (Military tab, and the military slider), great powers, world wars, figures of the age and the remembered dead (World tab), alerts, crises and news.
+
+**Measured** (24 worlds × 40 years, the same seeds before and after; counts now come from every news item):
+
+| Measure | Before | After |
+|---|---|---|
+| Regime changes per world | 15.5 | 15.6 |
+| Wars per world | 6.4 | 5.9 |
+| War length (months) | 15.3 | 17.8 |
+| Stability, mean | 47.6 | 47.7 |
+| Share of nation-months in crisis | 0.066 | 0.066 |
+| Growth per person (%/yr) | 1.19 | 1.25 |
+| Inflation (%/yr) | 3.7 | 4.0 |
+| Nation-years above 50% inflation | 3.5 | 4.4 |
+| Sovereign defaults per world | 2.8 | 3.8 |
+| Strongest idea current, mean | 0.19 | 0.23 |
+
+New: world wars in 12 of 24 worlds (0.67 per world, about 28 months each), and a second one in 4 of them. Per world: about 3 nations joining wars already under way, 1.4 wars of revenge, 4 demagogues rising and 0.8 coming to power, 0.5 stab-in-the-back crises, 0.5 separate peaces. About 2.3 notable people per nation, of whom 0.18 famous (renown 50+). Revanchism above 0.4 in 7% of nation-years. A month takes about 6% longer. In a search of 24 worlds × 50 years, most of the chain (at least four of its steps: the myth, a demagogue rising and coming to power, a war of revenge, a world war in its wake) appeared in a quarter of them, and all of it in two.
+
+**Side effects to watch:** world wars are paid for by printing and borrowing, so hyperinflation (+25%) and sovereign defaults (+36%) rise afterwards. That fits "war pays the bill in inflation afterwards", but it should be checked once war bonds exist. War-weary nations fight about 7% fewer wars overall.
+
+**Fixed along the way:**
+- the balance report counted events only in the last 600 news items, so long-run counts were too low (all counts above are from complete logs, before and after)
+- the report's immigration figure divided by zero for nations that no longer exist
+- movement leaders aged two years a year
+- a nation that capitulated in a war of many nations stayed occupied until the whole war ended
+
+**Later passes:**
+- the player negotiating at the peace conference (today the victors' terms follow the war score)
+- war guilt and reparations paid in goods
+- the war dead taken out of the soldier pops
+- war bonds
+- a League of Nations
+- a revanchism map mode
+- artists and industrialists among the notable people
+- inventions that spread to other nations
+- a campaign chapter
+
 ## AI ambitions and personalities (M)
 
 Most AI work happens inside each milestone, because the AI uses every system as it's built. This milestone adds what's left: long-term direction. It must come before the war layer, because a war AI needs aims.
+
+Already in place from History makers: revenge as an aim (a grudge against the victors lowers the odds an AI needs before attacking them and makes it rearm), revisionist pacts among the defeated, great powers building alliance systems against their rivals, and war weariness from the war dead.
 
 - **Long-term goals per nation:** expand, industrialize, unify our people, dominate the market, form a bloc, seek revenge. Goals are shaped by the leader's personality, the ruling interest groups and the nation's situation.
 - **Diplomatic memory:** grudges, trust and broken promises.
@@ -489,7 +556,7 @@ Already in place (first pass): occupation until peace, fighting along the front 
 - **Armies on the map:** a few army counters per nation (roughly one per front), not dozens of divisions. Each has strength (men and equipment) and organization (cohesion that battles drain first; at zero it retreats). Armies hold their front and follow their last order until told otherwise.
 - **Orders:** *hold* (dig in, entrenchment builds over weeks), *advance* (push the whole line), and *spearhead* (draw an arrow to a target: the army concentrates, breaks through and drives deep). Optional: move an army yourself to plug a gap.
 - **Supply and encirclement:** supply flows from the capital and ports along held provinces and fades with distance and poor infrastructure. Out-of-supply armies lose organization; encircled ones surrender. Overseas fronts depend on controlling the sea route.
-- **Generals lead armies:** the existing general characters command, gain experience and traits ("Defensive Genius", "Blitz Commander"), and win popularity. A victorious, ambitious general is a coup risk.
+- **Generals lead armies:** the existing general characters command, gain experience and traits ("Defensive Genius", "Blitz Commander"), and win popularity. A victorious, ambitious general is a coup risk. *First pass done in History makers:* renown and experience from battles, the two command traits, ambition from fame, war heroes entering politics. Still to do: one general per army counter.
 - **Armies come from the economy and the pops:** manpower is drawn from soldier and peasant pops (and leaves the workforce); equipment from arms, steel and fuel bought on the market. Shortages at home become shortages at the front; a blockade starves both.
 - **War economy:** converting factories to arms, rationing, war bonds and price controls, each with its own interest-group winners and losers.
 - **The home front:** casualty reports, anti-war movements, draft riots, a hostile press. Losing a war can bring down the government.
@@ -676,7 +743,7 @@ Ideas for after (or alongside) the milestones. They follow the same design philo
 ### Living histories
 
 - **The newspaper and history book** (priority above).
-- **The past stays alive:** in the news, in nationalist claims, and in the memory of old wars and revolutions, which feeds diplomacy and movements.
+- **The past stays alive:** in the news, in nationalist claims, and in the memory of old wars and revolutions, which feeds diplomacy and movements. *First pass done:* revanchism and the war dead remember wars for a generation; the World tab keeps world wars, the figures of the age and the most renowned of the dead.
 
 ### Community and release
 
@@ -703,11 +770,12 @@ Ideas for after (or alongside) the milestones. They follow the same design philo
 5. ✅ **Foundations:** consolidation, balance report, economy baseline and noise fix, campaign chapter VIII. Still to do: a play-test by a human. The Web Worker is deferred until weekly war turns arrive.
 6. ✅ **Milestone 4a–4b:** money, inflation, credit and the business cycle (first pass).
 7. ✅ **Milestone 3** (first pass), with ideas spreading through the world folded in: 3a peoples, 3b cities and demographics, 3c aging, inequality, minority movements and healthcare, 3d universities, kinship and unification, idea spread, 3e secondary schools, the minorities interest group, unification by force. Also done: **the alert bar** (see Quality of life).
-8. **Milestone 4c–4e:** labor relations and fiscal policy (including AI governments responding to the cycle), the world economy (with distance that matters, from World scale), and the stock and land markets, with the **closed-loop economy** running through all three (phase 1, the state's budget and debt, is done).
-9. **AI ambitions and personalities, with the graphics-card map**, plus the first art commissions: an art direction document, map textures and an icon set. The war layer needs the new map for army counters, fronts, plan arrows and supply routes.
-10. **Milestone 5:** the war layer, an operational layer.
-11. **The world newspaper and history book.** This can move earlier.
-12. **Eras and scenarios (Milestone 6) and the desktop release,** together toward a public release.
+8. ✅ **History makers (first pass):** notable people, the memory of defeat and its demagogues, world wars and peace conferences. Pulled forward at the player's request; it uses the existing war layer and leaves the operational war layer to Milestone 5.
+9. **Milestone 4c–4e:** labor relations and fiscal policy (including AI governments responding to the cycle), the world economy (with distance that matters, from World scale), and the stock and land markets, with the **closed-loop economy** running through all three (phase 1, the state's budget and debt, is done).
+10. **AI ambitions and personalities, with the graphics-card map**, plus the first art commissions: an art direction document, map textures and an icon set. The war layer needs the new map for army counters, fronts, plan arrows and supply routes.
+11. **Milestone 5:** the war layer, an operational layer.
+12. **The world newspaper and history book.** This can move earlier. World wars, treaties and the figures of the age are natural headlines and chapters.
+13. **Eras and scenarios (Milestone 6) and the desktop release,** together toward a public release.
 
 Later: Milestone 8 (intrigue and dynasties), world scale (as the map and Web Worker allow), and the rest of Beyond the milestones.
 

@@ -139,6 +139,7 @@ const TIP_INFO = {
   approval: 'How the public feels about the government. In democracies it decides elections and most of stability.',
   stability: `Below ${typeof CRISIS_LEVEL !== 'undefined' ? CRISIS_LEVEL : 30}, coups and revolutions become possible.`,
   unrest: 'Protests and agitation. Above 55, it can spark revolution on its own.',
+  revanchism: 'The grievance of defeat. It strengthens the nationalist movement and fascist ideas at home, and makes AI governments rearm, seek revisionist allies and plan a war of revenge.',
   support: 'Who backs the government: the public (most in democracies), the power base (most in autocracies) and the interest groups weighted by clout. With legitimacy and unrest, it makes up stability.',
 };
 
@@ -166,6 +167,15 @@ function tipHtml(key) {
       if (W.rate >= 1) h += `<div class="tt-row tt-sum"><span>Support</span><span>${Math.round(t)}</span></div>`; else h += `<div class="tt-row tt-sum"><span>Heading toward</span><span>${Math.round(t)} ${t > c[key] + 0.5 ? '▲' : t < c[key] - 0.5 ? '▼' : '●'}</span></div>`;
       h += `<div class="tt-note">${TIP_INFO[key]}${W.rate < 1 ? ` Moves ${Math.round(W.rate * 100)}% of the way to its target each month.` : ''}</div>`;
       return h;
+    }
+    case 'revanchism': {
+      const W = c._why && c._why.revanchism;
+      let h = title('Revanchism', Math.round((c.revanchism || 0) * 100));
+      if (!W) return h + '<div class="tt-note">No wound of defeat.</div>';
+      const t = clamp(W.target, 0, 100), cur = (c.revanchism || 0) * 100;
+      h += tipParts(W.parts, true);
+      h += `<div class="tt-row tt-sum"><span>Heading toward</span><span>${Math.round(t)} ${t > cur + 0.5 ? '▲' : t < cur - 0.5 ? '▼' : '●'}</span></div>`;
+      return h + `<div class="tt-note">${TIP_INFO.revanchism} It rises quickly after a defeat and fades slowly, over a generation.</div>`;
     }
     case 'pc': {
       const parts = pcParts(c);
@@ -504,6 +514,7 @@ const UI = {
       case 'peace': this.showPeaceModal(+ds.war); return;
       case 'dismiss': { const r = dismissMinister(g, ds.post); this.toast(r.msg, r.ok ? 'info' : 'bad'); App.afterAction(); return; }
       case 'char': { const r = characterAction(g, ds.a, +ds.id); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }
+      case 'figure': { const r = figureAction(g, +ds.id, ds.a); this.track('figure:' + ds.a, r.ok); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }
       case 'build': { const r = orderBuilding(g, ds.t); this.track('build:' + ds.t, r.ok); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }
       case 'autoinvest': { const c = this.player(); c.econ.autoInvest = !c.econ.autoInvest; this.renderTab(); return; }
       case 'empire': { const r = performEmpire(g, ds.id, +ds.target); this.track('empire:' + ds.id, r.ok); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }

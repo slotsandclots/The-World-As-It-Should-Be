@@ -62,6 +62,7 @@ Nations border each other by land or across narrow straits.
 - **Opposition:** party leaders and dissidents campaign against you; election winners and coup leaders come from this cast.
 - **Royals:** monarchies have heirs and successions.
 - **Foreign leaders:** they have personalities that drive their diplomacy.
+- **Notable people:** writers, political thinkers and inventors (see below), and generals who make their names in battle.
 
 Characters are managed from the Leader tab: appoint and dismiss ministers, honor, retire, arrest, smear or co-opt.
 
@@ -131,6 +132,23 @@ The game saves to your browser's local storage (Menu → Save game).
 
 **Slumps hurt like real ones.** Wages are slow to fall, so a drop in demand becomes layoffs, and unemployment insurance cushions the jobless. AI governments spend, cut or bail out banks through the cycle, according to their politics.
 
+**Notable people.** Every nation produces writers, political thinkers and inventors out of its pops: writers from a literate public (more with secondary schools and a free press), thinkers and inventors from the universities. Each has a talent, a renown that grows with every work and fades slowly, and politics of their own.
+- **Writers'** books move public opinion and the idea currents at home, and famous ones are translated by trade partners and neighbors with a free press. Their themes follow the times: a lost war breeds grievance literature or anti-war novels, a slump breeds social novels, censorship breeds dissidents.
+- **Thinkers'** treatises found schools of liberalism, socialism, fascism or traditionalism that travel further than any novel, and give the matching movement a doctrine.
+- **Inventors** speed research in their field (up to about a third faster for a famous one), and breakthroughs jump-start a project.
+- **Generals** gain renown and experience from every battle won. Famous ones learn to command (Blitz Commander, Defensive Genius), grow ambitious, and after a war may take off the uniform and lead a party.
+- **Your options:** patronize them (a state prize: renown, and politics closer to the regime's; a laboratory for inventors) or, without a free press, ban their works, which may send them into exile, where they write on. AI governments do the same.
+- **The World tab** lists the figures of the age everywhere, and the most renowned of the dead are remembered.
+
+**The memory of defeat.** A nation that loses a war remembers it: the provinces it lost and the people living there, the terms it was made to sign, the reparations it still pays, and its war dead. Together they make **revanchism**, which rises quickly after a defeat and fades over a generation (faster in good times and as relations with the victors warm; it festers in hard times). It feeds the nationalist movement and fascist ideas, and makes AI governments rearm, look for revisionist allies and plan a war of revenge. Hover it in the Politics tab for every cause.
+- **The stab in the back.** When the army comes home undefeated in the field (still mostly intact, the homeland mostly unoccupied), veterans insist it was never beaten, and more so if the peace was signed by elected politicians or a government that took over during the war. Tell the truth, honor the army and blame the traitors at home, or seek reconciliation with the victors. The myth turns the officers against a civilian government and drains its legitimacy, and nationalist writers, agitators and an angry army keep it alive.
+- **Demagogues.** Once the grievance runs high, a demagogue rises at the head of the nationalist movement: a famous general who says the army was never beaten, the author of a grievance bestseller, or a decorated veteran with a gift for oratory. Their charisma draws crowds, and in a democracy they lead a nationalist party into elections, where a mass movement brings votes. They come to power by winning, by the movement's uprising, or by a coup, and in a republic they then ask parliament for the power to rule by decree.
+
+**World wars.** Wars grow while they are fought. Each month, nations outside a war weigh joining it: allies whose friend is losing, pact members (pacts now close ranks against their leader's great-power rival), neighbors with claims or a grudge who see a chance, ideological crusaders, and great powers alarmed that one side is about to dominate. The great powers (the strongest quarter of the world by army and economy) build alliance systems against hostile rivals, and nations nursing a defeat sign revisionist pacts ("Axis") with each other.
+- **When three great powers are drawn in** (with great powers on both sides, and the weaker side holding at least a third of the other's strength), the war becomes the Great War, then the Second World War, and so on. AI powers mobilize and turn their factories to arms, shipping is disrupted for every nation, exhausted belligerents are ripe for revolution, and a new revolutionary government may sign a separate peace, which its army will remember.
+- **It ends at a peace conference.** The victors keep the occupied land where their people live, free the peoples the losers had conquered, and impose ten years of reparations and fifteen years of disarmament (a cap on military spending) on the great powers that lost. A beaten aggressor regime is replaced by the victors' system. The victors draw together in an alliance to guard the peace.
+- **The next war grows out of the last peace.** The losers carry the wound, revanchist governments tear up the disarmament clauses once the victors look beatable, and a nation that has bled is slow to fight again. In balance runs, about half of the worlds see a world war within 40 years, and some see a second one.
+
 **Warnings before it's too late.** An alert bar under the top bar shows coup and revolution risk building up, and flags trouble in politics, the economy, society and war, plus decisions waiting for you.
 
 **Seeing why.** Hover approval, stability, unrest, political capital or the treasury for a breakdown of what drives it. The Ledger tab charts your nation over time, compares you with your rivals, and tracks world market prices.
@@ -168,7 +186,10 @@ The game saves to your browser's local storage (Menu → Save game).
 | `js/art.js` | Icons, generated national flags and illustrated event scenes |
 | `js/tech.js` | Technology tree and research |
 | `js/movements.js` | Political movements, demands and uprisings |
+| `js/figures.js` | Notable people: writers, thinkers and inventors from the pops; generals' renown and command traits |
 | `js/events.js` | Event engine (chains, flags, scheduled follow-ups) and the events themselves |
+| `js/revanchism.js` | The memory of defeat: revanchism, the stab-in-the-back myth, demagogues, disarmament treaties |
+| `js/worldwar.js` | Great powers, nations joining wars in progress, rival and revisionist pacts, world wars, peace conferences |
 | `js/campaign.js` | The First Republic campaign: setup, story steps, endings |
 | `js/render.js` | Painted map renderer (relief, smooth borders, ocean depth) and label overlay |
 | `js/ui.js`, `js/ui-views.js`, `js/ui-dialogs.js` | Interface core and map interaction, tab views, dialogs |
@@ -186,6 +207,7 @@ npm test
 - 25-year simulations for NaNs, bounded prices and non-negative populations
 - save/load round-trips
 - every event option and peace terms
+- notable figures, the memory of defeat (myth, demagogue, enabling act) and a world war through its peace conference
 - a full campaign playthrough
 
 ```bash

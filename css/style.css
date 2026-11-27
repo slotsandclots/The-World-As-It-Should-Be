@@ -226,6 +226,9 @@ table.list tr.me td { background: #c9a45a1c; }
 .news li.gov { border-left-color: var(--gold); }
 .news li.election { border-left-color: var(--accent2); }
 .news li.crisis { border-left-color: var(--warn); }
+.news li.culture { border-left-color: #9b7bff; }
+.war-card.world-war { border-color: #8a2b2b; box-shadow: inset 0 0 0 1px #8a2b2b55; }
+.kv.click { cursor: pointer; }
 .news li.mine { background: linear-gradient(90deg, #c9a45a14, transparent); }
 .spark { width: 100%; height: 36px; display: block; }
 .sparks { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }

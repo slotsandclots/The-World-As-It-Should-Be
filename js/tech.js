@@ -70,7 +70,8 @@ function techProd(c, buildingType) {
 function researchRate(c) {
   const lit = c.econ ? c.econ.literacy : 0.3;
   // University graduates speed research (ideas.js).
-  return (0.6 + c.policy.education * lit * Math.pow(Math.max(c.gdp, 0.1), 0.35) * 0.9) * (1 + (c.uni || 0) * 3);
+  // Famous inventors speed research in their field (figures.js).
+  return (0.6 + c.policy.education * lit * Math.pow(Math.max(c.gdp, 0.1), 0.35) * 0.9) * (1 + (c.uni || 0) * 3) * (1 + (typeof inventorBonus === 'function' ? inventorBonus(c) : 0));
 }
 
 const TECH_TASTE = {
@@ -86,7 +87,7 @@ function tickResearch(game, c) {
     const opts = TECH_KEYS.filter(id => techAvailable(c, id));
     if (!opts.length) return;
     const taste = TECH_TASTE[c.gov] || {};
-    R.current = game.rng.weighted(opts, id => (taste[TECHS[id].cat] || 1) / TECHS[id].cost);
+    R.current = game.rng.weighted(opts, id => (taste[TECHS[id].cat] || 1) * (typeof inventorPull === 'function' ? inventorPull(c, TECHS[id].cat) : 1) / TECHS[id].cost);
   }
   R.progress += researchRate(c);
   const T = TECHS[R.current];

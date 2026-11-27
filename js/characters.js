@@ -264,6 +264,7 @@ function allCharacters(c) {
   if (c.movements) for (const k in c.movements) if (c.movements[k].leader) out.push(c.movements[k].leader);
   if (c.igLeaders) for (const k in c.igLeaders) out.push(c.igLeaders[k]);
   if (c.barons) for (const b of c.barons) out.push(b.ch);
+  if (c.figures) for (const f of c.figures) out.push(f);
   return [...new Set(out)];
 }
 
@@ -275,7 +276,8 @@ function subordinateLoyaltyTarget(c, ch) {
   let t = 50 + (c.leader.skills.cha - 5) * 3 + (c.stability - 50) * 0.3 - (ch.ambition - 50) * 0.25 - ideoDist(ch.ideo, GOVS[c.gov]) * 10;
   for (const tr of ch.traits) t += (TRAITS[tr].loyalty || 0) * 0.5;
   if (ch.faction && c.factions[ch.faction] !== undefined) t += (c.factions[ch.faction] - 50) * 0.4;
-  if (ch.role === 'general') t += (c.policy.military - 3) * 2 + (GOVS[c.gov].base.military ? 8 : 0);
+  // Famous generals feel they are owed more than a salute.
+  if (ch.role === 'general') t += (c.policy.military - 3) * 2 + (GOVS[c.gov].base.military ? 8 : 0) - Math.max(0, (ch.renown || 0) - 40) * 0.15;
   return clamp(t + ch.favor, 0, 100);
 }
 
@@ -437,6 +439,9 @@ function characterAction(game, action, charId) {
       if (!accept) return { ok: false, msg: `${ch.name} refuses to be bought.` };
       if (ch.role === 'dissident') c.dissidents = c.dissidents.filter(d => d !== ch);
       else { const p = c.parties.find(x => x.id === ch.party); if (p) { p.leader = makeOpposition(game, c, p); p.boost -= 0.15; } }
+      // A co-opted demagogue leaves the movement leaderless.
+      for (const k in c.movements || {}) if (c.movements[k].leader === ch) c.movements[k].leader = null;
+      ch.demagogue = false;
       const post = POST_KEYS.find(k => !c.cabinet[k]) || rng0(game, POST_KEYS);
       ch.role = 'minister'; ch.loyalty = 55; ch.popularity = 0;
       candidatesFor(game, c, post).push(ch);
@@ -458,7 +463,8 @@ function roleTitle(c, ch) {
   if (ch.role === 'dissident') return 'Dissident';
   if (ch.role === 'baron') return `Owner of ${ch.paper || 'a newspaper'}`;
   if (ch.role === 'igLeader') return `Leader of the ${FACTIONS[ch.ig] ? FACTIONS[ch.ig].name : 'group'} (${ch.stance})`;
-  if (ch.role === 'movement') return `Leader of the ${MOVEMENTS[ch.movement] ? MOVEMENTS[ch.movement].name : 'movement'}`;
+  if (ch.role === 'movement') return `${ch.demagogue ? 'Demagogue, leader' : 'Leader'} of the ${MOVEMENTS[ch.movement] ? MOVEMENTS[ch.movement].name : 'movement'}`;
+  if (ch.role === 'figure') return FIGURE_KINDS[ch.kind] ? FIGURE_KINDS[ch.kind].name : 'Notable';
   if (ch.role === 'opposition') { const p = c.parties.find(x => x.id === ch.party); return p ? `Leader of the ${p.name}` : 'Opposition leader'; }
   return '';
 }
