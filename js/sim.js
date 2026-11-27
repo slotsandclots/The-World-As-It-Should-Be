@@ -971,6 +971,8 @@ function tickReparations(game) {
     const A = game.countries[r.from], B = game.countries[r.to];
     if (!A.alive || !B.alive || r.months <= 0) return false;
     A.treasury -= r.amount; B.treasury += r.amount;
+    // Reparations are paid abroad, in foreign currency the loser has to earn (payments.js).
+    if (A.econ && B.econ && A.econ.reserves != null && B.econ.reserves != null) { A.econ.reserves -= r.amount / (A.econ.pl || 1); B.econ.reserves += r.amount / (A.econ.pl || 1); }
     r.months--;
     return true;
   });
@@ -1202,6 +1204,7 @@ function tick(game) {
   for (const c of game.countries) c.aiArmyBonus = c.id === game.player ? 0 : D.aiArmy;
   refreshCores(game);
   tickEconomy(game, false);
+  if (typeof tickPayments === 'function') tickPayments(game);
   tickPeoples(game);
   tickSociety(game);
   for (const c of game.countries) if (c.alive) tickUniversities(game, c);
