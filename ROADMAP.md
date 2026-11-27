@@ -394,7 +394,34 @@ The rule: no goods or money created from nothing. Every unit of money has a sour
   - a central bank that buys bonds (quantitative easing) as a distinct tool
   - IMF-style bailouts with conditions, from blocs and great powers (lending as diplomatic leverage)
 
-**Phase 2, layer 1 (in progress, draft PR): payments, lending and exchange rates** (`js/payments.js`). Reserves earned by exports and spent on imports (they only move between nations), reparations paid out of them, the owners' capital that used to leak abroad now lent to nations short of reserves (with interest, repayment and default), an exchange rate that follows reserves (a weak currency wins export share, inside blocs too, and makes imports dearer at home), and import rationing only deep in the red. A Balance of payments card in the Economy tab. *Status:* growth, living standards and unemployment stay on baseline and sovereign defaults fall, but 23% of nation-months still ration imports: some deficits do not close even at the weakest rate. Next: find out which goods carry those deficits (bloc trade and subsistence are suspects), then tune before merging. Note: tariffs here cut openness both ways, so they cannot defend reserves until 4d makes them asymmetric.
+**Phase 2, layer 1 ✅ (first pass): payments, lending and exchange rates** (`js/payments.js`).
+- **Reserves:** earned by exports, spent on imports (world trade balances, so they only move between nations); reparations are paid out of them.
+- **Foreign lending:** the owners' capital that used to leak abroad (0.5% of the investment pool a month) is lent to nations short of reserves, from nations with reserves to spare, and funds investment there. Interest and repayment flow back to the lenders' owners; debts past 120% of GDP are defaulted on (halved). Every foreign debt is someone's asset.
+- **Exchange rates:** a currency falls as reserves drain and rises as they pile up (0.3× to 1.3×). A weak currency makes the nation buy less abroad (world and bloc trade), raises import prices at home (half the fall passes through) and pays exporters more at home.
+- **Rationing:** a nation in arrears (reserves below −10% of GDP, no one left to lend) must cut imports outright.
+- **Interface:** a Balance of payments card in the Economy tab (reserves, trade, debts and lenders, interest, exchange rate, rationing) and alerts.
+- **What we learned tuning it:**
+  - the persistent deficits were in world trade, in goods a nation lacks (oil, timber, fiber, meat, clothes), so a currency floor forced hard rationing
+  - letting a weak currency win export share took sales from every other nation's firms and multiplied bankruptcies (+40%), so the adjustment now runs through imports only
+  - recycling surplus reserves as official loans piled up foreign debt and cut living standards, so it was left out
+- **Measured** (48 worlds × 40 years each, against main; ± is the standard error):
+
+  | Measure | Main | Phase 2 layer 1 |
+  |---|---|---|
+  | Regime changes per world | 15.1 ± 1.2 | 16.9 ± 1.3 |
+  | Stability | 47.7 | 47.5 |
+  | Share of nation-months in crisis | 0.065 | 0.068 |
+  | Growth per person (%/yr) | 1.27 | 1.30 |
+  | Depressions per world | 6.2 | 6.4 |
+  | Living standard | 42.4 | 42.4 |
+  | Bankruptcy waves per world | 122 | 112 |
+  | Sovereign defaults per world | 3.3 | 2.1 |
+  | Banking crises per world | 6.2 | 5.2 |
+
+  New: about 5 balance-of-payments crises per world; imports rationed (by more than 10%) in 18% of nation-months, mostly resource-poor nations that now pay for their imports; foreign debt about 0.5% of GDP.
+- **Side effects to watch:** frequent rationing in import-dependent nations; foreign lending is small because only 0.5% of private capital looks abroad each month.
+- **Still to do in phase 2:** recycling surpluses without the debt pile-up (lending at market rates by banks), tariffs that cut imports without cutting exports (with 4d), currency crises and pegs, foreign ownership (with phase 3).
+- Note: tariffs here cut openness both ways, so they cannot defend reserves until 4d makes them asymmetric. The AI's tariff reflex was left out for that reason.
 
 **Phase 2 (folds into 4d): balanced trade.** Every import is someone's export. A trade deficit is paid with reserves, foreign borrowing or a falling currency. This is the base for contagion, exchange rates, capital flows and currency crises. The investment pool's leak abroad becomes real foreign lending and ownership.
 

@@ -19,9 +19,10 @@
 const PAY = { RESERVE_MONTHS: 3, LEND_LIMIT: 0.6, BASE_RATE: 0.04, FX_MIN: 0.3, FX_MAX: 1.6 };
 
 // The exchange rate: a currency falls as reserves run short and rises as they pile up.
-// A weak currency wins exporters a larger share of world sales and makes imports
-// dearer at home (economy.js), which is what closes a trade deficit over time.
-function fxWeights(c) { const f = (c.econ && c.econ.fx) || 1; return [Math.pow(f, -2.5), Math.pow(f, 2.5)]; }
+// A weak currency makes imports dearer, so the nation buys less abroad; a strong one
+// buys more. Exporters earn more at home when it is weak (economy.js), so export
+// industries grow over time, but no nation's sales are taken from the others directly.
+function fxWeights(c) { const f = (c.econ && c.econ.fx) || 1; return [1, f * f]; }
 
 function importBill(game, c) {
   const E = c.econ, W = game.worldMarket;

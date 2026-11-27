@@ -739,9 +739,9 @@ function clearMarkets(game, alive) {
       else if (avail <= 0) localT = base * ECON.PRICE_MAX;
       else localT = base * clamp(Math.pow((D + 1e-6) / avail, ECON.ELASTICITY), ECON.PRICE_MIN, ECON.PRICE_MAX);
       const tariff = effectiveTariff(game, c);
-      // Imports cost more at home when the currency is weak (payments.js).
-      const fx = E.fx || 1;
-      const wpEff = wp * (im > 0 ? 1 + tariff : 1) / fx;
+      // Imports cost more at home when the currency is weak, though only part of the fall reaches prices (payments.js).
+      const fxP = Math.sqrt(E.fx || 1);
+      const wpEff = wp * (im > 0 ? 1 + tariff : 1) / fxP;
       const b = blocOf[c.id];
       const tb = b ? BLOC_TYPES[b.type].openness * 0.6 : 0;
       const tw = Math.min(E.tau, 0.9 - tb);
@@ -749,7 +749,7 @@ function clearMarkets(game, alive) {
       E.prices[g] = E.prices[g] * (1 - ECON.PRICE_SPEED) + target * ECON.PRICE_SPEED;
       // Producers sell exports at the bloc or world price.
       const bp = b ? b.prices[g] : wp;
-      E.pprod[g] = S > 0 ? ((S - ex - r.exB) * E.prices[g] + ex * wp / fx + r.exB * bp) / S : E.prices[g];
+      E.pprod[g] = S > 0 ? ((S - ex - r.exB) * E.prices[g] + ex * wp / fxP + r.exB * bp) / S : E.prices[g];
       E.tariffK += im * wp * tariff;
     }
   }
