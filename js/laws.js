@@ -71,6 +71,13 @@ const LAW_CATS = {
       constituencies: { name: 'Winner-takes-all constituencies', desc: 'Each province elects its own members: big parties win big, regions matter.', fx: { business: 3, stability: 2, intelligentsia: -2 }, pos: [0.2, 0.1] },
     },
   },
+  monetary: {
+    name: 'Monetary system', opts: {
+      gold: { name: 'Gold standard', desc: 'Money is backed by gold: stable prices, but deflation in booms and no way to ease a slump.', fx: { business: 3, clergy: 2, pc: -0.05 }, pos: [0.5, 0.2] },
+      centralBank: { name: 'Independent central bank', desc: 'A central bank keeps inflation near 2% and sets interest rates by a rule.', fx: { business: 4, intelligentsia: 2, pc: -0.1 }, pos: [0.2, -0.2] },
+      state: { name: 'Government-controlled money', desc: 'The government sets money growth and can print to cover deficits.', fx: { pc: 0.2, workers: 2, business: -4 }, pos: [-0.4, 0.5] },
+    },
+  },
   conscription: {
     name: 'Conscription', opts: {
       volunteer: { name: 'Volunteer army', desc: 'A small professional force.', fx: { army: -0.2, military: -4, approval: 2 }, pos: [0.2, -0.4] },
@@ -82,13 +89,13 @@ const LAW_CATS = {
 const LAW_KEYS = Object.keys(LAW_CATS);
 
 const LAW_PRESETS = {
-  democracy: { head: 'elected', suffrage: 'universal', press: 'free', assembly: 'protected', church: 'secular', labor: 'unions', economy: 'interventionist', policing: 'civilian', conscription: 'volunteer', electoral: 'proportional' },
-  constMonarchy: { head: 'monarch', suffrage: 'universal', press: 'free', assembly: 'protected', church: 'tolerant', labor: 'unions', economy: 'laissezFaire', policing: 'civilian', conscription: 'selective', electoral: 'constituencies' },
-  absMonarchy: { head: 'autocrat', suffrage: 'property', press: 'licensed', assembly: 'restricted', church: 'state', labor: 'none', economy: 'laissezFaire', policing: 'gendarmerie', conscription: 'selective', electoral: 'proportional' },
-  junta: { head: 'autocrat', suffrage: 'none', press: 'licensed', assembly: 'banned', church: 'tolerant', labor: 'none', economy: 'interventionist', policing: 'gendarmerie', conscription: 'universal', electoral: 'proportional' },
-  communist: { head: 'autocrat', suffrage: 'none', press: 'state', assembly: 'banned', church: 'secular', labor: 'stateUnions', economy: 'planned', policing: 'secret', conscription: 'universal', electoral: 'proportional' },
-  fascist: { head: 'autocrat', suffrage: 'none', press: 'state', assembly: 'banned', church: 'tolerant', labor: 'stateUnions', economy: 'interventionist', policing: 'secret', conscription: 'universal', electoral: 'proportional' },
-  theocracy: { head: 'autocrat', suffrage: 'property', press: 'licensed', assembly: 'restricted', church: 'state', labor: 'none', economy: 'interventionist', policing: 'gendarmerie', conscription: 'selective', electoral: 'proportional' },
+  democracy: { head: 'elected', suffrage: 'universal', press: 'free', assembly: 'protected', church: 'secular', labor: 'unions', economy: 'interventionist', policing: 'civilian', conscription: 'volunteer', electoral: 'proportional', monetary: 'centralBank' },
+  constMonarchy: { head: 'monarch', suffrage: 'universal', press: 'free', assembly: 'protected', church: 'tolerant', labor: 'unions', economy: 'laissezFaire', policing: 'civilian', conscription: 'selective', electoral: 'constituencies', monetary: 'gold' },
+  absMonarchy: { head: 'autocrat', suffrage: 'property', press: 'licensed', assembly: 'restricted', church: 'state', labor: 'none', economy: 'laissezFaire', policing: 'gendarmerie', conscription: 'selective', electoral: 'proportional', monetary: 'gold' },
+  junta: { head: 'autocrat', suffrage: 'none', press: 'licensed', assembly: 'banned', church: 'tolerant', labor: 'none', economy: 'interventionist', policing: 'gendarmerie', conscription: 'universal', electoral: 'proportional', monetary: 'state' },
+  communist: { head: 'autocrat', suffrage: 'none', press: 'state', assembly: 'banned', church: 'secular', labor: 'stateUnions', economy: 'planned', policing: 'secret', conscription: 'universal', electoral: 'proportional', monetary: 'state' },
+  fascist: { head: 'autocrat', suffrage: 'none', press: 'state', assembly: 'banned', church: 'tolerant', labor: 'stateUnions', economy: 'interventionist', policing: 'secret', conscription: 'universal', electoral: 'proportional', monetary: 'state' },
+  theocracy: { head: 'autocrat', suffrage: 'property', press: 'licensed', assembly: 'restricted', church: 'state', labor: 'none', economy: 'interventionist', policing: 'gendarmerie', conscription: 'selective', electoral: 'proportional', monetary: 'gold' },
 };
 
 const LAW_PC = 15;           // political capital to put a bill forward

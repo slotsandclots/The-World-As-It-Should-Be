@@ -18,8 +18,8 @@ for (let i = 0; i < SEEDS; i++) {
   const w = run(`(() => {
     const g = createGame(${JSON.stringify(seed)}, { model: ${JSON.stringify(model)}, countries: 14 });
     const months = ${YEARS} * 12, t = Date.now();
-    const warStart = {}, warLen = [], yearGdp = {}, unemp = [], stab = [], lowStab = { n: 0, of: 0 };
-    const startPrices = {}; const priceSeries = {};
+    const warStart = {}, warLen = [], yearGdp = {}, unemp = [], stab = [], lowStab = { n: 0, of: 0 }, accY = {};
+    const startPrices = {}; const priceSeries = {}; const infl = [], rates = [];
     for (let m = 0; m < months; m++) {
       tick(g); g.pending.length = 0;
       for (const w of g.wars) if (warStart[w.id] == null) warStart[w.id] = g.month;
@@ -28,7 +28,10 @@ for (let i = 0; i < SEEDS; i++) {
         if (!c.alive) continue;
         stab.push(c.stability); lowStab.of++; if (c.stability < CRISIS_LEVEL) lowStab.n++;
         unemp.push(c.econ.unemployment || 0);
-        if (g.month % 12 === 0) (yearGdp[c.id] = yearGdp[c.id] || []).push({ gdp: c.gdp, pc: c.gdp / Math.max(1, c.pop), prov: c.provinceCount });
+        // Annual totals of real output, as statistics offices measure them; years with a war or a regime change are flagged.
+        const a = accY[c.id] || (accY[c.id] = { y: 0, pop: 0, war: false, gov: c.gov });
+        a.y += c.econ.gdpRealM || c.econ.gdpM; a.pop += c.pop; if (isAtWar(g, c.id)) a.war = true; if (c.gov !== a.gov) a.reg = true;
+        if (g.month % 12 === 0) { (yearGdp[c.id] = yearGdp[c.id] || []).push({ gdp: a.y, pc: a.y / Math.max(1, a.pop), prov: c.provinceCount, calm: !a.war && !a.reg }); accY[c.id] = { y: 0, pop: 0, war: false, gov: c.gov }; if (g.month > 60) { infl.push(inflationYoY(c)); rates.push(c.econ.rate || 0); } }
       }
       if (g.worldMarket && g.worldMarket.prices) for (const k in GOODS) { const p = g.worldMarket.prices[k]; if (p != null) (priceSeries[k] = priceSeries[k] || []).push(p / GOODS[k].base); }
     }
@@ -36,7 +39,7 @@ for (let i = 0; i < SEEDS; i++) {
     // Economy: annual growth per nation.
     // Per-person GDP, skipping years when the nation's borders changed, so
     // conquests and secessions don't count as booms or busts.
-    const growth = [], growthTotal = [];
+    const growth = [], growthTotal = [], calmGrowth = [];
     let recessions = 0, depressions = 0, nationYears = 0;
     for (const id in yearGdp) {
       const s = yearGdp[id];
@@ -48,6 +51,7 @@ for (let i = 0; i < SEEDS; i++) {
         const gr = s[k].pc / s[k - 1].pc - 1;
         if (!isFinite(gr) || s[k - 1].pc <= 0) continue;
         growth.push(gr); nationYears++;
+        if (s[k].calm && s[k - 1].calm) calmGrowth.push(gr);
         if (gr < 0) recessions++;
         peak = Math.max(peak, s[k].pc);
         if (s[k].pc < peak * 0.9 && !inSlump) { depressions++; inSlump = true; }
@@ -74,12 +78,13 @@ for (let i = 0; i < SEEDS; i++) {
       elections: electionLines.length, hung: electionLines.filter(n => /short of a majority/.test(n.text)).length,
       lawsAdopted: count(/adopts a new law/), referendums: count(/referendum/),
       crises: crisisKinds, survivors: alive.length, govs,
-      growthMean: +(mean(growth) * 100).toFixed(2), growthSd: +(sd(growth) * 100).toFixed(2), growthTotalSd: +(sd(growthTotal) * 100).toFixed(2),
+      growthMean: +(mean(growth) * 100).toFixed(2), growthSd: +(sd(growth) * 100).toFixed(2), growthTotalSd: +(sd(growthTotal) * 100).toFixed(2), calmFalling: +(calmGrowth.filter(x => x < 0).length / Math.max(1, calmGrowth.length)).toFixed(3),
       recessionShare: +(recessions / Math.max(1, nationYears)).toFixed(3), depressions,
       priceCV: +priceCV.toFixed(3), priceRange: +priceRange.toFixed(2),
       sol: +sol.toFixed(1), inequality: +ineq.toFixed(2),
       unemployment: +(mean(unemp) * 100).toFixed(2), unemploymentMax: +(Math.max(...unemp) * 100).toFixed(1),
       stability: +mean(stab).toFixed(1), crisisShare: +(lowStab.n / Math.max(1, lowStab.of)).toFixed(3),
+      inflation: +(mean(infl) * 100).toFixed(2), inflationSd: +(sd(infl) * 100).toFixed(2), hyperinflation: infl.filter(x => x > 0.5).length, deflationShare: +(infl.filter(x => x < 0).length / Math.max(1, infl.length)).toFixed(3), rate: +(mean(rates) * 100).toFixed(2),
       sane: g.countries.filter(c => c.alive && ![c.stability, c.approval, c.gdp, c.treasury, c.pop].every(isFinite)).length,
     };
   })()`);
@@ -88,13 +93,13 @@ for (let i = 0; i < SEEDS; i++) {
 }
 
 const NUM = ['regimeChanges', 'wars', 'warMonthsMean', 'capitulations', 'negotiatedPeace', 'elections', 'hung', 'lawsAdopted', 'referendums', 'survivors',
-  'growthMean', 'growthSd', 'growthTotalSd', 'recessionShare', 'depressions', 'priceCV', 'priceRange', 'sol', 'inequality', 'unemployment', 'unemploymentMax', 'stability', 'crisisShare', 'msPerMonth'];
+  'growthMean', 'growthSd', 'growthTotalSd', 'calmFalling', 'recessionShare', 'depressions', 'priceCV', 'priceRange', 'sol', 'inequality', 'unemployment', 'unemploymentMax', 'inflation', 'inflationSd', 'deflationShare', 'hyperinflation', 'rate', 'stability', 'crisisShare', 'msPerMonth'];
 const LABEL = {
   regimeChanges: 'Regime changes / world', wars: 'Wars / world', warMonthsMean: 'War length (months)', capitulations: 'Capitulations', negotiatedPeace: 'Negotiated peaces',
   elections: 'Free elections', hung: 'Hung parliaments', lawsAdopted: 'Laws adopted', referendums: 'Referendum news', survivors: 'Nations surviving (of 14)',
-  growthMean: 'GDP per person growth, mean %/yr', growthSd: 'GDP per person growth, std dev (pp)', growthTotalSd: 'Total GDP growth std dev, incl. borders', recessionShare: 'Share of nation-years with falling GDP/person', depressions: 'Depressions (GDP/person >10% below peak)',
+  growthMean: 'GDP per person growth, mean %/yr', growthSd: 'GDP per person growth, std dev (pp)', growthTotalSd: 'Total GDP growth std dev, incl. borders', calmFalling: 'Calm years with falling GDP/person (target <0.2)', recessionShare: 'Share of nation-years with falling GDP/person', depressions: 'Depressions (GDP/person >10% below peak)',
   priceCV: 'World price volatility (CV)', priceRange: 'World price max/min ratio', sol: 'Living standard (end)', inequality: 'Upper/lower living standard',
-  unemployment: 'Unemployment, mean %', unemploymentMax: 'Unemployment, worst %', stability: 'Stability, mean', crisisShare: 'Share of nation-months in crisis', msPerMonth: 'Speed (ms/month)',
+  inflation: 'Inflation, mean %/yr', inflationSd: 'Inflation, std dev (pp)', deflationShare: 'Share of nation-years with deflation', hyperinflation: 'Nation-years above 50% inflation', rate: 'Interest rate, mean %', unemployment: 'Unemployment, mean %', unemploymentMax: 'Unemployment, worst %', stability: 'Stability, mean', crisisShare: 'Share of nation-months in crisis', msPerMonth: 'Speed (ms/month)',
 };
 const avg = k => worlds.reduce((s, w) => s + w[k], 0) / worlds.length;
 const summary = {};

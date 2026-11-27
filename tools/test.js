@@ -320,6 +320,26 @@ test('movements are radical wings of interest groups; support is a meter', () =>
   assert(r.unique, 'characters listed twice');
 });
 
+test('money: central banks hit their target, printing inflates and erodes debt, wages lag', () => {
+  const r = run(`(() => { const g = createGame('money1', { size: 'small', countries: 6 }); setPlayer(g, 0); const c = g.countries[0];
+    c.laws.monetary = 'centralBank';
+    for (let i = 0; i < 180; i++) { tick(g); g.pending.length = 0; }
+    const cb = inflationYoY(c);
+    // Switch to printing money and run a deficit.
+    c.laws.monetary = 'state'; c.policy.moneyGrowth = 30; c.policy.monetize = true; c.treasury = -c.gdpNom * 0.8;
+    const debt0 = -c.treasury / c.gdpNom, pl0 = c.econ.pl;
+    let minWage = 2; for (let i = 0; i < 48; i++) { tick(g); g.pending.length = 0; minWage = Math.min(minWage, c.econ.realWage); }
+    const debt1 = -c.treasury / c.gdpNom, hot = inflationYoY(c);
+    const h = deserializeGame(serializeGame(g));
+    return { cb, hot, priceRise: c.econ.pl / pl0, debt0, debt1, minWage, kept: Math.abs(h.countries[0].econ.pl - c.econ.pl) < 1e-3 * c.econ.pl, bad: __sane(g) }; })()`);
+  assert(r.cb > -0.03 && r.cb < 0.07, 'central bank inflation off target: ' + r.cb);
+  assert(r.hot > 0.15 && r.priceRise > 1.5, 'printing did not inflate: ' + r.hot);
+  assert(r.debt1 < r.debt0, 'inflation should erode the debt ratio');
+  assert(r.minWage < 0.97, 'real wages should lag rising prices');
+  assert(r.kept, 'price level lost on save/load');
+  assert(r.bad.length === 0, r.bad.join('; '));
+});
+
 test('the campaign can be completed', () => {
   const r = run(`(() => {
     const g = startCampaign(); const c = g.countries[g.player]; const cs = g.campaign;

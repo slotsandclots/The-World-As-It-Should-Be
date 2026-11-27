@@ -50,7 +50,7 @@ function adjust(c, fx) {
     const v = fx[k];
     if (!v) continue;
     if (FACTIONS[k]) c.factions[k] = clamp(c.factions[k] + v, 0, 100);
-    else if (k === 'money') c.treasury += v * c.gdp;
+    else if (k === 'money') c.treasury += v * (c.gdpNom || c.gdp);
     else if (k === 'econ' || k === 'auth') c.ideo[k] = clamp(c.ideo[k] + v, -1, 1);
     else if (k === 'pc') c.pc = clamp(c.pc + v, 0, 100);
     else if (k in c) c[k] = clamp(c[k] + v, 0, 100);
@@ -104,7 +104,8 @@ function recomputeCountry(game, c) {
     pop += p.pop; tiles += p.tiles; n++;
   }
   c.pop = pop; c.tiles = tiles; c.provinceCount = n;
-  c.gdp = Math.max(0.01, c.econ ? c.econ.gdpAnnual : pop * 0.33 * c.tech * 12 / 1e6); // billions per year
+  c.gdp = Math.max(0.01, c.econ ? c.econ.gdpAnnual : pop * 0.33 * c.tech * 12 / 1e6); // real, billions per year
+  c.gdpNom = c.gdp * ((c.econ && c.econ.pl) || 1); // in the national currency
   c.gdpPerCap = pop > 0 ? c.gdp * 1e6 / pop : 0; // thousands of $
 }
 
@@ -246,13 +247,18 @@ function projectBudget(c) {
   const p = c.policy;
   const E = c.econ;
   const taxBase = E ? E.taxBase : c.gdp / 12;
-  const taxes = taxBase * p.tax * (1 - c.corruption / 250) * (1 - (c.nonCoreShare || 0) * 0.3) * (c.federal ? 0.95 : 1) * (1 + (c.cabinet ? cabinetFx(c).taxEff : 0) + techSum(c, 'taxEff'));
-  const tariffs = E ? E.tariffRev : 0;
-  const stateProfit = E ? E.stateProfit : 0;
+  const pl = (E && E.pl) || 1;
+  const taxes = pl * taxBase * p.tax * (1 - c.corruption / 250) * (1 - (c.nonCoreShare || 0) * 0.3) * (c.federal ? 0.95 : 1) * (1 + (c.cabinet ? cabinetFx(c).taxEff : 0) + techSum(c, 'taxEff'));
+  const tariffs = E ? E.tariffRev * pl : 0;
+  const stateProfit = E ? E.stateProfit * pl : 0;
   const revenue = taxes + tariffs + stateProfit;
   const spendPct = ADMIN_COST + SPEND_KEYS.reduce((s, k) => s + p[k], 0);
-  const spend = c.gdp * spendPct / 100 / 12;
-  const interest = c.treasury < 0 ? -c.treasury * 0.004 : 0;
+  const gN = c.gdpNom || c.gdp;
+  const spend = gN * spendPct / 100 / 12;
+  // Interest follows the money system's rate, plus a premium as debt piles up.
+  const debtR = Math.max(0, -c.treasury) / Math.max(1e-6, gN);
+  const rate = (E && E.rate != null ? E.rate : 0.048) + Math.max(0, debtR - 0.6) * 0.05;
+  const interest = c.treasury < 0 ? -c.treasury * rate / 12 : 0;
   return { revenue, taxes, tariffs, stateProfit, spend, interest, net: revenue - spend - interest, spendPct };
 }
 
@@ -264,16 +270,18 @@ function tickCountry(game, c) {
   const CF = cabinetFx(c);
   const LF = lawFx(c);
   const atWar = isAtWar(game, c.id);
-  const debtRatio = Math.max(0, -c.treasury) / Math.max(1e-6, c.gdp);
+  const debtRatio = Math.max(0, -c.treasury) / Math.max(1e-6, c.gdpNom || c.gdp);
 
   // --- Economy. Production, markets and pops run in tickEconomy (economy.js);
   // here technology advances and growth is measured.
   const E = c.econ;
-  let techG = 0.0004 + (L.admin - 5) * 0.00004 + (p.education - 4) * 0.00012 + c.trade.length * 0.00005 + Math.max(0, 1.5 - E.tech) * 0.0002
+  let techG = 0.0013 + (L.admin - 5) * 0.00004 + (p.education - 4) * 0.00012 + c.trade.length * 0.00005 + Math.max(0, 1.5 - E.tech) * 0.0002
     - c.corruption * 0.000006 + g.growth * 0.6 + (T.growth || 0) + (M.growth || 0) + LF.growth + rng.normal() * 0.0004;
   if (debtRatio > 0.8) techG -= (debtRatio - 0.8) * 0.002;
   E.tech = Math.max(0.1, E.tech * (1 + techG));
-  const gr = E.gdpM / E.prevGdpM - 1;
+  tickMoney(game, c);
+  c.gdpNom = c.gdp * E.pl;
+  const gr = (E.gdpRealM && E.prevGdpRealM ? E.gdpRealM / E.prevGdpRealM : E.gdpM / E.prevGdpM) - 1;
   c.lastGrowth = gr;
   c.growthAvg = c.growthAvg * 0.92 + clamp(gr, -0.05, 0.05) * 0.08;
   recomputeCountry(game, c);
@@ -281,7 +289,7 @@ function tickCountry(game, c) {
   // --- Budget
   c.budget = projectBudget(c);
   c.treasury += c.budget.net;
-  if (-c.treasury / c.gdp > 1.5) sovereignDefault(game, c);
+  if (-c.treasury / c.gdpNom > 1.5) sovereignDefault(game, c);
 
   // --- Public opinion drifts
   let de = rng.normal() * 0.004, da = rng.normal() * 0.004;
@@ -400,7 +408,7 @@ function pcIncome(c) {
 }
 
 function sovereignDefault(game, c) {
-  c.treasury = -c.gdp * 0.9;
+  c.treasury = -c.gdpNom * 0.9;
   adjust(c, { stability: -15, approval: -10, business: -25 });
   addMod(c, 'growth', -0.002, 12, 'Debt default');
   logNews(game, `${c.name} defaults on its national debt. Markets panic.`, 'econ', [c.id]);
@@ -537,7 +545,7 @@ function changeGovernment(game, c, newGov, how, opts) {
   // Coups and reforms keep society's institutions; revolutions remake them.
   const oldLaws = c.laws;
   c.laws = presetLaws(newGov);
-  if (oldLaws && how !== 'revolution') for (const k of ['church', 'economy', 'labor', 'electoral']) if (oldLaws[k]) c.laws[k] = oldLaws[k];
+  if (oldLaws && how !== 'revolution') for (const k of ['church', 'economy', 'labor', 'electoral', 'monetary']) if (oldLaws[k]) c.laws[k] = oldLaws[k];
   c.reform = null;
   if (g.party === 'multi' && GOVS[old].party === 'multi') {
     // keep the existing party system
@@ -1013,12 +1021,13 @@ function tickDiplomacy(game) {
 // ------------------------------------------------------------------ AI governance
 
 function aiPolicy(game, c) {
+  aiMoney(game, c);
   const rng = game.rng;
   if (!rng.chance(0.35)) return;
   const p = c.policy, d = defaultPolicy(c.gov), g = GOVS[c.gov];
-  const debt = -c.treasury / c.gdp;
+  const debt = -c.treasury / (c.gdpNom || c.gdp);
   if (debt > 0.3) { p.tax += 0.01; p.welfare -= 0.3; p.infrastructure -= 0.1; }
-  else if (c.treasury > c.gdp * 0.15) { p.tax -= 0.01; p.welfare += 0.2; p.education += 0.1; p.infrastructure += 0.1; }
+  else if (c.treasury > (c.gdpNom || c.gdp) * 0.15) { p.tax -= 0.01; p.welfare += 0.2; p.education += 0.1; p.infrastructure += 0.1; }
   // Arms races: threatened nations arm up.
   const threat = threatLevel(game, c);
   const milT = isAtWar(game, c.id) ? Math.max(d.military * 1.8, 5) : d.military * clamp(1 + (threat - 1) * 0.6, 1, 2.4);
@@ -1029,7 +1038,7 @@ function aiPolicy(game, c) {
   if (c.unrest > 60 && g.repression >= 1 && rng.chance(0.08)) adjust(c, { unrest: -20, freedom: -5, intelligentsia: -8 });
   if (c.stability < 35 && rng.chance(0.1)) {
     for (const f in g.base) c.factions[f] = clamp(c.factions[f] + 8, 0, 100);
-    c.treasury -= c.gdp * 0.005;
+    c.treasury -= (c.gdpNom || c.gdp) * 0.005;
   }
 }
 
@@ -1104,14 +1113,19 @@ function recordHistory(game) {
     push(H, 'gdp', r1(c.gdp));
     push(H, 'pop', Math.round(c.pop / 1e4) / 100);
     push(H, 'sol', r1(c.econ.avgSol));
+    push(H, 'pl', Math.round((c.econ.pl || 1) * 1e4) / 1e4);
+    push(H, 'rgdp', r1((c.econ.gdpRealM || c.econ.gdpM) * 12 / 1e6));
     if (c.id === game.player) {
       // Keep the player's series aligned with the shared ones.
-      for (const k of ['unrest', 'treasury', 'army', 'unemp', 'pc', 'revenue', 'spend']) if (!H[k]) H[k] = new Array(Math.max(0, H.gdp.length - 1)).fill(null);
+      for (const k of ['unrest', 'treasury', 'army', 'unemp', 'pc', 'revenue', 'spend', 'infl', 'rate', 'rwage']) if (!H[k]) H[k] = new Array(Math.max(0, H.gdp.length - 1)).fill(null);
       push(H, 'unrest', Math.round(c.unrest));
       push(H, 'treasury', Math.round(c.treasury * 100) / 100);
       push(H, 'army', Math.round(c.army / 1000));
       push(H, 'unemp', Math.round(c.econ.unemployment * 1000) / 10);
       push(H, 'pc', Math.floor(c.pc));
+      push(H, 'infl', Math.round(inflationYoY(c) * 1000) / 10);
+      push(H, 'rate', Math.round((c.econ.rate || 0) * 1000) / 10);
+      push(H, 'rwage', Math.round((c.econ.realWage || 1) * 1000) / 10);
       push(H, 'revenue', c.budget ? Math.round(c.budget.revenue * 1000) / 1000 : 0);
       push(H, 'spend', c.budget ? Math.round((c.budget.spend + c.budget.interest) * 1000) / 1000 : 0);
     }
@@ -1152,10 +1166,10 @@ function setPlayer(game, id) {
 
 function costOk(c, a) {
   if (c.pc < (a.pc || 0)) return `Needs ${a.pc} political capital.`;
-  if (a.money && c.treasury - a.money * c.gdp < -c.gdp) return 'The treasury cannot borrow any more.';
+  if (a.money && c.treasury - a.money * (c.gdpNom || c.gdp) < -(c.gdpNom || c.gdp)) return 'The treasury cannot borrow any more.';
   return null;
 }
-function payCost(c, a) { c.pc -= a.pc || 0; if (a.money) c.treasury -= a.money * c.gdp; }
+function payCost(c, a) { c.pc -= a.pc || 0; if (a.money) c.treasury -= a.money * (c.gdpNom || c.gdp); }
 
 const free = c => GOVS[c.gov].elections === 'free';
 const CRISIS_LEVEL = 30;

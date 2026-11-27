@@ -52,7 +52,7 @@ Before the next big milestone:
   - **Support is now a visible meter** (public approval, power-base loyalty and clout-weighted interest groups), and the stability breakdown is grouped under the four meters.
   - **Still to do:** a peasant interest group (the agrarian league has none yet), and retiring separate meters that only feed one of the four (for example coalition satisfaction, which could become support from partner parties).
 - ✅ **Balance report:** `npm run report` (and `--compare tools/baseline.json`) runs AI-only worlds and summarizes regime changes, wars, crises, elections, laws, growth, recessions, prices, living standards, inequality, unemployment and stability. Philosophy rule 5 depends on it.
-- ✅ **Economy baseline:** measured (see Milestone 4). Still to do: calm the remaining GDP noise before 4b.
+- ✅ **Economy baseline and noise fix:** measured, then calmed (see Milestone 4).
 - **Performance (deferred):** a month takes 14–36 ms today, so the UI doesn't stutter yet. Moving the simulation into a Web Worker means the interface can no longer read game state directly, a large refactor that pays off once weekly war turns (Milestone 5) or credit cycles (4b) make months more expensive. Revisit then; the balance report tracks ms/month.
 - ✅ **Campaign:** chapter VIII, "The Constitution", teaches laws, bills and referendums, interest groups and their radical wings, and war on the map.
 - **Play-test:** a real play session by a human. This is the one Foundations item only you can do.
@@ -156,6 +156,19 @@ The economy is already dynamic: goods prices move with supply and demand every m
 
 **Implication:** before 4b adds credit cycles, the real economy needs to be calm enough that a genuine boom or bust stands out from the noise. Target: GDP per person falling in fewer than 20% of peaceful years, with any cycles showing as positive autocorrelation over 1–3 years.
 
+**Noise fixed (with 4a):**
+- **Real GDP:** growth is now measured on real GDP at base prices, from annual totals the way statistics offices measure it, so price swings no longer look like output swings.
+- **Budgets on a year's average:** government budgets are set on a 12-month average economy instead of last month's.
+- **Higher trend growth:** underlying technology growth was raised to give about 1.5% a year per person, as fits the postwar era.
+- **Results:**
+  - calm years with falling GDP per person: 21% (was 41%)
+  - growth persists year to year (autocorrelation about 0.3)
+  - depressions: −77%
+- **Side effects to watch:**
+  - living standards end about 19% higher
+  - stability is 6% higher
+  - months in crisis halved
+
 ### Design rules (the game-wide philosophy, applied to the economy)
 1. **Emergence comes from four ingredients:**
    - *accumulating quantities* (debt, money, confidence)
@@ -187,7 +200,20 @@ The economy is already dynamic: goods prices move with supply and demand every m
    A crash the player can't explain feels random, not emergent.
 7. **Build one layer at a time:** 4a, measure, then 4b, measure, and so on. Never all at once.
 
-### 4a. Money, inflation and the central bank
+### 4a. Money, inflation and the central bank ✅ (first pass)
+
+**Done:**
+- **The basics:** a price level, money supply and inflation expectations per nation, plus real and nominal GDP.
+- **Debt and the treasury are in currency,** so inflation erodes debt. Interest rates set by the monetary system feed debt interest and investment.
+- **Wages and salaries lag prices:** they're sticky, with the lag set by the labor law, so inflation squeezes workers and fixed incomes and moves value to profits.
+- **Savings** lose real value to inflation and earn interest.
+- **Monetary-system law:** gold standard, independent central bank, or government-controlled money with a money-growth slider and an option to print money to cover deficits.
+- **AI governments with control of the money supply print more** at war, in debt or under populists, and don't tighten before elections.
+- **Visible to the player:** a Money and prices card, an inflation breakdown, a top-bar warning, and Ledger charts for inflation, interest rates and real wages.
+- **Measured results:** central banks hold about 2%, the gold standard about 0.5% with deflation in growth years, and government money about 5% with occasional hyperinflation.
+
+**Still open:** import prices and exchange rates (with 4d), and inflation broken down by class (each class's own basket).
+
 - **A currency per nation:** a money supply and a price level. Today's goods prices become relative prices, multiplied by the national price level.
 - **What drives inflation:** money growth beyond real output (especially printing to cover deficits), expectations (people who expect rising prices raise them now), import prices and the exchange rate, and a wage-price spiral when unions are strong and labor is scarce.
 - **Debts in your own currency:** the treasury and national debt are in your currency, so inflation erodes debt. That's the temptation; printing to cover a war or a deficit can spiral into hyperinflation.

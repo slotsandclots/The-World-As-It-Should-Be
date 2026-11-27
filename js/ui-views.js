@@ -2,6 +2,27 @@
 // Side-panel tab views. Each view returns HTML for the tab body.
 
 Object.assign(UI, {
+  // ------------------------------------------------------------------ money
+
+  moneyHtml(c, g) {
+    const E = ensureMoney(c), law = c.laws.monetary, inf = inflationYoY(c);
+    let h = `<div class="card"><h3>${icon('coin', 16)} Money and prices</h3><p class="small muted" style="margin-top:0"><b>${esc(LAW_CATS.monetary.opts[law].name)}</b>: ${MONETARY_INFO[law]} (Change it in the Constitution, Politics tab.)</p>
+      <div class="grid2">
+        <div class="kv" data-tip="inflation"><span>Inflation</span><span class="${inf > 0.08 ? 'bad' : inf < -0.01 ? 'warn' : ''}">${fmtSigned(inf * 100)}%/yr</span></div>
+        <div class="kv" data-tip="inflation"><span>Expected</span><span>${fmtSigned((Math.pow(1 + E.piE, 12) - 1) * 100)}%/yr</span></div>
+        <div class="kv"><span>Price level</span><span>${(E.pl * 100).toFixed(0)} <small class="muted">(1950 = 100)</small></span></div>
+        <div class="kv"><span>Interest rate</span><span>${(E.rate * 100).toFixed(1)}%</span></div>
+        <div class="kv"><span>Money growth</span><span>${fmtSigned((Math.pow(1 + E.moneyGrowth, 12) - 1) * 100)}%/yr</span></div>
+        <div class="kv" title="Nominal wages relative to prices: below 100, pay is lagging behind prices"><span>Real wages</span><span class="${E.realWage < 0.98 ? 'bad' : E.realWage > 1.02 ? 'good' : ''}">${Math.round(E.realWage * 100)}</span></div>
+      </div>`;
+    if (law === 'state') {
+      const mg = c.policy.moneyGrowth == null ? 4 : c.policy.moneyGrowth;
+      h += `<div class="slider-row"><label><span>Money growth</span><span id="pv-moneyGrowth">${mg.toFixed(0)}%/yr</span></label><input type="range" data-policy="moneyGrowth" min="0" max="40" step="1" value="${mg}"><small>Faster than the economy grows means inflation. Inflation erodes the national debt, savings and wages.</small></div>
+        <label class="small" style="display:flex;gap:6px;align-items:center"><input type="checkbox" data-act="monetize" ${c.policy.monetize ? 'checked' : ''}> Print money to cover the budget deficit${E.printed > 0 ? ` <span class="warn">(printing ${fmtMoney(E.printed)} a month)</span>` : ''}</label>`;
+    }
+    return h + '</div>';
+  },
+
   // ------------------------------------------------------------------ press
 
   pressHtml(c, g) {
@@ -68,11 +89,13 @@ Object.assign(UI, {
     let h = `<div class="card"><h3>${icon('ledger', 16)} The Ledger</h3>${seg('view', [['nation', 'Our nation'], ['compare', 'Compare nations'], ['prices', 'World prices']])}${seg('range', [['5y', '5 years'], ['20y', '20 years'], ['all', 'All time']])}</div>`;
     if (L.view === 'nation') {
       const chart = (title, s, opts) => `<div class="card"><h4 style="margin-top:0">${title}</h4>${lineChart(s, opts)}</div>`;
-      h += chart('Gross domestic product', [{ pts: series(c, 'gdp'), color: '#d8b66a', label: 'GDP' }], { fmt: v => fmtMoney(v), zero: true });
+      h += chart('Gross domestic product', [{ pts: series(c, 'gdp'), color: '#d8b66a', label: 'Real GDP' }, { pts: monthly(c.hist.gdp).map((p, i, a) => { const pl = c.hist.pl, k = pl ? pl.length - a.length + i : -1; return [p[0], k >= 0 && pl[k] ? p[1] * pl[k] : null]; }), color: '#8fb0dc', label: 'GDP in currency', dash: true }], { fmt: v => fmtMoney(v), zero: true });
       h += chart('Politics', [
         { pts: series(c, 'approval'), color: '#7fc98f', label: 'Approval' }, { pts: series(c, 'stability'), color: '#e3a64e', label: 'Stability' },
         { pts: monthly(c.hist.unrest), color: '#e2705f', label: 'Unrest' },
       ], { min: 0, max: 100, fmt: v => v.toFixed(0) });
+      h += chart('Prices and money', [{ pts: monthly(c.hist.infl), color: '#e2705f', label: 'Inflation %/yr' }, { pts: monthly(c.hist.rate), color: '#8fb0dc', label: 'Interest rate %' }], { fmt: v => v.toFixed(1) + '%', zero: true });
+      h += chart('Real wages (100 = keeping up with prices)', [{ pts: monthly(c.hist.rwage), color: '#7fc98f', label: 'Real wages' }], { fmt: v => v.toFixed(0) });
       h += chart('Living standard', [{ pts: series(c, 'sol'), color: '#8fb0dc', label: 'Average standard of living' }], { fmt: v => v.toFixed(0) });
       h += chart('Population (millions)', [{ pts: series(c, 'pop'), color: '#c9a0dc', label: 'Population' }], { fmt: v => v.toFixed(1) + 'M' });
       h += chart('Treasury', [{ pts: monthly(c.hist.treasury), color: '#d8b66a', label: 'Treasury' }], { fmt: v => fmtMoney(v), zero: true });
@@ -138,11 +161,12 @@ Object.assign(UI, {
       ${bar('Corruption', c.corruption, { invert: true, tip: 'Drains revenue and growth.' })}
       ${bar('Legitimacy', c.legitimacy, { tip: 'The accepted right to rule. Won through elections, tradition or faith.' })}
     </div>`;
-    const debt = -c.treasury / c.gdp;
+    const debt = -c.treasury / (c.gdpNom || c.gdp);
     h += `<div class="card grid2">
       <div class="kv"><span>Population</span><span>${fmtPop(c.pop)}</span></div>
       <div class="kv"><span>Provinces</span><span>${c.provinceCount}</span></div>
-      <div class="kv"><span>GDP</span><span>${fmtMoney(c.gdp)}</span></div>
+      <div class="kv"><span>GDP (real)</span><span>${fmtMoney(c.gdp)}</span></div>
+      <div class="kv"><span>GDP (in currency)</span><span>${fmtMoney(c.gdpNom || c.gdp)}</span></div>
       <div class="kv"><span>Per capita</span><span>$${(c.gdpPerCap * 1000).toFixed(0)}</span></div>
       <div class="kv"><span>Growth</span><span class="${c.growthAvg < 0 ? 'bad' : 'good'}">${fmtSigned(c.growthAvg * 1200)}%/yr</span></div>
       <div class="kv" data-tip="treasury"><span>Treasury</span><span class="${c.treasury < 0 ? 'bad' : ''}">${fmtMoney(c.treasury)}${debt > 0 ? ` (${pct(debt)} debt)` : ''}</span></div>
@@ -325,7 +349,7 @@ Object.assign(UI, {
 
   viewEconomy(c, g) {
     const E = c.econ;
-    let h = `<div class="card grid2">
+    let h = this.moneyHtml(c, g) + `<div class="card grid2">
       <div class="kv"><span>GDP</span><span>${fmtMoney(c.gdp)}</span></div>
       <div class="kv"><span>Per capita</span><span>$${(c.gdpPerCap * 1000).toFixed(0)}</span></div>
       <div class="kv"><span>Growth</span><span class="${c.growthAvg < 0 ? 'bad' : 'good'}">${fmtSigned(c.growthAvg * 1200)}%/yr</span></div>
@@ -433,7 +457,7 @@ Object.assign(UI, {
 
   budgetHtml(c) {
     const b = projectBudget(c);
-    const debt = -c.treasury / c.gdp;
+    const debt = -c.treasury / (c.gdpNom || c.gdp);
     return `<h3>Monthly budget</h3>
       <div class="kv"><span>Income tax</span><span class="good">${fmtMoney(b.taxes)}</span></div>
       ${b.tariffs > 0.0001 ? `<div class="kv"><span>Tariffs</span><span class="good">${fmtMoney(b.tariffs)}</span></div>` : ''}
@@ -447,6 +471,7 @@ Object.assign(UI, {
   updatePolicyLabels() {
     const c = this.player();
     for (const k of Object.keys(POLICY_LIMITS)) { const el = $('#pv-' + k); if (el) el.textContent = this.policyValue(c, k); }
+    const mg = $('#pv-moneyGrowth'); if (mg) mg.textContent = (c.policy.moneyGrowth || 0).toFixed(0) + '%/yr';
     const bp = $('#budget-preview');
     if (bp) bp.innerHTML = this.budgetHtml(c);
   },

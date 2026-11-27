@@ -262,7 +262,7 @@ const EMPIRE_ACTIONS = [
   {
     id: 'investSubject', name: 'Invest in Them', pc: 5, money: 0.004, desc: 'Development aid: their treasury grows, their desire for independence falls.',
     check: (game, c, t) => (t.overlord !== c.id ? 'hidden' : null),
-    run(game, c, t) { t.treasury += c.gdp * 0.004; t.libertyMod = (t.libertyMod || 0) - 15; addRel(game, c.id, t.id, 8); return `Roads, schools and favors flow to ${t.name}.`; },
+    run(game, c, t) { t.treasury += (c.gdpNom || c.gdp) * 0.004; t.libertyMod = (t.libertyMod || 0) - 15; addRel(game, c.id, t.id, 8); return `Roads, schools and favors flow to ${t.name}.`; },
   },
   {
     id: 'integrate', name: 'Integrate', pc: 40, desc: `Peacefully absorb them over ${INTEGRATION_TIME} months. Needs five years as our subject and liberty desire below 50; fails if it rises above 75.`,

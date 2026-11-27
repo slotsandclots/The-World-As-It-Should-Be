@@ -319,7 +319,9 @@ function tickEconomy(game, warmup) {
       }
       E.vec[tier] = v; E.cost[tier] = cost;
     }
-    const gm = E.gdpM, pol = c.policy;
+    // Budgets are set on a year's average economy, not last month's.
+    E.budgetBase = E.budgetBase == null ? E.gdpM : E.budgetBase + (E.gdpM - E.budgetBase) / 12;
+    const gm = E.budgetBase, pol = c.policy;
     E.gov = {
       military: gm * pol.military / 100, welfare: gm * pol.welfare / 100, education: gm * pol.education / 100,
       police: gm * pol.police / 100, infrastructure: gm * pol.infrastructure / 100, admin: gm * ADMIN_COST / 100,
@@ -399,7 +401,7 @@ function tickEconomy(game, warmup) {
   for (const c of alive) {
     const E = c.econ;
     E.prevGdpM = E.gdpM || 1;
-    E.gdpNew = 0; E.taxGross = 0; E.stateProfitK = 0;
+    E.gdpNew = 0; E.gdpRealNew = 0; E.taxGross = 0; E.stateProfitK = 0;
     E.gross = {};
   }
   for (const p of provs) {
@@ -418,7 +420,13 @@ function tickEconomy(game, warmup) {
       for (const g in def.in) pva -= def.in[g] * PC[g];
       b.pva = (b.pva === undefined ? pva : b.pva * 0.7 + pva * 0.3);
       E.gdpNew += va;
-      const wages = Math.max(0, va) * ECON.LABOR_SHARE;
+      // Real output at base prices, so growth isn't confused with price swings.
+      let rva = 0;
+      for (const g in b.outQ) rva += b.outQ[g] * GOODS[g].base;
+      for (const g in b.inQ) rva -= b.inQ[g] * Math.min(E.fulfillS ? (E.fulfillS[g] ?? E.fulfill[g]) : E.fulfill[g], SUPPORT_GOODS[g] ? 1 : b.inF) * GOODS[g].base;
+      E.gdpRealNew += rva;
+      // Nominal wages lag prices (money.js): the real wage factor moves value between wages and profits.
+      const wages = Math.min(Math.max(0, va), Math.max(0, va) * ECON.LABOR_SHARE * (E.realWage || 1));
       const profit = va - wages;
       let w = 0;
       for (const t in def.jobs) if (WAGE_WEIGHT[t]) w += def.jobs[t] * WAGE_WEIGHT[t] * p.fill[t];
@@ -429,20 +437,24 @@ function tickEconomy(game, warmup) {
     }
     gross.peasants += p.subsist * P.grain;
     E.gdpNew += p.subsist * P.grain;
+    E.gdpRealNew += p.subsist * GOODS.grain.base;
     p.gross = gross;
   }
   // State wages and welfare, paid per head across the nation.
   for (const c of alive) {
     const E = c.econ, G = E.gov, N = E.N;
     const theo = c.gov === 'theocracy' ? 0.3 : 0;
+    // State salaries are fixed in currency too: inflation erodes them until they catch up.
+    const rw = E.realWage || 1;
     E.govWagePC = {
-      officials: N.officials > 0 ? (G.admin * (1 - theo) + G.police * 0.7) / N.officials : 0,
-      soldiers: N.soldiers > 0 ? G.military * 0.5 / N.soldiers : 0,
-      clerks: N.clerks > 0 ? G.education * 0.7 / N.clerks : 0,
-      clergy: N.clergy > 0 ? (G.education * 0.3 + G.admin * theo) / N.clergy : 0,
-      laborers: N.laborers > 0 ? (G.infrastructure * 0.4 + E.construction * 0.5) / N.laborers : 0,
+      officials: N.officials > 0 ? (G.admin * (1 - theo) + G.police * 0.7) / N.officials * rw : 0,
+      soldiers: N.soldiers > 0 ? G.military * 0.5 / N.soldiers * rw : 0,
+      clerks: N.clerks > 0 ? G.education * 0.7 / N.clerks * rw : 0,
+      clergy: N.clergy > 0 ? (G.education * 0.3 + G.admin * theo) / N.clergy * rw : 0,
+      laborers: N.laborers > 0 ? (G.infrastructure * 0.4 + E.construction * 0.5) / N.laborers * rw : 0,
     };
     E.gdpNew += G.admin + G.police * 0.7 + G.military * 0.5 + G.education + G.infrastructure * 0.4 + E.construction * 0.5;
+    E.gdpRealNew += G.admin + G.police * 0.7 + G.military * 0.5 + G.education + G.infrastructure * 0.4 + E.construction * 0.5;
     const ww = N.peasants * 1.5 + N.laborers + N.workers;
     E.welfarePC = { peasants: ww > 0 ? G.welfare * 1.5 / ww : 0, laborers: ww > 0 ? G.welfare / ww : 0, workers: ww > 0 ? G.welfare / ww : 0 };
     E.statePool += G.investment;
@@ -529,7 +541,9 @@ function tickEconomy(game, warmup) {
   // 7. Investment & construction
   for (const c of alive) {
     const E = c.econ;
-    if (ownersAllowed(c)) E.investPool += E.privateSavings;
+    // High real interest rates make owners hold back; cheap money draws investment out.
+    const realRate = (E.rate == null ? 0.04 : E.rate) - (E.piE ? Math.pow(1 + E.piE, 12) - 1 : 0);
+    if (ownersAllowed(c)) E.investPool += E.privateSavings * clamp(1 - (realRate - 0.02) * 4, 0.6, 1.3);
     if (!warmup) {
       runConstruction(game, c);
       invest(game, c, 'private');
@@ -581,6 +595,8 @@ function tickEconomy(game, warmup) {
     for (const s in st) E.strataSol[s] = st[s][1] > 0 ? st[s][0] / st[s][1] : 0;
     E.unemployment = jobPop > 0 ? unemp / jobPop : 0;
     E.gdpM = Math.max(1, E.gdpNew);
+    E.prevGdpRealM = E.gdpRealM || E.gdpRealNew;
+    E.gdpRealM = Math.max(1, E.gdpRealNew);
     E.gdpAnnual = E.gdpM * 12 / 1e6;
     E.taxBase = E.taxGross / 1e6;
     E.stateProfit = E.stateProfitK / 1e6;
@@ -748,8 +764,8 @@ function orderBuilding(game, t) {
   if (pendingFor(c, o)) return { ok: false, msg: 'All suitable land is already being developed.' };
   const costB = o.cost / 1e6;
   const fromPool = Math.min(E.statePool, o.cost);
-  const fromTreasury = (o.cost - fromPool) / 1e6;
-  if (c.treasury - fromTreasury < -c.gdp) return { ok: false, msg: 'The treasury cannot borrow any more.' };
+  const fromTreasury = (o.cost - fromPool) / 1e6 * (E.pl || 1);
+  if (c.treasury - fromTreasury < -c.gdpNom) return { ok: false, msg: 'The treasury cannot borrow any more.' };
   E.statePool -= fromPool;
   c.treasury -= fromTreasury;
   startProject(game, c, t, o.prov, o.cost, 'you');

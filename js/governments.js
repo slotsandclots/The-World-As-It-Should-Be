@@ -8,7 +8,7 @@
 // base = the factions whose loyalty props the regime up (its power base).
 // approvalWeight = how much stability depends on public approval vs. the power base.
 
-const BASE_POLICY = { tax: 0.25, military: 2.5, welfare: 8, education: 4, police: 1.5, infrastructure: 3, investment: 1, tariff: 0.1 };
+const BASE_POLICY = { tax: 0.25, military: 2.5, welfare: 8, education: 4, police: 1.5, infrastructure: 3, investment: 1, tariff: 0.1, moneyGrowth: 4, monetize: false };
 
 const GOVS = {
   democracy: {

@@ -221,7 +221,7 @@ function pressAction(game, i, action) {
   if (action === 'censor' && c.laws.press !== 'licensed') return { ok: false, msg: 'Censorship needs a licensed press law.' };
   if (A.pc) c.pc -= A.pc;
   if (action === 'court') { b.attitude = clamp(b.attitude + 0.3, -1, 1); return { ok: true, msg: `${b.ch.name}'s ${b.paper} softens its tone.` }; }
-  if (action === 'buy') { c.treasury -= A.money * c.gdp; b.attitude = 0.8; b.reach *= 0.85; adjust(c, { freedom: -2 }); return { ok: true, msg: `${b.paper} changes hands. Its new editors are very understanding.` }; }
+  if (action === 'buy') { c.treasury -= A.money * (c.gdpNom || c.gdp); b.attitude = 0.8; b.reach *= 0.85; adjust(c, { freedom: -2 }); return { ok: true, msg: `${b.paper} changes hands. Its new editors are very understanding.` }; }
   b.reach *= 0.5; adjust(c, { freedom: -4, intelligentsia: -6 }); b.attitude = clamp(b.attitude - 0.3, -1, 1);
   return { ok: true, msg: `${b.paper} loses its license for three months.` };
 }
