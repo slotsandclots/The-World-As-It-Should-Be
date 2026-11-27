@@ -62,6 +62,8 @@ function gatherAlerts(game, c) {
   const inf = typeof inflationYoY === 'function' ? inflationYoY(c) : 0;
   if (inf > 0.08) add('economy', inf > 0.3 ? 'bad' : 'warn', `Inflation ${Math.round(inf * 100)}% a year`);
   if (inf < -0.02) add('economy', 'warn', `Deflation ${Math.round(-inf * 100)}% a year`);
+  if (E.attack) add('economy', 'bad', `Run on the currency: speculators are attacking the gold parity`);
+  if (E.fxCrisis > 0) add('economy', 'bad', `Currency crisis: foreign lenders have pulled out`);
   if (E.importSqueeze > 0.05) add('economy', 'bad', `Out of foreign currency: imports cut by ${Math.round(E.importSqueeze * 100)}%`);
   else if (E.reserves != null && E.reserves < 0) add('economy', 'warn', `Foreign reserves exhausted (${Math.round(E.reserves / Math.max(0.01, c.gdp) * 100)}% of GDP): the currency is falling`);
   if (E.bankCrisis > 0) add('economy', 'bad', `Banking crisis: lending frozen for ${E.bankCrisis} months`);

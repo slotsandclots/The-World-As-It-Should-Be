@@ -225,6 +225,7 @@ function proposeLaw(game, c, cat, opt, free) {
   ensureLaws(c);
   if (c.reform) return { ok: false, msg: 'Another reform is already under way.' };
   if (c.laws[cat] === opt) return { ok: false, msg: 'That is already the law.' };
+  if (cat === 'monetary' && opt === 'gold' && typeof goldBlocked === 'function') { const why = goldBlocked(game, c); if (why) return { ok: false, msg: why }; }
   if (!free) {
     if (c.pc < LAW_PC) return { ok: false, msg: `Needs ${LAW_PC} political capital.` };
     c.pc -= LAW_PC;
@@ -281,6 +282,7 @@ function aiLaw(game, c) {
   let best = null, bv = 2;
   for (const opt in LAW_CATS[cat].opts) {
     if (opt === c.laws[cat]) continue;
+    if (cat === 'monetary' && opt === 'gold' && typeof goldBlocked === 'function' && goldBlocked(game, c)) continue;
     let v = 0;
     for (const f in g.base) v += g.base[f] * lawPreference(c, cat, opt, f);
     if (g.elections === 'free') v += lawSupport(game, c, cat, opt) * 6 - 3;

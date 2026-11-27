@@ -41,7 +41,8 @@ function tickMoney(game, c) {
 
   // Money growth, by monetary system.
   let g;
-  if (law === 'gold') g = 0.0012;
+  // On gold, money also follows the gold flowing in and out with the balance of payments (payments.js).
+  if (law === 'gold') g = 0.0012 + (E.goldFlow || 0);
   else if (law === 'centralBank') g = Math.max(-0.003, E.gY + INFLATION_TARGET / 12 + 0.6 * (INFLATION_TARGET / 12 - E.piE));
   else g = (p.moneyGrowth == null ? 4 : p.moneyGrowth) / 1200;
   E.moneyGrowth = g;
@@ -69,7 +70,8 @@ function tickMoney(game, c) {
 
   // Interest rates.
   const piEa = annual(E.piE);
-  if (law === 'gold') E.rate = clamp(0.04 + Math.max(0, -piEa) * 0.5, 0.02, 0.12);
+  // Defending a gold parity under attack costs a premium (payments.js).
+  if (law === 'gold') E.rate = clamp(0.04 + Math.max(0, -piEa) * 0.5 + (E.attack && typeof PAY !== 'undefined' ? PAY.DEFEND_PREMIUM : 0), 0.02, 0.16);
   // The central bank also leans against booms and slumps (output gap from credit.js).
   else if (law === 'centralBank') E.rate = clamp(0.02 + piEa + 0.5 * (piEa - INFLATION_TARGET) + 0.6 * (E.gap || 0), 0, 0.3);
   else E.rate = clamp(0.01 + 0.7 * piEa, 0, 0.8);

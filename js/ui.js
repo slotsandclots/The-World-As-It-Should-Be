@@ -576,6 +576,7 @@ const UI = {
       case 'posture': { const r = setPosture(g, +ds.war, ds.p); this.toast(r.msg, r.ok ? 'info' : 'bad'); App.afterAction(); return; }
       case 'mobilize': { const r = setMobilized(g, this.player(), ds.on === '1'); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }
       case 'default': { const r = playerDefault(g); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }
+      case 'leavegold': { const r = playerLeaveGold(g); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }
       case 'bailout': { const r = bailoutBanks(g); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }
       case 'monetize': { const c = this.player(); c.policy.monetize = !c.policy.monetize; this.renderTab(); return; }
       case 'lawact': { const r = lawAction(g, ds.a); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }

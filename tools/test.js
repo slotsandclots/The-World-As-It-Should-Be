@@ -755,6 +755,63 @@ test('closed loop, phase 2: a strong currency never imports past the shortfall; 
   assert(r.sane.length === 0, r.sane.join('; '));
 });
 
+test('closed loop, phase 2, layer 2: a gold parity holds, is attacked when reserves run out, and can be left', () => {
+  const r = run(`(() => {
+    const g = createGame('peg', { size: 'small', countries: 10 }); setPlayer(g, 0);
+    for (let i = 0; i < 6; i++) { tick(g); g.pending.length = 0; }
+    const alive = g.countries.filter(c => c.alive);
+    const c = g.countries[0];
+    c.reform = null; c.laws.monetary = 'gold'; c.econ.parity = null; c.econ.leftGold = null; c.econ.reserves = c.gdp * 0.05;
+    tick(g); g.pending.length = 0;
+    const parity = c.econ.parity, nomHeld = c.econ.fxNom === parity;
+    // Gold leaves with a deficit: the money supply follows it down.
+    c.econ.res0 = c.econ.reserves + c.gdp * 0.01; c.econ.reserves = c.econ.res0 - c.gdp * 0.01;
+    tickCurrency(g, c, 0, 1);
+    const goldOut = c.econ.goldFlow < 0;
+    // Reserves gone: speculators attack, capital flees to a haven, and nothing is created or lost.
+    c.econ.reserves = -c.gdp * 0.12; c.econ.investPool = Math.max(c.econ.investPool, 1e9);
+    const before = alive.reduce((s, o) => s + o.econ.reserves, 0), poolBefore = alive.reduce((s, o) => s + o.econ.investPool, 0);
+    c.econ.res0 = c.econ.reserves;
+    tickCurrency(g, c, -0.12, 1);
+    const attacked = !!c.econ.attack, fled = c.econ.attack && c.econ.attack.flight > 0;
+    const moved = Math.abs(alive.reduce((s, o) => s + o.econ.reserves, 0) - before) < 1e-9 && Math.abs(alive.reduce((s, o) => s + o.econ.investPool, 0) - poolBefore) < 1;
+    // Defending costs a premium on the interest rate.
+    tickMoney(g, c); const premium = c.econ.rate >= PAY.DEFEND_PREMIUM;
+    // Leaving gold: the law changes, the currency floats and falls fast.
+    const fx0 = c.econ.fx, res = playerLeaveGold(g);
+    for (let i = 0; i < 3; i++) tickCurrency(g, c, -0.12, 1);
+    const floated = res.ok && c.laws.monetary !== 'gold' && !c.econ.attack && c.econ.fx < fx0 - 0.05;
+    // Going straight back on gold is refused.
+    c.reform = null; const back = proposeLaw(g, c, 'monetary', 'gold', true);
+    return { parity, nomHeld, goldOut, attacked, fled, moved, premium, floated, refused: !back.ok, sane: __sane(g) };
+  })()`);
+  assert(r.nomHeld, 'a gold currency is held at its parity');
+  assert(r.goldOut, 'a deficit on gold should shrink the money supply');
+  assert(r.attacked && r.fled, 'speculators should attack a parity with no reserves, and capital should flee');
+  assert(r.moved, 'capital flight should move reserves and capital, not create them');
+  assert(r.premium, 'defending a parity should raise interest rates');
+  assert(r.floated, 'leaving gold should float the currency and let it fall');
+  assert(r.refused, 'a nation that just left gold cannot go straight back');
+  assert(r.sane.length === 0, r.sane.join('; '));
+});
+
+test('closed loop, phase 2, layer 2: a floating currency that collapses stops foreign lending', () => {
+  const r = run(`(() => {
+    const g = createGame('fxc', { size: 'small', countries: 10 }); setPlayer(g, 0);
+    for (let i = 0; i < 6; i++) { tick(g); g.pending.length = 0; }
+    const c = g.countries[1];
+    c.reform = null; c.laws.monetary = 'centralBank'; c.econ.leftGold = null; c.econ.fxCrisisAt = null;
+    c.econ.fxHist = Array(12).fill(1.2); c.econ.fx = 0.7;
+    tickCurrency(g, c, -0.2, 1);
+    const crisis = c.econ.fxCrisis > 0;
+    c.econ.reserves = -c.gdp * 0.05; c.debt = c.debt || {}; c.debt.crisis = 0; c.extDefaulted = null;
+    tickPayments(g);
+    return { crisis, borrowed: c.econ.borrowed };
+  })()`);
+  assert(r.crisis, 'a currency down by a fifth in a year should be in crisis');
+  assert(r.borrowed === 0, 'no one lends to a currency in crisis');
+});
+
 test('trade view: bilateral flows add up to every nation\'s trade and leave the economy unchanged', () => {
   const code = `(() => {
     const g = createGame('flows', { size: 'small', countries: 12 }); setPlayer(g, 0);
