@@ -456,6 +456,8 @@ The rule: no goods or money created from nothing. Every unit of money has a sour
 - **Side effects to watch:** most gold nations leave gold within 40 years; slightly more inflation, sovereign defaults and debt crises (all within noise so far).
 - **Still to do:** bank lending abroad at market rates (it would let pegs be defended and ease rationing), pegs to another nation's currency (with spheres of influence), the player choosing the parity on returning to gold.
 
+**Phase 2, layer 3 (in progress): banks lend abroad at market rates.** Banks in nations with reserves to spare lend part of them abroad, as far as their capital allows. Borrowers pay a market rate (a base plus a premium for their debt, war and empty reserves) and borrow less when it is high; loans are paid down over ten years. Foreign defaults now hit the lending banks' capital, so a default abroad can bring on a banking crisis at home.
+
 **Phase 2 (folds into 4d): balanced trade.** Every import is someone's export. A trade deficit is paid with reserves, foreign borrowing or a falling currency. This is the base for contagion, exchange rates, capital flows and currency crises. The investment pool's leak abroad becomes real foreign lending and ownership.
 
 **Phase 3 (folds into 4e): owning assets.** Shares, land and mortgages are held by specific pops and banks, so the wealth cap goes away (savings become assets), crashes destroy real wealth, and foreclosures move land between classes.
