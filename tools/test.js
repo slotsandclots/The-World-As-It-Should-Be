@@ -812,6 +812,42 @@ test('closed loop, phase 2, layer 2: a floating currency that collapses stops fo
   assert(r.borrowed === 0, 'no one lends to a currency in crisis');
 });
 
+test('closed loop, phase 2, layer 3: banks lend abroad at market rates, and a default abroad hits them', () => {
+  const r = run(`(() => {
+    const g = createGame('banks', { size: 'small', countries: 10 }); setPlayer(g, 0);
+    for (let i = 0; i < 6; i++) { tick(g); g.pending.length = 0; }
+    const alive = g.countries.filter(c => c.alive);
+    const L = alive[0], B = alive[1], C = alive[2];
+    for (const o of alive) { o.econ.capitalOffer = 0; o.extDebt = null; o.econ.bankAbroad = 0; o.extDefaulted = null; o.econ.attack = null; o.econ.fxCrisis = 0; if (o.debt) o.debt.crisis = 0; }
+    // A nation with reserves to spare and healthy banks; two short of reserves, one far riskier than the other.
+    L.econ.reserves = L.gdp * 0.5; L.econ.bankCrisis = 0; L.econ.bankCap = L.econ.credit * CREDIT.CAP_TARGET;
+    B.econ.reserves = -B.gdp * 0.01; C.econ.reserves = -C.gdp * 0.01; C.extDebt = { [alive[3].id]: C.gdp * 0.5 };
+    const net0 = alive.reduce((s, o) => s + o.econ.reserves, 0) + alive.reduce((s, o) => s + o.econ.tradeBalance, 0);
+    tickPayments(g);
+    const drift = Math.abs(alive.reduce((s, o) => s + o.econ.reserves, 0) - net0);
+    const lent = L.econ.bankAbroad > 0, owed = (B.extDebt || {})[L.id] > 0;
+    // The riskier borrower pays more and borrows less, relative to what it needs.
+    const rB = extRate(B, g), rC = extRate(C, g);
+    // A default abroad costs the lending banks capital.
+    const cap0 = L.econ.bankCap, ab0 = L.econ.bankAbroad;
+    B.extDebt = { [L.id]: B.gdp * 2 }; L.econ.bankAbroad = B.gdp * 2;
+    foreignDefault(g, B);
+    const hit = L.econ.bankCap < cap0 && L.econ.bankAbroad < B.gdp * 2;
+    // Repayment returns the banks' share to the banks.
+    const ab1 = L.econ.bankAbroad; repayTo(g, B, L.id, B.extDebt[L.id] * 0.1);
+    const repaid = L.econ.bankAbroad < ab1;
+    const debts = alive.reduce((s, o) => s + extDebtOf(o), 0), assets = alive.reduce((s, o) => s + extAssetsOf(g, o), 0);
+    return { drift, lent, owed, rB, rC, hit, repaid, balanced: Math.abs(debts - assets) < 1e-6, sane: __sane(g) };
+  })()`);
+  assert(r.lent && r.owed, 'banks with reserves to spare should lend them to nations short of them');
+  assert(r.drift < 1e-6, `bank lending should move reserves, not create them (${r.drift})`);
+  assert(r.rC > r.rB, 'a more indebted borrower should pay a higher market rate');
+  assert(r.hit, 'a foreign default should cost the lending banks capital');
+  assert(r.repaid, 'repayments should go back to the lending banks');
+  assert(r.balanced, "every foreign debt is still someone's asset");
+  assert(r.sane.length === 0, r.sane.join('; '));
+});
+
 test('trade view: bilateral flows add up to every nation\'s trade and leave the economy unchanged', () => {
   const code = `(() => {
     const g = createGame('flows', { size: 'small', countries: 12 }); setPlayer(g, 0);
