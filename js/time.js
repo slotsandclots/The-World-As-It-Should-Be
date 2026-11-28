@@ -37,6 +37,19 @@ function lagMonths(n) { return TIME.STEP_MONTHS === 1 ? n : 1 / smooth(1 / n); }
 // A countdown in months, one step later (replaces "x--" on month counters).
 function countdown(months) { return months - TIME.STEP_MONTHS; }
 
+// Rates and amounts (tick rework, step 2: flows at their source).
+// The national statistics (GDP, incomes, wages, imports and exports, the trade
+// balance, tax and tariff bases) are rates per month, whatever the step of the
+// system that computed them, so every reader sees the same scale. A rate becomes
+// an amount (perStep) once, where it changes a stock: wealth, the treasury,
+// reserves, the investment funds, the money supply, credit.
+// A monthly rate → a yearly rate (replaces "x * 12" on a rate; independent of the step).
+function yearlyOf(monthly) { return monthly * 12; }
+// A yearly rate → a monthly rate (replaces "x / 12" on a rate; independent of the step).
+function monthlyOf(yearly) { return yearly / 12; }
+// An amount over this step → a monthly rate.
+function rateOf(amount) { return TIME.STEP_MONTHS === 1 ? amount : amount / TIME.STEP_MONTHS; }
+
 // ------------------------------------------------------------------ the scheduler
 // Each system declares its rhythm: how many months of game time pass between its runs
 // (WEEK = a quarter month; 1 = monthly; 12 = yearly) and, for slow systems, the month
