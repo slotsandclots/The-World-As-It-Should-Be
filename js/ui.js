@@ -473,25 +473,57 @@ const UI = {
     this.campaignCheck();
   },
 
-  renderTopbar() {
+  // Numbers that slide between updates (ROADMAP, "Time and pacing", stage 1): a value in the
+  // top bar moves day by day from what was shown toward its new value, arriving when the
+  // next update of its system is due: the next week for money and prices, the next month
+  // for the budget and politics. The player's own actions, a step by hand and the fastest
+  // speed show the new value at once (this.snapping).
+  slideVal(key, actual, weekly) {
+    const S = this.slides || (this.slides = {}), g = App.game, now = App.calIndex();
+    let s = S[key];
+    if (!s || s.g !== g || this.snapping || !isFinite(actual)) { S[key] = { g, from: actual, to: actual, d0: now, d1: now }; return actual; }
+    if (actual !== s.to) S[key] = s = { g, from: this.slideAt(s, now), to: actual, d0: now, d1: Math.max(now + 1, App.nextUpdateIndex(weekly)) };
+    return this.slideAt(s, now);
+  },
+  // A weekly figure in a tab that slides between updates: drawn with the tab, then moved
+  // day by day by renderTopbar(true) without redrawing the tab.
+  // weekly: false for a monthly figure (it slides over the whole month).
+  slideSpan(key, actual, fmt, weekly = true) {
+    (this.slideFmt || (this.slideFmt = {}))[key] = fmt;
+    return `<span data-slide="${key}">${fmt(this.slideVal('tab:' + key, actual, weekly))}</span>`;
+  },
+  slideTab() {
+    const S = this.slides || {}, F = this.slideFmt || {}, now = App.calIndex();
+    document.querySelectorAll('#tab-body [data-slide]').forEach(el => {
+      const k = el.dataset.slide, s = S['tab:' + k];
+      if (s && F[k] && s.g === App.game) el.textContent = F[k](this.slideAt(s, now));
+    });
+  },
+  slideAt(s, now) { return s.d1 > s.d0 ? s.from + (s.to - s.from) * clamp((now - s.d0) / (s.d1 - s.d0), 0, 1) : s.to; },
+
+  // light: a day on the calendar with no step, only the sliding numbers and the date change.
+  renderTopbar(light) {
     const g = App.game, c = this.player();
     $('#tb-date').textContent = g ? App.dateText() : '';
     $('#tb-nation').innerHTML = c ? `<span class="tb-flag">${flagSVG(c, 42, 28)}</span><div class="tb-name"><b>${esc(c.name)}</b>${govBadge(c.gov)}</div>` : (this.choosing ? '<span class="muted tb-choose">Choose your nation</span>' : '');
     if (c) {
       const atWar = isAtWar(g, c.id);
       const net = c.budget ? c.budget.net : 0;
+      // The budget and politics move monthly; prices weekly.
+      const sv = (k, v) => this.slideVal(k, v, false), infl = this.slideVal('inflation', inflationYoY(c), true);
       const med = (key, ic, val, label, cls, style) => `<div class="medal ${cls || ''}" data-tip="${key}"><span class="medal-ico">${icon(ic, 16)}</span><span class="medal-txt"><b ${style ? `style="${style}"` : ''}>${val}</b><small>${label}</small></span></div>`;
       $('#tb-stats').innerHTML =
-        med('treasury', 'coin', `${fmtMoney(c.treasury)} <span class="${net < 0 ? 'bad' : 'good'} tb-delta">${net >= 0 ? '▲' : '▼'}${fmtMoney(Math.abs(net))}</span>`, 'Treasury', c.treasury < 0 ? 'neg' : '') +
+        med('treasury', 'coin', `${fmtMoney(sv('treasury', c.treasury))} <span class="${net < 0 ? 'bad' : 'good'} tb-delta">${net >= 0 ? '▲' : '▼'}${fmtMoney(Math.abs(net))}</span>`, 'Treasury', c.treasury < 0 ? 'neg' : '') +
         med('pc', 'star', Math.floor(c.pc), 'Political capital') +
-        med('approval', 'approval', Math.round(c.approval), 'Approval', '', `color:${statColor(c.approval)}`) +
-        med('stability', 'stability', Math.round(c.stability), 'Stability', '', `color:${statColor(c.stability)}`) +
+        med('approval', 'approval', Math.round(sv('approval', c.approval)), 'Approval', '', `color:${statColor(sv('approval', c.approval))}`) +
+        med('stability', 'stability', Math.round(sv('stability', c.stability)), 'Stability', '', `color:${statColor(sv('stability', c.stability))}`) +
         ((c.infamy || 0) >= 1 ? med('infamy', 'infamy', Math.round(c.infamy), 'Infamy', '', `color:${statColor(100 - (c.infamy || 0) * 2)}`) : '') +
-        (Math.abs(inflationYoY(c)) > 0.06 ? med('inflation', 'coin', fmtSigned(inflationYoY(c) * 100, 0) + '%', inflationYoY(c) > 0 ? 'Inflation' : 'Deflation', 'war') : '') +
+        (Math.abs(infl) > 0.06 ? med('inflation', 'coin', fmtSigned(infl * 100, 0) + '%', infl > 0 ? 'Inflation' : 'Deflation', 'war') : '') +
         (c.econ.bankCrisis > 0 ? med('confidence', 'alert', 'Banking crisis', `${Math.ceil(c.econ.bankCrisis)} months`, 'war') : '') +
         (atWar ? med('war', 'military', 'At war', `${warsOf(g, c.id).length} front${warsOf(g, c.id).length > 1 ? 's' : ''}`, 'war') : '') +
         (c.emergency ? med('emergency', 'alert', 'Emergency', 'Martial law', 'war') : '');
     } else $('#tb-stats').innerHTML = '';
+    if (light) { this.slideTab(); return; }
     document.querySelectorAll('[data-speed]').forEach(b => {
       b.classList.toggle('active', +b.dataset.speed === App.speed);
       b.disabled = !c;

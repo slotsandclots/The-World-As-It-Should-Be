@@ -133,9 +133,19 @@ const App = {
     // A new week: the weekly systems run today, and the numbers on screen move with them.
     if (weeklyGame() && weekOfDay(this.day) > (g.week || 0)) { this.weekStep(); return; }
     const shown = this.datedNews();
-    $('#tb-date').textContent = this.dateText();
+    // The date, and the numbers sliding toward their new values.
+    UI.renderTopbar(true);
     // New news today: redraw the open tab so it appears.
     if (shown && (UI.tab === 'news' || UI.tab === 'overview')) UI.renderTab();
+  },
+
+  // A day on the calendar as one running count (for numbers that slide between updates),
+  // and the last day before the next update: the end of this week, or of this month.
+  calIndex() { const g = this.game; return g ? g.month * 32 + this.day : 0; },
+  nextUpdateIndex(weekly) {
+    const g = this.game, w = weekOfDay(this.day);
+    if (!g) return 0;
+    return g.month * 32 + (weekly && weeklyGame() && w < 3 ? WEEK_DAYS[w + 1] - 1 : monthDays(g.month));
   },
 
   dateText() {
@@ -188,7 +198,9 @@ const App = {
     this.day = daily ? 1 : monthDays(g.month);
     if (g.month % 12 === 0 && g.player >= 0 && g.countries[g.player].alive) this.autosave();
     if (g.mapDirty || UI.mapMode !== 'political') this.redraw();
-    UI.refresh();
+    // Running day by day, numbers slide to their new values; a whole month at once shows them as they are.
+    UI.snapping = !daily;
+    try { UI.refresh(); } finally { UI.snapping = false; }
     UI.processPending();
     if (manual) UI.renderTopbar();
   },
@@ -198,7 +210,9 @@ const App = {
     if (!g) return;
     this.datedNews(true);
     this.redraw();
-    UI.refresh();
+    // The player's own action shows its effect at once.
+    UI.snapping = true;
+    try { UI.refresh(); } finally { UI.snapping = false; }
     UI.processPending();
   },
 
