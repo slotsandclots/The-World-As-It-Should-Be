@@ -399,6 +399,8 @@ test('closed loop: state debt has real holders, lenders can refuse, default hits
     const refused = D.arrears > 0 && D.payFrac < 1 && D.crisis > 0;
     const spendCut = projectBudget(c).payFrac < 1;
     // Default: holders lose, banks lose capital, the foreign lender resents it.
+    // Start from neutral relations, so the souring can show even if history left them at the floor.
+    setRel(g, c.id, l.id, 0);
     const rel0 = relation(g, c.id, l.id), debt0 = Math.max(0, -c.treasury), cap0 = E.bankCap, banks0 = D.banks;
     c.pc = 100; const res = playerDefault(g);
     const ok2 = Math.abs(debtTotal(D) - Math.max(0, -c.treasury)) < 1e-6 * (1 + debt0);
@@ -846,6 +848,25 @@ test('closed loop, phase 2, layer 3: banks lend abroad at market rates, and a de
   assert(r.repaid, 'repayments should go back to the lending banks');
   assert(r.balanced, "every foreign debt is still someone's asset");
   assert(r.sane.length === 0, r.sane.join('; '));
+});
+
+test('time constants: on the monthly step every helper is exact; on a weekly step a year adds up the same', () => {
+  const r = run(`(() => {
+    const xs = [0, 0.1, 0.3, 0.995, 1 / 60, 0.0012, 7.25];
+    const exact = TIME.STEP_MONTHS === 1 && xs.every(x => perStep(x) === x && smooth(x) === x && decay(x) === x && perStepChance(x) === x && growStep(x) === x
+      && perYear(x) === x / 12 && annualize(x) === x * 12 && lagMonths(60) === 60 && countdown(5) === 4);
+    // A quarter-month step: twelve months of steps should close the same gap, decay as much and fire as often.
+    TIME.STEP_MONTHS = 0.25;
+    const n = 48; let gapM = 1, gapS = 1, d = 1, miss = 1, flow = 0, lag = 1;
+    for (let i = 0; i < n; i++) { gapS -= gapS * smooth(0.1); d *= decay(0.9); miss *= 1 - perStepChance(0.05); flow += perYear(12); lag -= lag / lagMonths(60); }
+    for (let i = 0; i < 12; i++) gapM -= gapM * 0.1;
+    let lagM = 1; for (let i = 0; i < 12; i++) lagM -= lagM / 60;
+    const ok = Math.abs(gapS - gapM) < 1e-12 && Math.abs(d - Math.pow(0.9, 12)) < 1e-12 && Math.abs(miss - Math.pow(0.95, 12)) < 1e-12 && Math.abs(flow - 12) < 1e-9 && Math.abs(lag - lagM) < 1e-12 && countdown(1) === 0.75;
+    TIME.STEP_MONTHS = 1;
+    return { exact, ok };
+  })()`);
+  assert(r.exact, 'on the monthly step the time helpers must return exactly what the old code computed');
+  assert(r.ok, 'on a shorter step a year of steps must add up to a year of months');
 });
 
 test('trade view: bilateral flows add up to every nation\'s trade and leave the economy unchanged', () => {

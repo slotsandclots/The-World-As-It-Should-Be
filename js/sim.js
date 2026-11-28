@@ -105,7 +105,7 @@ function recomputeCountry(game, c) {
     pop += p.pop; tiles += p.tiles; n++;
   }
   c.pop = pop; c.tiles = tiles; c.provinceCount = n;
-  c.gdp = Math.max(0.01, c.econ ? c.econ.gdpAnnual : pop * 0.33 * c.tech * 12 / 1e6); // real, billions per year
+  c.gdp = Math.max(0.01, c.econ ? c.econ.gdpAnnual : annualize(pop * 0.33 * c.tech) / 1e6); // real, billions per year
   c.gdpNom = c.gdp * ((c.econ && c.econ.pl) || 1); // in the national currency
   c.gdpPerCap = pop > 0 ? c.gdp * 1e6 / pop : 0; // thousands of $
 }
@@ -247,7 +247,7 @@ function strength(c) {
 function projectBudget(c) {
   const p = c.policy;
   const E = c.econ;
-  const taxBase = E ? E.taxBase : c.gdp / 12;
+  const taxBase = E ? E.taxBase : perYear(c.gdp);
   const pl = (E && E.pl) || 1;
   const taxes = pl * taxBase * p.tax * (1 - c.corruption / 250) * (1 - (c.nonCoreShare || 0) * 0.3) * (c.federal ? 0.95 : 1) * (1 + (c.cabinet ? cabinetFx(c).taxEff : 0) + techSum(c, 'taxEff'));
   const tariffs = E ? E.tariffRev * pl : 0;
@@ -256,11 +256,11 @@ function projectBudget(c) {
   const spendPct = ADMIN_COST + SPEND_KEYS.reduce((s, k) => s + p[k], 0);
   const gN = c.gdpNom || c.gdp;
   // Unemployment benefits are paid on top of the budget, as a share of output (economy.js).
-  const ui = E && E.uiShare ? gN * E.uiShare / 12 : 0;
-  const uiContrib = E && E.uiAvg ? gN * E.uiAvg / 12 : 0;
+  const ui = E && E.uiShare ? perYear(gN * E.uiShare) : 0;
+  const uiContrib = E && E.uiAvg ? perYear(gN * E.uiAvg) : 0;
   // The state can only spend what it can fund (fiscal.js): in a debt crisis, payFrac < 1.
   const payFrac = c.debt && c.debt.payFrac != null ? c.debt.payFrac : 1;
-  const spend = (gN * spendPct / 100 / 12) * payFrac + ui;
+  const spend = perYear(gN * spendPct / 100) * payFrac + ui;
   // Interest is paid to whoever holds the debt, at the yield lenders demand.
   const interest = c.treasury < 0 ? debtInterest(c) : 0;
   return { revenue, taxes, tariffs, stateProfit, spend, ui, interest, uiContrib, payFrac, net: revenue + uiContrib - spend - interest, spendPct };
@@ -393,14 +393,14 @@ function tickCountry(game, c) {
   c._why = { support: { target: c.support, parts: [[`Public approval (×${(0.38 * aw / 0.58).toFixed(2)})`, 0.38 * aw * c.approval / 0.58], [`Power base loyalty (×${(0.38 * (1 - aw) / 0.58).toFixed(2)})`, 0.38 * (1 - aw) * baseLoy / 0.58], ['Interest groups by clout (×0.34)', 0.2 * clout / 0.58]], rate: 1 }, approval: { target: apT, parts: apParts, rate: 0.1 }, stability: { target: stT, parts: stParts, rate: 0.08 }, unrest: { target: unrestT, parts: unParts, rate: 0.12 } };
 
   // --- Military
-  c.army += (armyTarget(c) - c.army) * 0.06;
-  c.warMomentum *= 0.7;
-  if (!atWar) c.warExhaustion = Math.max(0, c.warExhaustion - 2);
-  if (c.bled) c.bled = c.bled > 1e-5 ? c.bled * 0.996 : 0; // the generation that fought passes on
+  c.army += (armyTarget(c) - c.army) * smooth(0.06);
+  c.warMomentum *= decay(0.7);
+  if (!atWar) c.warExhaustion = Math.max(0, c.warExhaustion - perStep(2));
+  if (c.bled) c.bled = c.bled > 1e-5 ? c.bled * decay(0.996) : 0; // the generation that fought passes on
 
   // --- Political capital & bookkeeping
   c.pc = clamp(c.pc + pcIncome(c), 0, 100);
-  for (const m of c.mods) m.months--;
+  for (const m of c.mods) m.months = countdown(m.months);
   c.mods = c.mods.filter(m => m.months > 0);
   for (const pt of c.parties) pt.boost *= 0.93;
   c.monthsInRegime++;
@@ -846,10 +846,10 @@ function tickWars(game) {
     if (!game.wars.includes(war)) continue;
     for (const id of war.a.concat(war.b)) {
       const c = game.countries[id];
-      c.army *= 0.995;
-      c.warExhaustion = clamp(c.warExhaustion + 1.5, 0, 100);
+      c.army *= decay(0.995);
+      c.warExhaustion = clamp(c.warExhaustion + perStep(1.5), 0, 100);
     }
-    war.exA += 1.2; war.exB += 1.2;
+    war.exA += perStep(1.2); war.exB += perStep(1.2);
 
     const involvesPlayer = war.a.includes(game.player) || war.b.includes(game.player);
     const months = game.month - war.start;
@@ -858,7 +858,7 @@ function tickWars(game) {
     if (aiPeace) {
       // Total war: belligerents in a world war hold on longer before they seek peace.
       const ex = Math.max(war.exA, war.exB), exLimit = war.world ? 60 : 45;
-      if ((ex > exLimit && rng.chance(0.06 + (ex - exLimit) * 0.004)) || months > 120) {
+      if ((ex > exLimit && rng.chance(perStepChance(0.06 + (ex - exLimit) * 0.004))) || months > 120) {
         if (war.world) { endWar(game, war, 'peace'); continue; }
         const sa = warScore(game, war, war.a[0]);
         const W = sa > 0 ? war.a[0] : war.b[0], Lo = sa > 0 ? war.b[0] : war.a[0];
@@ -875,7 +875,7 @@ function tickWars(game) {
       const enemyEx = war.a.includes(game.player) ? war.exB : war.exA;
       const enemyLeader = war.a.includes(game.player) ? war.b[0] : war.a[0];
       const theirScore = warScore(game, war, enemyLeader);
-      if (game.month - war.offered > 12 && ((enemyEx > 50 && rng.chance(0.08)) || (theirScore > 35 && rng.chance(0.06)))) {
+      if (game.month - war.offered > 12 && ((enemyEx > 50 && rng.chance(perStepChance(0.08))) || (theirScore > 35 && rng.chance(perStepChance(0.06))))) {
         war.offered = game.month;
         // A winning enemy dictates terms; a beaten or exhausted one asks for white peace.
         const terms = theirScore > 25 ? { provinces: theirScore > 55 ? 2 : 1, reparations: theirScore > 45 } : {};
@@ -972,12 +972,14 @@ function tickReparations(game) {
   game.reparations = game.reparations.filter(r => {
     const A = game.countries[r.from], B = game.countries[r.to];
     if (!A.alive || !B.alive || r.months <= 0) return false;
+    // r.amount is a month's payment.
+    const due = perStep(r.amount);
     // Paid with next month's budget, so each side's lenders see it (fiscal.js, payments.js).
-    if (typeof chargeTreasuryAbroad === 'function' && A.econ && B.econ) { A.econ.treasuryAbroad = (A.econ.treasuryAbroad || 0) + r.amount; B.econ.treasuryAbroad = (B.econ.treasuryAbroad || 0) - r.amount; }
-    else { A.treasury -= r.amount; B.treasury += r.amount; }
+    if (typeof chargeTreasuryAbroad === 'function' && A.econ && B.econ) { A.econ.treasuryAbroad = (A.econ.treasuryAbroad || 0) + due; B.econ.treasuryAbroad = (B.econ.treasuryAbroad || 0) - due; }
+    else { A.treasury -= due; B.treasury += due; }
     // Reparations are paid abroad, in foreign currency the loser has to earn (payments.js).
-    if (A.econ && B.econ && A.econ.reserves != null && B.econ.reserves != null) { A.econ.reserves -= r.amount / (A.econ.pl || 1); B.econ.reserves += r.amount / (A.econ.pl || 1); }
-    r.months--;
+    if (A.econ && B.econ && A.econ.reserves != null && B.econ.reserves != null) { A.econ.reserves -= due / (A.econ.pl || 1); B.econ.reserves += due / (A.econ.pl || 1); }
+    r.months = countdown(r.months);
     return true;
   });
 }
@@ -1128,7 +1130,7 @@ function aiPolicy(game, c) {
   const stance = fiscalStance(c, debt);
   c.fiscalStance = stance;
   // The bond market's limit: a deficit beyond what lenders will fund gets closed with taxes and cuts.
-  const deficit = c.budget ? -c.budget.net * 12 / Math.max(1e-6, c.gdpNom || c.gdp) : 0;
+  const deficit = c.budget ? annualize(-c.budget.net) / Math.max(1e-6, c.gdpNom || c.gdp) : 0;
   const over = deficit - deficitRoom(c, stance);
   if (over > 0) {
     p.tax += Math.min(0.01, over * 0.3);
@@ -1246,8 +1248,8 @@ function recordHistory(game) {
     push(H, 'pop', Math.round(c.pop / 1e4) / 100);
     push(H, 'sol', r1(c.econ.avgSol));
     push(H, 'pl', Math.round((c.econ.pl || 1) * 1e4) / 1e4);
-    push(H, 'rgdp', r1((c.econ.gdpRealM || c.econ.gdpM) * 12 / 1e6));
-    push(H, 'credit', Math.round((c.econ.credit || 0) / Math.max(1, (c.econ.gdpRealM || c.econ.gdpM) * 12) * 1000) / 10);
+    push(H, 'rgdp', r1(annualize(c.econ.gdpRealM || c.econ.gdpM) / 1e6));
+    push(H, 'credit', Math.round((c.econ.credit || 0) / Math.max(1, annualize(c.econ.gdpRealM || c.econ.gdpM)) * 1000) / 10);
     push(H, 'conf', Math.round((c.econ.conf || 1) * 100));
     if (c.id === game.player) {
       // Keep the player's series aligned with the shared ones.

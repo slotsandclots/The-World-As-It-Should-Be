@@ -188,7 +188,7 @@ function tickWorldWars(game) {
       if (!c.alive || id === game.player || war[side][0] === id || !game.wars.includes(war)) continue;
       const score = warScore(game, war, id);
       const newRegime = c.monthsInRegime < Math.min(8, game.month - war.start);
-      if ((newRegime && c.warExhaustion > 30 && score < 10) || (c.warExhaustion > 75 && score < -30 && game.rng.chance(0.05))) separatePeace(game, war, id, newRegime);
+      if ((newRegime && c.warExhaustion > 30 && score < 10) || (c.warExhaustion > 75 && score < -30 && game.rng.chance(perStepChance(0.05)))) separatePeace(game, war, id, newRegime);
     }
   }
 }

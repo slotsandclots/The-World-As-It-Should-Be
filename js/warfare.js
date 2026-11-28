@@ -55,7 +55,8 @@ function fightFronts(game, war) {
     const lead = game.countries[side[0]], P = posture(war, side[0]);
     const mA = sideMight(game, side, war), mD = sideMight(game, other, war);
     // Bigger, stronger sides fight more battles each month.
-    const tempo = clamp(sectors.length / 10, 0.3, 1.6) * P.tempo * clamp(mA / mD, 0.5, 1.5);
+    // Battles per step: about this many a month.
+    const tempo = perStep(clamp(sectors.length / 10, 0.3, 1.6) * P.tempo * clamp(mA / mD, 0.5, 1.5));
     let n = Math.floor(tempo) + (rng.chance(tempo % 1) ? 1 : 0);
     for (let k = 0; k < n; k++) {
       // Generals pick soft targets: flat land, already half-surrounded.
@@ -154,7 +155,7 @@ function setMobilized(game, c, on) {
 function tickMobilization(game, c) {
   const war = isAtWar(game, c.id);
   if (!war && c.mobilized) { c.mobilized = false; if (isPlayer(game, c)) toastPlayer(game, 'With peace, the army demobilizes.', 'info'); }
-  if (c.mobilized) c.warExhaustion = clamp(c.warExhaustion + 0.6, 0, 100);
+  if (c.mobilized) c.warExhaustion = clamp(c.warExhaustion + perStep(0.6), 0, 100);
   // AI: mobilize when the war is going badly or the enemy is stronger; pick a posture.
   if (!isPlayer(game, c) && war) {
     for (const w of warsOf(game, c.id)) {
@@ -162,7 +163,7 @@ function tickMobilization(game, c) {
       const r = sideStrength(game, mine) / sideStrength(game, theirs);
       w.posture = w.posture || {};
       w.posture[c.id] = r > 1.25 ? 'offensive' : r < 0.8 ? 'defensive' : 'balanced';
-      if (!c.mobilized && (r < 1 || warScore(game, w, c.id) < -15) && game.rng.chance(0.15)) { c.mobilized = game.month + 1; adjust(c, { military: 4, workers: -4 }); }
+      if (!c.mobilized && (r < 1 || warScore(game, w, c.id) < -15) && game.rng.chance(perStepChance(0.15))) { c.mobilized = game.month + 1; adjust(c, { military: 4, workers: -4 }); }
     }
   }
 }

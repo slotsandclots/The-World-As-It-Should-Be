@@ -69,7 +69,8 @@ function importBill(game, c) {
   return v / 1e6;
 }
 
-function reserveTarget(c) { return Math.max(c.econ.avgBill * PAY.RESERVE_MONTHS, c.gdp * 0.02); }
+// avgBill is the import bill per step; the target is three months of it.
+function reserveTarget(c) { return Math.max(c.econ.avgBill * PAY.RESERVE_MONTHS / TIME.STEP_MONTHS, c.gdp * 0.02); }
 function extDebtOf(c) { let d = 0; for (const k in c.extDebt || {}) d += c.extDebt[k]; return d; }
 function extAssetsOf(game, c) { let a = 0; for (const o of game.countries) if (o.alive && o.extDebt && o.extDebt[c.id]) a += o.extDebt[c.id]; return a; }
 // The market rate a nation pays abroad, and why.
@@ -103,13 +104,13 @@ function tickPayments(game) {
   for (const c of alive) {
     const E = c.econ;
     bill[c.id] = Math.max(1e-4, importBill(game, c));
-    E.avgBill = E.avgBill == null ? bill[c.id] : E.avgBill * 0.9 + bill[c.id] * 0.1;
+    E.avgBill = E.avgBill == null ? bill[c.id] : E.avgBill * (1 - smooth(0.1)) + bill[c.id] * smooth(0.1);
     if (E.reserves == null) E.reserves = c.gdp * 0.03;
     E.res0 = E.reserves;
     E.reserves += E.tradeBalance || 0;
     E.interestOut = 0;
     E.rateAbroad = extRate(c, game);
-    const rate = E.rateAbroad / 12;
+    const rate = perYear(E.rateAbroad);
     for (const k in c.extDebt || {}) {
       const L = game.countries[k], due = c.extDebt[k] * rate;
       if (!L || !L.alive) { delete c.extDebt[k]; continue; }
@@ -120,7 +121,7 @@ function tickPayments(game) {
     // Loans are paid down over time, out of reserves when there are any; the banks' share goes back to the banks.
     const debt0 = extDebtOf(c);
     if (debt0 > 0 && E.reserves > 0) {
-      const pay = Math.min(E.reserves, debt0 * PAY.REPAY);
+      const pay = Math.min(E.reserves, perStep(debt0 * PAY.REPAY));
       for (const k in c.extDebt) repayTo(game, c, k, pay * c.extDebt[k] / debt0);
       E.reserves -= pay; payAtHome(c, pay);
     }
@@ -140,7 +141,7 @@ function tickPayments(game) {
     // Capital goes abroad only from nations with reserves to spare: a nation short of them keeps its savings home.
     offer[c.id] = Math.max(0, (E.capitalOffer || 0) / 1e6) * clamp((E.reserves - target) / Math.max(1e-6, target), 0, 1);
     // Banks lend part of the reserves to spare, as far as their capital allows.
-    bankOffer[c.id] = Math.max(0, E.reserves - target) * PAY.BANK_LEND * bankHealth(c);
+    bankOffer[c.id] = Math.max(0, E.reserves - target) * smooth(PAY.BANK_LEND) * bankHealth(c);
     offer[c.id] += bankOffer[c.id];
     // Borrowers borrow less when the market rate is high.
     need[c.id] *= clamp(1 - (extRate(c, game) - PAY.BASE_RATE - 0.02) * PAY.RATE_CUT, 0.2, 1);
@@ -187,7 +188,7 @@ function tickPayments(game) {
     const E = c.econ, target = reserveTarget(c);
     const debt = extDebtOf(c);
     if (debt > 0 && E.reserves > target * 2) {
-      const pay = Math.min(debt, (E.reserves - target * 2) * 0.1);
+      const pay = Math.min(debt, (E.reserves - target * 2) * smooth(0.1));
       for (const k in c.extDebt) repayTo(game, c, k, pay * c.extDebt[k] / debt);
       E.reserves -= pay; payAtHome(c, pay);
     }
@@ -197,7 +198,7 @@ function tickPayments(game) {
     tickCurrency(game, c, r, wpl);
     // Only a nation in arrears (deep in the red, no one left to lend) has to ration its imports outright.
     const sq = E.reserves < -c.gdp * 0.1 ? clamp((-E.reserves / c.gdp - 0.1) / 0.2, 0, 0.6) : 0;
-    E.importSqueeze = (E.importSqueeze || 0) + (sq - (E.importSqueeze || 0)) * 0.3;
+    E.importSqueeze = (E.importSqueeze || 0) + (sq - (E.importSqueeze || 0)) * smooth(0.3);
     if (E.importSqueeze < 0.005) E.importSqueeze = 0;
     if (sq > 0.2 && !E.payCrisis) { E.payCrisis = game.month; logNews(game, `${c.name} runs out of foreign currency and must cut its imports.`, 'econ', [c.id]); if (isPlayer(game, c)) notify(game, 'A Balance-of-Payments Crisis', 'Our reserves of foreign currency are gone and no one will lend us more. Imports are being cut: expect shortages and rising prices until exports recover or the debts are paid.'); }
     if (sq === 0 && E.payCrisis && E.reserves > target) E.payCrisis = null;
@@ -228,9 +229,9 @@ function tickCurrency(game, c, r, wpl) {
       if (isPlayer(game, c)) notify(game, 'A Run on the Currency', 'Our gold reserves are gone and speculators are betting the parity will break. Owners are sending their capital abroad. Interest rates have been raised to defend the parity, which will deepen the slump. We can ride it out until the reserves recover, or leave the gold standard and let the currency fall (Economy tab).');
     }
     if (E.attack) {
-      flee(game, c, PAY.FLIGHT);
+      flee(game, c, smooth(PAY.FLIGHT));
       // Speculators give up once the drain is clearly reversing, or the reserves are rebuilt.
-      E.attack.rising = E.reserves > (E.res0 || 0) ? (E.attack.rising || 0) + 1 : 0;
+      E.attack.rising = E.reserves > (E.res0 || 0) ? (E.attack.rising || 0) + TIME.STEP_MONTHS : 0;
       E.attack.low = Math.min(E.attack.low, E.reserves);
       if (res > PAY.ATTACK_OVER || E.attack.rising >= 4) {
         logNews(game, `${c.name} defends its gold parity; the speculators retreat.`, 'econ', [c.id]);
@@ -243,19 +244,20 @@ function tickCurrency(game, c, r, wpl) {
     // A floating currency keeps falling while reserves drain: imports grow dearer at home and exporters earn more.
     // Just after leaving gold it falls fast: the devaluation.
     const fxT = clamp(1 + r * 4, PAY.FX_MIN, PAY.FX_MAX);
-    const speed = E.leftGold != null && game.month - E.leftGold < 6 ? 0.25 : 0.04;
+    const speed = smooth(E.leftGold != null && game.month - E.leftGold < 6 ? 0.25 : 0.04);
     E.fx = (E.fx || 1) + (fxT - (E.fx || 1)) * speed;
     // In currency, a floating rate also falls with inflation at home beyond inflation abroad.
     E.fxNom = E.fx * (wpl || 1) / Math.max(1e-6, E.pl || 1);
-    if (E.fxCrisis > 0) { E.fxCrisis--; flee(game, c, PAY.FLIGHT * 0.5); }
+    if (E.fxCrisis > 0) { E.fxCrisis = countdown(E.fxCrisis); flee(game, c, smooth(PAY.FLIGHT * 0.5)); }
   }
   // A year of rates, to spot a collapse.
   E.fxHist = E.fxHist || [];
-  E.fxHist.push(E.fx); if (E.fxHist.length > 13) E.fxHist.shift();
+  const yearSteps = Math.round(12 / TIME.STEP_MONTHS);
+  E.fxHist.push(E.fx); if (E.fxHist.length > yearSteps + 1) E.fxHist.shift();
   const yearAgo = E.fxHist[0];
   // A devaluation after leaving gold is not a crisis, and a crisis is not called again while the last one is fresh.
   const recent = m => m != null && game.month - m < 36;
-  if (!onGold(c) && !(E.fxCrisis > 0) && E.fxHist.length === 13 && E.fx < yearAgo * (1 - PAY.FX_CRISIS_DROP) && !recent(E.leftGold) && !recent(E.fxCrisisAt)) {
+  if (!onGold(c) && !(E.fxCrisis > 0) && E.fxHist.length === yearSteps + 1 && E.fx < yearAgo * (1 - PAY.FX_CRISIS_DROP) && !recent(E.leftGold) && !recent(E.fxCrisisAt)) {
     E.fxCrisis = PAY.FX_CRISIS_MONTHS; E.fxCrisisAt = game.month;
     logNews(game, `The ${c.name} currency collapses, down ${Math.round((1 - E.fx / yearAgo) * 100)}% in a year; foreign lenders pull out.`, 'econ', [c.id]);
     if (isPlayer(game, c)) notify(game, 'A Currency Crisis', 'Our currency has lost a fifth of its value in a year. Foreign lenders will not lend to us until it settles, and owners are moving their capital abroad. Imports are dearer; exporters earn more.');

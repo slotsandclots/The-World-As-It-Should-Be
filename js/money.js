@@ -28,7 +28,8 @@ function ensureMoney(c) {
   return E;
 }
 
-function annual(m) { return Math.pow(1 + m, 12) - 1; }
+// A rate per step, compounded over a year (time.js).
+function annual(m) { return Math.pow(1 + m, 12 / TIME.STEP_MONTHS) - 1; }
 
 function tickMoney(game, c) {
   const E = ensureMoney(c);
@@ -36,15 +37,15 @@ function tickMoney(game, c) {
   const law = c.laws.monetary, p = c.policy;
   const Y = Math.max(1, E.gdpRealM || E.gdpM || 1);
   if (E.money == null) E.money = Y * E.pl * MONEY_MONTHS;
-  if (E.prevRealForMoney) E.gY += (clamp(Y / E.prevRealForMoney - 1, -0.03, 0.03) - E.gY) * 0.03;
+  if (E.prevRealForMoney) E.gY += (clamp(Y / E.prevRealForMoney - 1, -perStep(0.03), perStep(0.03)) - E.gY) * smooth(0.03);
   E.prevRealForMoney = Y;
 
   // Money growth, by monetary system.
   let g;
   // On gold, money also follows the gold flowing in and out with the balance of payments (payments.js).
-  if (law === 'gold') g = 0.0012 + (E.goldFlow || 0);
-  else if (law === 'centralBank') g = Math.max(-0.003, E.gY + INFLATION_TARGET / 12 + 0.6 * (INFLATION_TARGET / 12 - E.piE));
-  else g = (p.moneyGrowth == null ? 4 : p.moneyGrowth) / 1200;
+  if (law === 'gold') g = perStep(0.0012) + (E.goldFlow || 0);
+  else if (law === 'centralBank') g = Math.max(-perStep(0.003), E.gY + perYear(INFLATION_TARGET) + 0.6 * (perYear(INFLATION_TARGET) - E.piE));
+  else g = (p.moneyGrowth == null ? 4 : p.moneyGrowth) * TIME.STEP_MONTHS / 1200;
   E.moneyGrowth = g;
   E.money *= 1 + g;
   // Printing to pay for the deficit: the treasury is spared, the money supply swells.
@@ -58,14 +59,14 @@ function tickMoney(game, c) {
   // The price level: money chasing real output, with inertia from expectations.
   const broad = E.money + 0.6 * ((E.credit || 0) - (E.creditTrend == null ? (E.credit || 0) : E.creditTrend));
   const plT = Math.max(E.money * 0.5, broad) / (Y * MONEY_MONTHS);
-  const pi = clamp(E.piE + 0.15 * Math.log(plT / E.pl), -0.02, 0.5);
+  const pi = clamp(E.piE + smooth(0.15) * Math.log(plT / E.pl), -perStep(0.02), perStep(0.5));
   E.pi = pi;
   E.pl *= 1 + pi;
-  E.piE += (pi - E.piE) * 0.12;
+  E.piE += (pi - E.piE) * smooth(0.12);
 
   // Nominal wages chase prices; stronger labor laws make them catch up faster.
   const lam = c.laws.labor === 'unions' ? 0.12 : c.laws.labor === 'stateUnions' ? 0.07 : 0.05;
-  E.wIdx *= 1 + E.piE + lam * Math.log(E.pl / E.wIdx);
+  E.wIdx *= 1 + E.piE + smooth(lam) * Math.log(E.pl / E.wIdx);
   E.realWage = clamp(E.wIdx / E.pl, 0.5, 1.5);
 
   // Interest rates.
@@ -77,7 +78,7 @@ function tickMoney(game, c) {
   else E.rate = clamp(0.01 + 0.7 * piEa, 0, 0.8);
 
   // Savings: inflation eats their real value; savers earn part of the interest rate.
-  const keep = (1 + E.rate * 0.5 / 12) / (1 + pi);
+  const keep = (1 + perYear(E.rate * 0.5)) / (1 + pi);
   for (const pr of c._provs || []) if (pr.wealth) for (const t in pr.wealth) pr.wealth[t] *= keep;
 }
 
@@ -85,8 +86,9 @@ function tickMoney(game, c) {
 function inflationYoY(c) {
   const H = c.hist && c.hist.pl;
   if (!H || H.length < 2) return annual((c.econ && c.econ.pi) || 0);
-  const a = H[Math.max(0, H.length - 13)], b = H[H.length - 1];
-  return a > 0 ? Math.pow(b / a, 12 / Math.min(12, H.length - 1)) - 1 : 0;
+  const yearSteps = Math.round(12 / TIME.STEP_MONTHS);
+  const a = H[Math.max(0, H.length - 1 - yearSteps)], b = H[H.length - 1];
+  return a > 0 ? Math.pow(b / a, yearSteps / Math.min(yearSteps, H.length - 1)) - 1 : 0;
 }
 
 // What is driving inflation, for the breakdown.
@@ -112,6 +114,6 @@ function aiMoney(game, c) {
   const infl = inflationYoY(c);
   const electionSoon = GOVS[c.gov].elections === 'free' && c.nextElection - game.month < 12;
   if (infl > 0.25 && !electionSoon) target = 2;
-  p.moneyGrowth = clamp((p.moneyGrowth == null ? 4 : p.moneyGrowth) + (target - (p.moneyGrowth || 4)) * 0.1, 0, 40);
+  p.moneyGrowth = clamp((p.moneyGrowth == null ? 4 : p.moneyGrowth) + (target - (p.moneyGrowth || 4)) * smooth(0.1), 0, 40);
   p.monetize = (debt > 0.7 || isAtWar(game, c.id)) && !(infl > 0.4 && !electionSoon);
 }
