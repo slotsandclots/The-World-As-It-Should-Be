@@ -155,6 +155,8 @@ The game saves to your browser's local storage (Menu → Save game).
 
 **Warnings before it's too late.** An alert bar under the top bar shows coup and revolution risk building up, and flags trouble in politics, the economy, society and war, plus decisions waiting for you.
 
+**The newspaper.** The News tab opens with a front page of the month's most important news, at home and abroad. On the first of January a special edition reviews the year just ended: its biggest stories, how your nation fared, and the world's wars, revolutions and crises.
+
 **Time.** The calendar runs day by day at five speeds (Space starts and pauses). Markets, trade, payments, money and the banks move every week, on the 1st, 8th, 15th and 22nd: prices, reserves, exchange rates and interest rates change during the month, and a bank run or an attack on the currency breaks in the week it happens. Production, wages and incomes, the budget and politics move once a month. "Next month" runs a whole month at once.
 
 **Seeing why.** Hover approval, stability, unrest, political capital or the treasury for a breakdown of what drives it. The Ledger tab charts your nation over time, compares you with your rivals, and tracks world market prices.

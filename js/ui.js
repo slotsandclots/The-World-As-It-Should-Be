@@ -583,6 +583,7 @@ const UI = {
       case 'ledger': this.ledger = Object.assign(this.ledger || {}, { [ds.k]: ds.v }); this.renderTab(); return;
       case 'newsmine': this.newsMine = !this.newsMine; this.renderTab(); return;
       case 'paper': this.paperIdx = Math.max(0, (this.paperIdx || 0) + (+ds.d)); this.renderTab(); return;
+      case 'yearpaper': this.openYearPaper(+ds.m, false); return;
       case 'dom': { const r = performDomestic(g, ds.id); this.track('dom:' + ds.id, r.ok); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }
       case 'appease': { const r = appeaseFaction(g, ds.f); this.track('appease:' + ds.f, r.ok); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }
       case 'regime': this.showRegimeModal(); return;
@@ -737,7 +738,44 @@ const UI = {
     const rest = [];
     for (const it of g.pending) { if (it.type === 'toast') this.toast(it.text, it.kind); else rest.push(it); }
     g.pending = rest;
-    if (!rest.length) return;
+    if (!rest.length) { this.yearEdition(); return; }
     this.showPending(g.pending.shift());
+  },
+
+  // On the first of January, once the month's other news is dealt with: the newspaper's
+  // review of the year just ended (newspaper.js). Not in the campaign; the player can turn it off.
+  yearEdition() {
+    const g = App.game;
+    if (!g || g.player < 0 || this.choosing || g.campaign || g.month <= 0 || g.month % 12 !== 0 || this._yearShown === g.month) return;
+    this._yearShown = g.month;
+    let off = false;
+    try { off = localStorage.getItem('twaisb-year-paper') === 'off'; } catch (e) { /* storage unavailable */ }
+    const c = g.countries[g.player];
+    if (off || !c || !c.alive) return;
+    this.openYearPaper(g.month, true);
+  },
+
+  // The year in review for the year ending before the January `month`: on its own each January
+  // (auto), or from the News tab, for this year or an earlier one.
+  openYearPaper(month, auto) {
+    const g = App.game, c = this.player();
+    if (!g || !c) return;
+    const P = yearEdition(g, c.id, month);
+    if (!P.lead) { if (!auto) this.toast('No news from that year.', 'info'); return; }
+    const year = g.startYear + Math.floor(P.from / 12);
+    let off = false;
+    try { off = localStorage.getItem('twaisb-year-paper') === 'off'; } catch (e) { /* storage unavailable */ }
+    const store = v => () => { try { if (v) localStorage.setItem('twaisb-year-paper', 'off'); else localStorage.removeItem('twaisb-year-paper'); } catch (e) { /* storage unavailable */ } };
+    this.openModal({
+      wide: true, cls: 'paper', kicker: `The year in review · ${year}`, title: esc(P.title),
+      body: this.yearPaperHtml(c, g, P, year),
+      buttons: auto ? [
+        { label: 'On to ' + (year + 1), cls: 'primary' },
+        { label: 'No more yearly editions', title: 'The monthly front page stays in the News tab, with a button for each year in review.', fn: store(true) },
+      ] : [
+        { label: 'Close', cls: 'primary' },
+        off ? { label: 'Open it every January', fn: store(false) } : { label: 'Don\'t open it every January', fn: store(true) },
+      ],
+    });
   },
 };
