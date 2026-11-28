@@ -903,16 +903,18 @@ Ideas for after (or alongside) the milestones. They follow the same design philo
 6. ✅ **Milestone 4a–4b:** money, inflation, credit and the business cycle (first pass).
 7. ✅ **Milestone 3** (first pass), with ideas spreading through the world folded in: 3a peoples, 3b cities and demographics, 3c aging, inequality, minority movements and healthcare, 3d universities, kinship and unification, idea spread, 3e secondary schools, the minorities interest group, unification by force. Also done: **the alert bar** (see Quality of life).
 8. ✅ **History makers (first pass):** notable people, the memory of defeat and its demagogues, world wars and peace conferences. Pulled forward at the player's request; it uses the existing war layer and leaves the operational war layer to Milestone 5.
-9. **Milestone 4c–4e,** with step 1 of "Governments that play differently" (mechanisms instead of flat per-type numbers) in 4c: labor relations and fiscal policy (including AI governments responding to the cycle), the world economy (with distance that matters, from World scale), and the stock and land markets, with the **closed-loop economy** running through all three (phase 1, the state's budget and debt, is done).
-10. **Spheres of influence,** once payments and foreign ownership exist (bilateral trade flows already do).
-11. **AI ambitions and personalities, with the graphics-card map**, plus the first art commissions: an art direction document, map textures and an icon set. The war layer needs the new map for army counters, fronts, plan arrows and supply routes.
-12. **Milestone 5:** the war layer, an operational layer.
-13. **The world newspaper and history book.** This can move earlier. World wars, treaties and the figures of the age are natural headlines and chapters.
-14. **Eras and scenarios (Milestone 6) and the desktop release,** together toward a public release.
+9. **The time-constant refactor** (stage 2, step 1 of Time and pacing): every per-month rate, smoothing factor and duration into `js/time.js`, converted with `perStep()` / `smooth()`, on the monthly tick, measured on 24 worlds × 40 years to change nothing. Start it only once the open closed-loop payments PRs (layers 1–3) have merged: it touches nearly every simulation file and would conflict with them. From then on, new code uses the helpers instead of `/ 12` and fixed factors.
+10. **The daily clock** (stage 1 of Time and pacing): the calendar day by day at the player's speed, news on its day, numbers that slide between months. Staggered nation updates come after, as their own measured step, because market clearing, blocs, idea spread and the payments lending pool read every nation's figures from the same month.
+11. **Milestone 4c–4e,** with step 1 of "Governments that play differently" (mechanisms instead of flat per-type numbers) in 4c: labor relations and fiscal policy (including AI governments responding to the cycle), the world economy (with distance that matters, from World scale), and the stock and land markets, with the **closed-loop economy** running through all three (phase 1, the state's budget and debt, is done; phase 2's payments layers 1–3 are in review). Resume after items 9–10.
+12. **Spheres of influence,** once payments and foreign ownership exist (bilateral trade flows already do).
+13. **AI ambitions and personalities, with the graphics-card map**, plus the first art commissions: an art direction document, map textures and an icon set. The war layer needs the new map for army counters, fronts, plan arrows and supply routes.
+14. **Milestone 5:** the war layer, an operational layer.
+15. **The world newspaper and history book.** This can move earlier. World wars, treaties and the figures of the age are natural headlines and chapters.
+16. **Eras and scenarios (Milestone 6) and the desktop release,** together toward a public release.
 
 Later: Milestone 8 (intrigue and dynasties), world scale (as the map and Web Worker allow), and the rest of Beyond the milestones.
 
-Time and pacing slots in by stages: the daily clock any time (it touches only the clock and the interface), the time-constant refactor before Milestone 5, and weekly ticks with Milestone 5 and the Web Worker.
+Time and pacing: the time-constant refactor and the daily clock come next (items 9–10), before more features; weekly ticks wait for Milestone 5 and the Web Worker.
 
 Flow views (visuals track) slot in as their data arrives: migration right after the trade view, capital and debt after phase 2 of the closed-loop economy, and ideas after that.
 
