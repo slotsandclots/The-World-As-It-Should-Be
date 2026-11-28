@@ -952,6 +952,35 @@ test('time constants: on the monthly step every helper is exact; on a weekly ste
   assert(r.ok, 'on a shorter step a year of steps must add up to a year of months');
 });
 
+test('the scheduler: systems run on their own rhythms, each with its own step', () => {
+  const r = run(`(() => {
+    const seen = { w: 0, m: 0, y: [], steps: [] };
+    const systems = [
+      { id: 'w', every: RHYTHM.WEEK, run: g => { seen.w++; seen.steps.push(TIME.STEP_MONTHS); } },
+      { id: 'm', every: RHYTHM.MONTH, run: g => { seen.m++; seen.steps.push(TIME.STEP_MONTHS); } },
+      { id: 'y', every: RHYTHM.YEAR, phase: 6, run: g => { seen.y.push(g.month); } },
+    ];
+    const g = { month: 0 };
+    let months = 0;
+    for (let i = 0; i < 4 * 24; i++) if (runSchedule(g, systems)) months++;
+    const weekly = { w: seen.w, m: seen.m, y: seen.y.slice(), months, month: g.month, week: g.week, outer: TIME.STEP_MONTHS,
+      stepsOk: seen.steps.every(s => s === 0.25 || s === 1) && seen.steps.includes(0.25) };
+    // All monthly: one step is one month, and no week is kept.
+    const g2 = { month: 0 }; let ran = 0;
+    for (let i = 0; i < 24; i++) runSchedule(g2, [{ id: 'm', every: RHYTHM.MONTH, run: () => ran++ }]);
+    // The game's own schedule: tick runs one month.
+    const game = createGame('sched', { size: 'small', countries: 8 }); setPlayer(game, 0);
+    const m0 = game.month; tick(game); game.pending.length = 0;
+    return { weekly, ran, month2: g2.month, week2: g2.week, base: baseStepMonths(SYSTEMS), gameMonths: game.month - m0, gameWeek: game.week };
+  })()`);
+  const w = r.weekly;
+  assert(w.w === 96 && w.m === 24 && w.months === 24 && w.month === 24 && w.week === 0, `weekly systems run four times a month, monthly ones once (${JSON.stringify(w)})`);
+  assert(w.y.join() === '6,18', `a yearly system runs once a year in its month (${w.y})`);
+  assert(w.stepsOk && w.outer === 1, 'each system runs with its own step, and the step is restored after');
+  assert(r.ran === 24 && r.month2 === 24 && r.week2 === undefined, 'with every system monthly, a step is a month');
+  assert(r.base === 1 && r.gameMonths === 1 && r.gameWeek === undefined, 'the game runs monthly today, and tick moves one month');
+});
+
 test('the newspaper leads with the biggest news, puts our own first among equals, and changes nothing', () => {
   const r = run(`(() => {
     const g = createGame('paper', { size: 'small', countries: 10 }); setPlayer(g, 0);

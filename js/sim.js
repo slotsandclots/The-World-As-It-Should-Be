@@ -1205,34 +1205,53 @@ function tickPolitics(game, c) {
 
 // ------------------------------------------------------------------ main tick
 
+// The systems of the world, each with its rhythm (time.js), in the order they run
+// within a step. Today every system is monthly except the yearly unification
+// check; the tick rework (ROADMAP, "Time and pacing", stage 2) moves markets,
+// money and payments to weekly.
+const SYSTEMS = [
+  { id: 'setup', every: RHYTHM.MONTH, run(game) {
+    const D = difficulty(game);
+    for (const c of game.countries) c.aiArmyBonus = c.id === game.player ? 0 : D.aiArmy;
+    refreshCores(game);
+  } },
+  { id: 'economy', every: RHYTHM.MONTH, run: game => tickEconomy(game, false) },
+  { id: 'payments', every: RHYTHM.MONTH, run(game) { if (typeof tickPayments === 'function') tickPayments(game); } },
+  { id: 'peoples', every: RHYTHM.MONTH, run: game => tickPeoples(game) },
+  { id: 'society', every: RHYTHM.MONTH, run: game => tickSociety(game) },
+  // Who trades with whom: accounting on this month's trade, read before any bloc membership changes (tradeflows.js).
+  { id: 'tradeflows', every: RHYTHM.MONTH, run(game) { if (typeof tickTradeFlows === 'function') tickTradeFlows(game); } },
+  { id: 'universities', every: RHYTHM.MONTH, run(game) { for (const c of game.countries) if (c.alive) tickUniversities(game, c); } },
+  { id: 'ideas', every: RHYTHM.MONTH, run: game => tickIdeas(game) },
+  // Once a year, in July; it was written as a monthly step and keeps that step.
+  { id: 'unification', every: RHYTHM.YEAR, phase: 6, step: RHYTHM.MONTH, run: game => tickUnification(game) },
+  { id: 'nations', every: RHYTHM.MONTH, run(game) { for (const c of game.countries) if (c.alive) tickCountry(game, c); } },
+  { id: 'wars', every: RHYTHM.MONTH, run: game => tickWars(game) },
+  { id: 'worldwars', every: RHYTHM.MONTH, run(game) { if (typeof tickWorld === 'function') tickWorld(game); } },
+  { id: 'balance', every: RHYTHM.MONTH, run: game => tickBalance(game) },
+  { id: 'subjects', every: RHYTHM.MONTH, run: game => tickSubjects(game) },
+  { id: 'empire', every: RHYTHM.MONTH, run: game => aiEmpire(game) },
+  { id: 'blocs', every: RHYTHM.MONTH, run: game => tickBlocs(game) },
+  { id: 'federal', every: RHYTHM.MONTH, run: game => tickFederal(game) },
+  { id: 'reparations', every: RHYTHM.MONTH, run: game => tickReparations(game) },
+  { id: 'diplomacy', every: RHYTHM.MONTH, run: game => tickDiplomacy(game) },
+  { id: 'politics', every: RHYTHM.MONTH, run(game) { for (const c of game.countries) if (c.alive) tickPolitics(game, c); } },
+  { id: 'player', every: RHYTHM.MONTH, run(game) { if (game.player >= 0 && game.countries[game.player].alive) playerMonthly(game); } },
+  // Histories are kept per month.
+  { id: 'history', every: RHYTHM.MONTH, run: game => recordHistory(game) },
+];
+
+// One step of the game (a month today; a week once markets run weekly).
+// Returns true when the step started a new month.
+function stepGame(game) {
+  if (game.over) return false;
+  return runSchedule(game, SYSTEMS);
+}
+
+// Run the game on to the start of the next month.
 function tick(game) {
   if (game.over) return;
-  game.month++;
-  const D = difficulty(game);
-  for (const c of game.countries) c.aiArmyBonus = c.id === game.player ? 0 : D.aiArmy;
-  refreshCores(game);
-  tickEconomy(game, false);
-  if (typeof tickPayments === 'function') tickPayments(game);
-  tickPeoples(game);
-  tickSociety(game);
-  // Who trades with whom: accounting on this month's trade, read before any bloc membership changes (tradeflows.js).
-  if (typeof tickTradeFlows === 'function') tickTradeFlows(game);
-  for (const c of game.countries) if (c.alive) tickUniversities(game, c);
-  tickIdeas(game);
-  if (game.month % 12 === 6) tickUnification(game);
-  for (const c of game.countries) if (c.alive) tickCountry(game, c);
-  tickWars(game);
-  if (typeof tickWorld === 'function') tickWorld(game);
-  tickBalance(game);
-  tickSubjects(game);
-  aiEmpire(game);
-  tickBlocs(game);
-  tickFederal(game);
-  tickReparations(game);
-  tickDiplomacy(game);
-  for (const c of game.countries) if (c.alive) tickPolitics(game, c);
-  if (game.player >= 0 && game.countries[game.player].alive) playerMonthly(game);
-  recordHistory(game);
+  while (!stepGame(game) && !game.over);
 }
 
 // Monthly series cover the last 20 years; yearly series (each January) cover

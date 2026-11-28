@@ -36,3 +36,45 @@ function perStepChance(p) { return TIME.STEP_MONTHS === 1 ? p : 1 - Math.pow(1 -
 function lagMonths(n) { return TIME.STEP_MONTHS === 1 ? n : 1 / smooth(1 / n); }
 // A countdown in months, one step later (replaces "x--" on month counters).
 function countdown(months) { return months - TIME.STEP_MONTHS; }
+
+// ------------------------------------------------------------------ the scheduler
+// Each system declares its rhythm: how many months of game time pass between its runs
+// (WEEK = a quarter month; 1 = monthly; 12 = yearly) and, for slow systems, the month
+// of the year it runs in (phase). A step of the game is the shortest rhythm in use.
+// game.month counts months of game time and moves on when a new month starts;
+// game.week (0–3) is kept only while some system runs faster than monthly.
+// While a system runs, TIME.STEP_MONTHS is its own step, so the helpers above
+// scale its rates, chances and countdowns to how often it runs.
+const RHYTHM = { WEEK: 0.25, MONTH: 1, YEAR: 12 };
+
+// The length of one step of the game, in months: the fastest rhythm in the schedule.
+function baseStepMonths(systems) {
+  let s = 1;
+  for (const sys of systems) if (sys.every < s) s = sys.every;
+  return s;
+}
+
+// Is the system due on this step? newMonth: this step starts a new month.
+function systemDue(game, sys, newMonth) {
+  if (sys.every < 1) return true;
+  if (!newMonth) return false;
+  return sys.every === 1 || (game.month - (sys.phase || 0)) % sys.every === 0;
+}
+
+// Run one step of the game: move the clock on, then each due system in order.
+function runSchedule(game, systems) {
+  const base = baseStepMonths(systems), perMonth = Math.round(1 / base);
+  let newMonth = true;
+  if (perMonth > 1) {
+    game.week = ((game.week || 0) + 1) % perMonth;
+    newMonth = game.week === 0;
+  } else if (game.week != null) delete game.week;
+  if (newMonth) game.month++;
+  const outer = TIME.STEP_MONTHS;
+  for (const sys of systems) {
+    if (!systemDue(game, sys, newMonth)) continue;
+    TIME.STEP_MONTHS = sys.step || sys.every;
+    try { sys.run(game); } finally { TIME.STEP_MONTHS = outer; }
+  }
+  return newMonth;
+}
