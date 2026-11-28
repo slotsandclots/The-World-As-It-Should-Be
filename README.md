@@ -161,6 +161,8 @@ The game saves to your browser's local storage (Menu → Save game).
 
 **Seeing why.** Hover approval, stability, unrest, political capital or the treasury for a breakdown of what drives it. The Ledger tab charts your nation over time, compares you with your rivals, and tracks world market prices.
 
+**Who gains, who loses.** Before you choose, every reform in the Politics tab and every tax, spending and tariff slider in the Economy tab shows which interest groups gain and which lose, weighted by their clout, where their loyalty is heading, and who would turn disloyal. Loyalty doesn't jump when you move a slider: it drifts toward its new target over the months.
+
 **Saves.** As many save slots as you like, plus an autosave every January. The title screen offers to continue your latest game.
 
 ## Code layout

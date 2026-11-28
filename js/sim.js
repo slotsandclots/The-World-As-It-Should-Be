@@ -270,6 +270,40 @@ function projectBudget(c) {
   return { revenue, taxes, tariffs, stateProfit, spend, ui, interest, uiContrib, payFrac, net: revenue + uiContrib - spend - interest, spendPct };
 }
 
+// The interest groups' loyalty targets (each group's loyalty drifts toward its target
+// every month, tickCountry): from the policy, the regime, the economy, how the group's
+// own people live, its demands, its radical wing, and the leader, cabinet, laws and
+// modifiers. Pure: it changes nothing, so the interface can ask what a different
+// policy would do (winners.js, policyWinners).
+// policy: the policy to judge (the nation's own by default); fx (optional): the leader's,
+// modifiers', cabinet's and laws' effects as tickCountry computed them this month.
+function interestTargets(game, c, policy, fx) {
+  const g = GOVS[c.gov], p = policy || c.policy, E = c.econ;
+  const T = fx ? fx.T : traitFx(c.leader), M = fx ? fx.M : sumMods(c);
+  const CF = fx ? fx.CF : cabinetFx(c), LF = fx ? fx.LF : lawFx(c);
+  const atWar = fx ? fx.atWar : isAtWar(game, c.id);
+  const growthA = c.growthAvg * 1200; // annualized %
+  const ft = {
+    military: 32 + p.military * 4.5 + (g.base.military ? 10 : 0) + (atWar ? (c.warMomentum > 0 ? 8 : c.warMomentum < 0 ? -10 : 0) : 0),
+    workers: 48 + techSum(c, 'workers') - (c.sezCount || 0) * 3 + (p.welfare + (p.health || 0) - 8) * 1.5 - (p.tax - 0.25) * 40 - g.econ * 12 - Math.max(0, p.police - 3) * 3 + growthA + (E.strataSol.lower - 35) * 0.4 - E.unemployment * 40,
+    business: 46 + g.econ * 12 - (p.tax - 0.25) * 80 + (p.infrastructure - 3) * 2 - c.corruption * 0.1 + growthA * 2 + (E.strataSol.upper - 75) * 0.3 - p.tariff * 10,
+    clergy: 48 + g.clergyBonus - (c.freedom - 50) * 0.12 + c.ideo.auth * 10 + (c.flags.clericalSchools ? 10 : 0),
+    intelligentsia: 28 - (c.flags.clericalSchools ? 6 : 0) + c.freedom * 0.35 + (p.education - 4) * 3 - p.police * 2.5 - (c.emergency ? 15 : 0) + (E.strataSol.middle - 65) * 0.2,
+  };
+  // Minorities judge the state by their grievances (peoples.js).
+  ft.minorities = 52 - (c._grievance || 0) * 250 - Math.max(0, 40 - (E.strataSol.lower || 40)) * 0.3;
+  // Interest groups also judge the state by how their own people live, and by whether their demands are met.
+  ft.military += ((E.solType && E.solType.soldiers) || 40) * 0.15 - 6;
+  // The myth of the stab in the back turns the officers against the civilians who signed the peace (revanchism.js).
+  if (typeof mythOnArmy === 'function') ft.military += mythOnArmy(c);
+  ft.clergy += ((E.solType && E.solType.clergy) || 50) * 0.12 - 6;
+  const unmet = {};
+  for (const f of FACTION_KEYS) { const d = interestDemand(c, f); unmet[f] = d ? -Math.min(6, lawPreference(c, d.cat, d.opt, f) * 0.35) : 0; ft[f] += unmet[f] - radicalWingPressure(c, f); }
+  const target = {};
+  for (const f of FACTION_KEYS) target[f] = clamp(ft[f] + (T[f] || 0) + (M[f] || 0) + (CF.factions[f] || 0) + (f === 'military' ? CF.military : 0) + LF[f], 0, 100);
+  return { ft, unmet, target };
+}
+
 function tickCountry(game, c) {
   const g = GOVS[c.gov], p = c.policy, rng = game.rng;
   const T = traitFx(c.leader);
@@ -326,30 +360,12 @@ function tickCountry(game, c) {
   const corrT = clamp(g.corruption + techSum(c, 'corruption') + (T.corruption || 0) - (L.admin - 5) * 1.5 + CF.corruption + (50 - c.freedom) * 0.15 + (M.corruption || 0) + LF.corruption, 0, 100);
   c.corruption += (corrT - c.corruption) * 0.02;
 
-  // --- Factions
+  // --- Factions: each interest group's loyalty drifts toward its target (interestTargets).
   const growthA = c.growthAvg * 1200; // annualized %
-  const ft = {
-    military: 32 + p.military * 4.5 + (g.base.military ? 10 : 0) + (atWar ? (c.warMomentum > 0 ? 8 : c.warMomentum < 0 ? -10 : 0) : 0),
-    workers: 48 + techSum(c, 'workers') - (c.sezCount || 0) * 3 + (p.welfare + (p.health || 0) - 8) * 1.5 - (p.tax - 0.25) * 40 - g.econ * 12 - Math.max(0, p.police - 3) * 3 + growthA + (E.strataSol.lower - 35) * 0.4 - E.unemployment * 40,
-    business: 46 + g.econ * 12 - (p.tax - 0.25) * 80 + (p.infrastructure - 3) * 2 - c.corruption * 0.1 + growthA * 2 + (E.strataSol.upper - 75) * 0.3 - p.tariff * 10,
-    clergy: 48 + g.clergyBonus - (c.freedom - 50) * 0.12 + c.ideo.auth * 10 + (c.flags.clericalSchools ? 10 : 0),
-    intelligentsia: 28 - (c.flags.clericalSchools ? 6 : 0) + c.freedom * 0.35 + (p.education - 4) * 3 - p.police * 2.5 - (c.emergency ? 15 : 0) + (E.strataSol.middle - 65) * 0.2,
-  };
-  // Minorities judge the state by their grievances (peoples.js).
   if (c.factions.minorities == null) c.factions.minorities = 50;
-  ft.minorities = 52 - (c._grievance || 0) * 250 - Math.max(0, 40 - (E.strataSol.lower || 40)) * 0.3;
-  // Interest groups also judge the state by how their own people live, and by whether their demands are met.
-  ft.military += ((E.solType && E.solType.soldiers) || 40) * 0.15 - 6;
-  // The myth of the stab in the back turns the officers against the civilians who signed the peace (revanchism.js).
-  if (typeof mythOnArmy === 'function') ft.military += mythOnArmy(c);
-  ft.clergy += ((E.solType && E.solType.clergy) || 50) * 0.12 - 6;
-  const unmet = {};
-  for (const f of FACTION_KEYS) { const d = interestDemand(c, f); unmet[f] = d ? -Math.min(6, lawPreference(c, d.cat, d.opt, f) * 0.35) : 0; ft[f] += unmet[f] - radicalWingPressure(c, f); }
-  c._unmet = unmet;
-  for (const f of FACTION_KEYS) {
-    const target = clamp(ft[f] + (T[f] || 0) + (M[f] || 0) + (CF.factions[f] || 0) + (f === 'military' ? CF.military : 0) + LF[f], 0, 100);
-    c.factions[f] += (target - c.factions[f]) * 0.07;
-  }
+  const IT = interestTargets(game, c, p, { T, M, CF, LF, atWar });
+  c._unmet = IT.unmet;
+  for (const f of FACTION_KEYS) c.factions[f] += (IT.target[f] - c.factions[f]) * 0.07;
 
   // --- Unrest. Each target is a sum of labelled parts, kept in c._why so the
   // interface can explain every number.
