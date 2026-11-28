@@ -1026,24 +1026,35 @@ test('exposure to crises reads the real numbers, rises with them, and changes no
   assert(r.debt[0] === 0 && r.debt[1] === 2, 'heavy distrusted debt is high risk, a surplus low: ' + r.debt);
 });
 
-test('who wins, who loses: a reform shows each interest group its stake, by clout, and changes nothing', () => {
+test('who wins, who loses: a reform shows each interest group what the law really does, by clout, and changes nothing', () => {
   const r = run(`(() => {
     const g = createGame('winners', { size: 'small', countries: 10 }); setPlayer(g, 0);
     for (let i = 0; i < 12; i++) { tick(g); g.pending.length = 0; }
     const c = g.countries[0], before = serializeGame(g);
-    let checked = 0, matches = true, sorted = true, untouched = true;
+    let checked = 0, matches = true, missing = true, sorted = true, supportOk = true, worst = 0;
+    const meter = x => (0.38 * (1 - GOVS[x.gov].approvalWeight) * weightedLoyalty(x, GOVS[x.gov].base) + 0.2 * cloutLoyalty(x)) / 0.58;
     for (const cat of LAW_KEYS) for (const opt in LAW_CATS[cat].opts) {
       if (opt === c.laws[cat]) continue;
       const W = lawWinners(g, c, cat, opt);
-      for (const x of W.groups) { checked++; if (Math.abs(x.delta - lawPreference(c, cat, opt, x.key) * WINNERS.REACTION) > 1e-9) matches = false; }
+      // Pass the law in a copy of the game and compare what really happens.
+      const g2 = deserializeGame(before), c2 = g2.countries[0];
+      for (const f of FACTION_KEYS) c2.factions[f] = c.factions[f];
+      enactLaw(g2, c2, cat, opt);
+      const listed = new Set(W.groups.map(x => x.key));
+      for (const x of W.groups) { checked++; const d = Math.abs(x.after - c2.factions[x.key]); worst = Math.max(worst, d); if (d > 1e-9) matches = false; }
+      for (const f of FACTION_KEYS) if (!listed.has(f) && Math.abs(c2.factions[f] - c.factions[f]) >= 0.05) missing = false;
+      // The meter as the simulation computes it, with this nation's clout and the loyalties after the law.
+      if (Math.abs(W.support - (meter(Object.assign({}, c, { factions: c2.factions })) - meter(c))) > 1e-6) supportOk = false;
       for (let i = 1; i < W.groups.length; i++) if (W.groups[i].weight > W.groups[i - 1].weight + 1e-12) sorted = false;
     }
-    untouched = serializeGame(g) === before;
+    const untouched = serializeGame(g) === before;
     const same = lawWinners(g, c, 'monetary', c.laws.monetary).groups.length === 0;
-    return { checked, matches, sorted, untouched, same };
+    return { checked, matches, worst, missing, supportOk, sorted, untouched, same };
   })()`);
   assert(r.checked > 10, 'reforms should show groups with a stake: ' + r.checked);
-  assert(r.matches, 'each stake is the loyalty change the law would really cause');
+  assert(r.matches, 'each stake is the loyalty the group really has once the law passes (worst gap ' + r.worst + ')');
+  assert(r.missing, 'every group the law moves is shown');
+  assert(r.supportOk, 'the support change is what the support meter really does');
   assert(r.sorted, 'the biggest stakes, weighted by clout, come first');
   assert(r.same, 'keeping the current law has no winners or losers');
   assert(r.untouched, 'the view must not change the game');
