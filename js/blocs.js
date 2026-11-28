@@ -196,7 +196,8 @@ function tickBlocs(game) {
       const cand = others.find(o => !b.members.includes(o.id) && !canJoin(game, o, b.type) && relation(game, c.id, o.id) > 40);
       if (!cand || !rng.chance(0.2)) continue;
       if (cand.id === game.player) { if (!game.pending.some(p => p.type === 'blocInvite')) game.pending.push({ type: 'blocInvite', bloc: b.id }); }
-      else if (rng.chance(joinAppeal(game, cand, b))) joinBloc(game, b, cand.id);
+      // The members vote on it first, as they do on the player's invitations.
+      else if (memberVote(game, b, cand.id).passed && rng.chance(joinAppeal(game, cand, b))) joinBloc(game, b, cand.id);
     }
   }
 }
