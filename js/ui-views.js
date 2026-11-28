@@ -605,7 +605,8 @@ Object.assign(UI, {
       const r = E.prices[gk] / G.base, wr = W.prices[gk] / G.base;
       const tr = E.exports[gk] > E.imports[gk] ? `<span class="good">+${fmtQ(E.exports[gk])}</span>` : E.imports[gk] > 0.5 ? `<span class="warn">−${fmtQ(E.imports[gk])}</span>` : '';
       const f = E.fulfill[gk];
-      h += `<tr><td>${G.name}</td><td style="color:${r > 1.4 ? 'var(--bad)' : r < 0.75 ? 'var(--good)' : 'inherit'}">${pct(r)}</td><td class="muted">${pct(wr)}</td>
+      // Prices are weekly: they slide between the market's updates.
+      h += `<tr><td>${G.name}</td><td style="color:${r > 1.4 ? 'var(--bad)' : r < 0.75 ? 'var(--good)' : 'inherit'}">${this.slideSpan('price:' + gk, r, pct)}</td><td class="muted">${this.slideSpan('world:' + gk, wr, pct)}</td>
         <td>${fmtQ(E.S[gk])}</td><td>${fmtQ(E.D[gk])}</td><td>${tr}</td><td class="${f < 0.95 ? 'bad' : ''}">${pct(f)}</td></tr>`;
     }
     h += '</table><p class="small muted">Price 100% = base price. Shortages ("Met" below 100%) ration goods for everyone: pops go without, factories stall, and the army runs short of arms.</p>';
