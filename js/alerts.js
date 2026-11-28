@@ -66,7 +66,7 @@ function gatherAlerts(game, c) {
   if (E.fxCrisis > 0) add('economy', 'bad', `Currency crisis: foreign lenders have pulled out`);
   if (E.importSqueeze > 0.05) add('economy', 'bad', `Out of foreign currency: imports cut by ${Math.round(E.importSqueeze * 100)}%`);
   else if (E.reserves != null && E.reserves < 0) add('economy', 'warn', `Foreign reserves exhausted (${Math.round(E.reserves / Math.max(0.01, c.gdp) * 100)}% of GDP): the currency is falling`);
-  if (E.bankCrisis > 0) add('economy', 'bad', `Banking crisis: lending frozen for ${E.bankCrisis} months`);
+  if (E.bankCrisis > 0) add('economy', 'bad', `Banking crisis: lending frozen for ${Math.ceil(E.bankCrisis)} months`);
   if (E.dsr > 0.4) add('economy', 'warn', `Firms' debts outrun profits (${Math.round(E.dsr * 100)}%): bankruptcies ahead`);
   if ((E.unemployment || 0) > 0.06) add('economy', 'warn', `Unemployment ${Math.round(E.unemployment * 100)}%`);
   if (E.conf != null && E.conf < 0.75) add('economy', 'warn', `Business confidence ${Math.round(E.conf * 100)}`);
