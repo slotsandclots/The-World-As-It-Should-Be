@@ -1,10 +1,25 @@
 'use strict';
 // App controller: owns the game object, the clock and redraws.
 
-const SPEED_MS = [0, 1100, 550, 220];
+// The daily clock (ROADMAP, "Time and pacing", stage 1): the calendar runs day by
+// day at the player's speed while the simulation still steps once a month, on the
+// first of the month. Each month's news is spread over its days and appears when
+// the calendar reaches it. Milliseconds per day, by speed: 1 slow (a year in about
+// 2½ minutes), 2 normal (about a minute, the pace of a Victoria-style year),
+// 3 fast, 4 very fast; 5 skips the days and steps a month at a time.
+const DAY_MS = [0, 420, 165, 80, 30];
+const MONTH_SKIP_MS = 220;
+const MONTH_DAYS = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+function monthDays(m) { return MONTH_DAYS[((m % 12) + 12) % 12]; }
+// A day within the month for a news line, spread evenly but fixed for each line.
+function newsDay(l, days) {
+  let h = 0;
+  for (let i = 0; i < l.text.length; i++) h = (h * 31 + l.text.charCodeAt(i)) >>> 0;
+  return 1 + (h % days);
+}
 
 const App = {
-  game: null, renderer: null, speed: 0, timer: null,
+  game: null, renderer: null, speed: 0, timer: null, day: 1,
 
   newWorld(seed, opts) {
     this.setSpeed(0);
@@ -85,14 +100,58 @@ const App = {
     this.speed = s;
     clearInterval(this.timer);
     this.timer = null;
-    if (s > 0) this.timer = setInterval(() => this.step(false), SPEED_MS[s]);
+    if (s >= 5) this.timer = setInterval(() => this.step(false), MONTH_SKIP_MS);
+    else if (s > 0) this.timer = setInterval(() => this.nextDay(), DAY_MS[s]);
     UI.renderTopbar();
   },
 
-  step(manual) {
+  // One day on the calendar; past the end of the month, the simulation steps.
+  nextDay() {
+    const g = this.game;
+    if (!g || UI.choosing || g.player < 0 || UI.modalOpen() || UI.dragging) return;
+    if (this.day >= monthDays(g.month)) { this.step(false, true); return; }
+    this.day++;
+    const shown = this.datedNews();
+    $('#tb-date').textContent = this.dateText();
+    // New news today: redraw the open tab so it appears.
+    if (shown && (UI.tab === 'news' || UI.tab === 'overview')) UI.renderTab();
+  },
+
+  dateText() {
+    const g = this.game;
+    return g ? `${this.day} ${gameDate(g)}` : '';
+  },
+
+  // Give each new line of news its day in the month (lines from the player's own actions: today).
+  // Returns true if any line of this month became visible today.
+  datedNews(today) {
+    const g = this.game;
+    if (!g) return false;
+    const days = monthDays(g.month);
+    let shown = false;
+    for (let i = g.log.length - 1; i >= 0; i--) {
+      const l = g.log[i];
+      if (l.m < g.month) break;
+      if (l.d == null) l.d = today ? this.day : newsDay(l, days);
+      if (l.d === this.day) shown = true;
+    }
+    return shown;
+  },
+
+  // Has the calendar reached this line of news yet?
+  newsVisible(l) {
+    const g = this.game;
+    return !g || l.m < g.month || l.d == null || l.d <= this.day;
+  },
+
+  step(manual, daily) {
     const g = this.game;
     if (!g || UI.choosing || g.player < 0 || UI.modalOpen() || UI.dragging) return;
     tick(g);
+    // Running day by day, the new month starts on the 1st and its news comes over its days.
+    // A step by hand (or at the fastest speed) shows the whole month at once.
+    this.datedNews();
+    this.day = daily ? 1 : monthDays(g.month);
     if (g.month % 12 === 0 && g.player >= 0 && g.countries[g.player].alive) this.autosave();
     if (g.mapDirty || UI.mapMode !== 'political') this.redraw();
     UI.refresh();
@@ -103,6 +162,7 @@ const App = {
   afterAction() {
     const g = this.game;
     if (!g) return;
+    this.datedNews(true);
     this.redraw();
     UI.refresh();
     UI.processPending();
