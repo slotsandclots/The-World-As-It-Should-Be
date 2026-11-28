@@ -1000,7 +1000,7 @@ test('the scheduler: systems run on their own rhythms, each with its own step', 
     // All monthly: one step is one month, and no week is kept.
     const g2 = { month: 0 }; let ran = 0;
     for (let i = 0; i < 24; i++) runSchedule(g2, [{ id: 'm', every: RHYTHM.MONTH, run: () => ran++ }]);
-    // The game's own schedule: tick runs one month.
+    // The game's own schedule: weekly steps; tick runs on to the start of the next month.
     const game = createGame('sched', { size: 'small', countries: 8 }); setPlayer(game, 0);
     const m0 = game.month; tick(game); game.pending.length = 0;
     return { weekly, ran, month2: g2.month, week2: g2.week, base: baseStepMonths(SYSTEMS), gameMonths: game.month - m0, gameWeek: game.week };
@@ -1010,7 +1010,7 @@ test('the scheduler: systems run on their own rhythms, each with its own step', 
   assert(w.y.join() === '6,18', `a yearly system runs once a year in its month (${w.y})`);
   assert(w.stepsOk && w.outer === 1, 'each system runs with its own step, and the step is restored after');
   assert(r.ran === 24 && r.month2 === 24 && r.week2 === undefined, 'with every system monthly, a step is a month');
-  assert(r.base === 1 && r.gameMonths === 1 && r.gameWeek === undefined, 'the game runs monthly today, and tick moves one month');
+  assert(r.base === 0.25 && r.gameMonths === 1 && r.gameWeek === 0, `the game steps by the week, and tick moves one month to the next month's first week (${r.base}, ${r.gameMonths}, ${r.gameWeek})`);
 });
 
 test('the newspaper leads with the biggest news, puts our own first among equals, and changes nothing', () => {

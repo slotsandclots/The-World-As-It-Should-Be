@@ -145,10 +145,10 @@ Object.assign(UI, {
     let h = `<div class="card"><h3>${icon('coin', 16)} Money and prices</h3><p class="small muted" style="margin-top:0"><b>${esc(LAW_CATS.monetary.opts[law].name)}</b>: ${MONETARY_INFO[law]} (Change it in the Constitution, Politics tab.)</p>
       <div class="grid2">
         <div class="kv" data-tip="inflation"><span>Inflation</span><span class="${inf > 0.08 ? 'bad' : inf < -0.01 ? 'warn' : ''}">${fmtSigned(inf * 100)}%/yr</span></div>
-        <div class="kv" data-tip="inflation"><span>Expected</span><span>${fmtSigned((Math.pow(1 + E.piE, 12) - 1) * 100)}%/yr</span></div>
+        <div class="kv" data-tip="inflation"><span>Expected</span><span>${fmtSigned(moneyAnnual(E, E.piE) * 100)}%/yr</span></div>
         <div class="kv"><span>Price level</span><span>${(E.pl * 100).toFixed(0)} <small class="muted">(1950 = 100)</small></span></div>
         <div class="kv"><span>Interest rate</span><span>${(E.rate * 100).toFixed(1)}%</span></div>
-        <div class="kv"><span>Money growth</span><span>${fmtSigned((Math.pow(1 + E.moneyGrowth, 12) - 1) * 100)}%/yr</span></div>
+        <div class="kv"><span>Money growth</span><span>${fmtSigned(moneyAnnual(E, E.moneyGrowth) * 100)}%/yr</span></div>
         <div class="kv" title="Nominal wages relative to prices: below 100, pay is lagging behind prices"><span>Real wages</span><span class="${E.realWage < 0.98 ? 'bad' : E.realWage > 1.02 ? 'good' : ''}">${Math.round(E.realWage * 100)}</span></div>
       </div>`;
     if (law === 'state') {

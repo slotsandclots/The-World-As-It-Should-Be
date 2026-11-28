@@ -214,7 +214,7 @@ function tipHtml(key) {
     case 'inflation': {
       const E = c.econ, inf = inflationYoY(c);
       let h = title('Inflation', fmtSigned(inf * 100) + '%/yr') + tipParts(inflationParts(c));
-      h += `<div class="tt-row tt-sum"><span>Expected next year</span><span>${fmtSigned((Math.pow(1 + (E.piE || 0), 12) - 1) * 100)}%</span></div>`;
+      h += `<div class="tt-row tt-sum"><span>Expected next year</span><span>${fmtSigned(moneyAnnual(E, E.piE) * 100)}%</span></div>`;
       h += `<div class="tt-row"><span>Real wages (100 = keeping up)</span><span class="${(E.realWage || 1) < 0.98 ? 'bad' : (E.realWage || 1) > 1.02 ? 'good' : ''}">${Math.round((E.realWage || 1) * 100)}</span></div>`;
       return h + `<div class="tt-note">${MONETARY_INFO[c.laws.monetary] || ''} Prices follow money growth beyond real growth, slowly, because people expect what they have seen. Wages lag prices, so inflation squeezes workers and fixed incomes and erodes savings and debts alike.</div>`;
     }

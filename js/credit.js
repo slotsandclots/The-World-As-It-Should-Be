@@ -75,12 +75,15 @@ function tickCredit(game, c) {
 
   // 3. Defaults: when debts outrun profits, firms go under, closing real buildings.
   const distress = Math.max(0, E.dsr - 0.4);
-  E.defaults = perStep(clamp(distress * 0.03 / Math.max(0.5, E.conf), 0, 0.02));
-  if (E.defaults > perStep(0.001)) {
-    const loss = E.credit * E.defaults;
+  // The default rate is a share of loans per month; this step's share goes bad.
+  E.defaults = clamp(distress * 0.03 / Math.max(0.5, E.conf), 0, 0.02);
+  if (E.defaults > 0.001) {
+    const loss = E.credit * perStep(E.defaults);
     E.credit -= loss;
     E.bankCap -= loss * (law === "unregulated" ? 0.8 : 0.55);
-    bankruptcies(game, c, E.defaults);
+    // The firms behind the bad loans close at the end of the month (sim.js, tickCountry), all at once:
+    // closing buildings belongs to production, which is monthly.
+    E.bkPending = (E.bkPending || 0) + perStep(E.defaults);
   }
   // Banks earn the spread and build capital back up.
   E.bankCap += perYear(E.credit * CREDIT.SPREAD) * 0.5;
