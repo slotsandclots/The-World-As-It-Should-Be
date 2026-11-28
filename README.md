@@ -155,6 +155,10 @@ The game saves to your browser's local storage (Menu → Save game).
 
 **Warnings before it's too late.** An alert bar under the top bar shows coup and revolution risk building up, and flags trouble in politics, the economy, society and war, plus decisions waiting for you.
 
+**The newspaper.** The News tab opens with a front page of the month's most important news, at home and abroad. On the first of January a special edition reviews the year just ended: its biggest stories, how your nation fared, and the world's wars, revolutions and crises.
+
+**Time.** The calendar runs day by day at five speeds (Space starts and pauses). Markets, trade, payments, money and the banks move every week, on the 1st, 8th, 15th and 22nd: prices, reserves, exchange rates and interest rates change during the month, and a bank run or an attack on the currency breaks in the week it happens. Production, wages and incomes, the budget and politics move once a month. "Next month" runs a whole month at once.
+
 **Seeing why.** Hover approval, stability, unrest, political capital or the treasury for a breakdown of what drives it. The Ledger tab charts your nation over time, compares you with your rivals, and tracks world market prices.
 
 **Who gains, who loses.** Before you choose, every reform in the Politics tab and every tax, spending and tariff slider in the Economy tab shows which interest groups gain and which lose, weighted by their clout, where their loyalty is heading, and who would turn disloyal. Loyalty doesn't jump when you move a slider: it drifts toward its new target over the months.
@@ -189,7 +193,7 @@ The game saves to your browser's local storage (Menu → Save game).
 | `js/ideas.js` | Universities, kinship and unification, ideas spreading between nations |
 | `js/alerts.js` | Alert bar: coup and revolution risk, alerts by category |
 | `js/arena.js` | Crises for AI nations, regional elections, referendums, press barons |
-| `js/sim.js` | The monthly simulation: politics, elections, regime change, war, peace, diplomacy, actions, save/load |
+| `js/sim.js` | The simulation's schedule (which systems run weekly, monthly, yearly), politics, elections, regime change, war, peace, diplomacy, actions, save/load |
 | `js/characters.js` | Leaders, cabinets, generals, opposition, heirs; loyalty and succession |
 | `js/portrait.js` | Procedural SVG portraits |
 | `js/art.js` | Icons, generated national flags and illustrated event scenes |

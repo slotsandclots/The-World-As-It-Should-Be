@@ -27,7 +27,10 @@ function gameDate(game, m) {
 function ideoDist(a, b) { return Math.hypot(a.econ - b.econ, a.auth - b.auth); }
 
 function logNews(game, text, kind, ids) {
-  game.log.push({ m: game.month, text, kind: kind || 'info', ids: ids || [] });
+  // News carries its month and, on weekly steps, its week (0–3): the daily clock shows it then (main.js).
+  const l = { m: game.month, text, kind: kind || 'info', ids: ids || [] };
+  if (game.week != null) l.w = game.week;
+  game.log.push(l);
   if (game.log.length > 600) game.log.shift();
 }
 
