@@ -737,7 +737,30 @@ const UI = {
     const rest = [];
     for (const it of g.pending) { if (it.type === 'toast') this.toast(it.text, it.kind); else rest.push(it); }
     g.pending = rest;
-    if (!rest.length) return;
+    if (!rest.length) { this.yearEdition(); return; }
     this.showPending(g.pending.shift());
+  },
+
+  // On the first of January, once the month's other news is dealt with: the newspaper's
+  // review of the year just ended (newspaper.js). Not in the campaign; the player can turn it off.
+  yearEdition() {
+    const g = App.game;
+    if (!g || g.player < 0 || this.choosing || g.campaign || g.month <= 0 || g.month % 12 !== 0 || this._yearShown === g.month) return;
+    this._yearShown = g.month;
+    let off = false;
+    try { off = localStorage.getItem('twaisb-year-paper') === 'off'; } catch (e) { /* storage unavailable */ }
+    const c = g.countries[g.player];
+    if (off || !c || !c.alive) return;
+    const P = yearEdition(g, c.id, g.month);
+    if (!P.lead) return;
+    const year = g.startYear + Math.floor(P.from / 12);
+    this.openModal({
+      wide: true, cls: 'paper', kicker: `The year in review · ${year}`, title: esc(P.title),
+      body: this.yearPaperHtml(c, g, P, year),
+      buttons: [
+        { label: 'On to ' + (year + 1), cls: 'primary' },
+        { label: 'No more yearly editions', title: 'The monthly front page stays in the News tab.', fn: () => { try { localStorage.setItem('twaisb-year-paper', 'off'); } catch (e) { /* storage unavailable */ } } },
+      ],
+    });
   },
 };

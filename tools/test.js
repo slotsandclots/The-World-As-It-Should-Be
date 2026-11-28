@@ -1004,6 +1004,29 @@ test('the newspaper leads with the biggest news, puts our own first among equals
   assert(r.real.lead && r.real.title, 'a real month should have a front page with a title and a lead');
 });
 
+test('the year\'s edition covers the twelve months just ended, puts the year\'s biggest stories on it, and changes nothing', () => {
+  const r = run(`(() => {
+    const g = createGame('paper-year', { size: 'small', countries: 10 }); setPlayer(g, 0);
+    while (g.month < 36) { tick(g); g.pending.length = 0; }
+    const o = g.countries.find(x => x.alive && x.id !== 0).id;
+    // A revolution early in the year just ended, and one in the year before (outside the edition).
+    g.log.push({ m: 25, text: 'Revolution in ' + g.countries[o].name + ': the government is overthrown.', kind: 'gov', ids: [o] });
+    g.log.push({ m: 20, text: 'An older revolution elsewhere: the king flees.', kind: 'gov', ids: [o] });
+    const before = serializeGame(g);
+    const Y = yearEdition(g, 0, g.month), Z = yearEdition(g, 0, g.month);
+    const all = [Y.lead].concat(Y.stories);
+    return { from: Y.from, to: Y.to, lead: Y.lead && Y.lead.head, has: all.some(s => /^Revolution in/.test(s.head)), leads: all.every(s => s.score <= Y.lead.score), inRange: all.every(s => s.m >= 24 && s.m <= 35), n: all.length,
+      older: all.some(s => /older revolution/.test(s.head)), numbers: Y.numbers.map(x => x[0]), world: Y.world.length, max: PAPER.YEAR_STORIES,
+      same: JSON.stringify(Y) === JSON.stringify(Z), untouched: serializeGame(g) === before };
+  })()`);
+  assert(r.from === 24 && r.to === 35, 'the edition of January covers the twelve months before it: ' + r.from + '..' + r.to);
+  assert(r.has && r.leads, 'the year\'s revolution makes the page, and the biggest story leads: ' + r.lead);
+  assert(r.inRange && !r.older, 'only the year just ended is in the edition');
+  assert(r.n > 1 && r.n <= r.max, 'a full page of stories: ' + r.n);
+  assert(r.numbers.includes('Output per person') && r.numbers.includes('Stability') && r.world === 4, 'our year and the world\'s year in numbers: ' + r.numbers);
+  assert(r.same && r.untouched, 'the same edition every time, and the game unchanged');
+});
+
 test('exposure to crises reads the real numbers, rises with them, and changes nothing', () => {
   const r = run(`(() => {
     const g = createGame('expo', { size: 'small', countries: 10 }); setPlayer(g, 0);

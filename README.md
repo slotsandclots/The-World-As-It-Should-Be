@@ -155,6 +155,8 @@ The game saves to your browser's local storage (Menu → Save game).
 
 **Warnings before it's too late.** An alert bar under the top bar shows coup and revolution risk building up, and flags trouble in politics, the economy, society and war, plus decisions waiting for you.
 
+**The newspaper.** The News tab opens with a front page of the month's most important news, at home and abroad. On the first of January a special edition reviews the year just ended: its biggest stories, how your nation fared, and the world's wars, revolutions and crises.
+
 **Seeing why.** Hover approval, stability, unrest, political capital or the treasury for a breakdown of what drives it. The Ledger tab charts your nation over time, compares you with your rivals, and tracks world market prices.
 
 **Saves.** As many save slots as you like, plus an autosave every January. The title screen offers to continue your latest game.

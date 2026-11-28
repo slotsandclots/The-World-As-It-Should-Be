@@ -974,6 +974,18 @@ Object.assign(UI, {
       <p class="small muted">The month's most important news, chosen by what it is, who it involves and how big they are. Each edition covers the last three months. ${P.count > P.stories.length + 1 ? `${P.count - P.stories.length - 1} more items below.` : ''}</p></div>`;
   },
 
+  // The year's edition (newspaper.js, yearEdition), laid out like the front page.
+  yearPaperHtml(c, g, P, year) {
+    const tag = s => `<span class="paper-tag">${[s.home ? 'At home' : '', MONTH_NAMES[((s.m % 12) + 12) % 12]].filter(Boolean).join(' · ')}</span>`;
+    // Changes over the year are signed; unemployment is a level.
+    const fmt = ([n, v, u]) => `<div class="kv"><span>${n}</span><span>${n !== 'Unemployment' && v > 0 ? '+' : ''}${(Math.round(v * 10) / 10).toFixed(1)}${u}</span></div>`;
+    return `<div class="paper-lead ${P.lead.kind}">${tag(P.lead)}<h2>${esc(P.lead.head)}</h2>${P.lead.deck ? `<p>${esc(P.lead.deck)}</p>` : ''}</div>
+      <div class="paper-body"><div class="paper-stories">${P.stories.map(s => `<div class="paper-story ${s.kind}">${tag(s)}<h4>${esc(s.head)}</h4>${s.deck ? `<p>${esc(s.deck)}</p>` : ''}</div>`).join('')}</div>
+        <div class="paper-numbers">${P.numbers.length ? `<h4>${esc(c.name)} in ${year}</h4><div class="grid2">${P.numbers.map(fmt).join('')}</div>` : ''}
+          <h4 style="margin-top:8px">The world in ${year}</h4><div class="grid2">${P.world.map(([n, v]) => `<div class="kv"><span>${n}</span><span>${v}</span></div>`).join('')}</div></div></div>
+      <p class="small muted">The year's biggest news, chosen by what it is, who it involves and how big they are, out of ${P.count} items.${P.numbers.some(n => n[0] === 'Stability') ? ' Output per person and stability compare this January with last;' : ''} Prices are the rise over the last twelve months; unemployment is today's.</p>`;
+  },
+
   viewNews(c, g) {
     let items = g.log.filter(l => App.newsVisible(l)).reverse();
     if (this.newsMine) items = items.filter(l => l.ids.includes(c.id));

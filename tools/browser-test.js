@@ -25,8 +25,14 @@ const { chromium } = require('playwright');
   await page.click('text=Generate world');
   await page.click('#tab-body tr.click >> nth=0');
   await page.click('[data-act=lead]');
-  for (let i = 0; i < 24; i++) { await drain(); await page.click('#btn-next'); }
+  let yearPaper = null;
+  for (let i = 0; i < 24; i++) {
+    await drain(); await page.click('#btn-next');
+    // The newspaper's year in review opens on the first of January.
+    if (!yearPaper) yearPaper = await page.evaluate(() => { const m = document.querySelector('.backdrop .modal.paper'); return m ? m.textContent.slice(0, 200) : null; });
+  }
   await drain();
+  if (!yearPaper || !/The year in review/.test(yearPaper)) errors.push('The year in review did not open in January: ' + yearPaper);
   const tabs = await page.$$eval('#tabs [data-tab]', els => els.map(e => e.dataset.tab));
   for (const t of tabs) { await page.click(`#tabs [data-tab="${t}"]`); await drain(); }
   // Put the history systems on screen: a lost war's wound, a treaty, notable people and a world war.
