@@ -188,7 +188,7 @@ Object.assign(UI, {
         <div class="small">Support: <b class="${sup >= 0.5 ? 'good' : 'bad'}">${pct(sup)}</b> ${sup >= 0.5 ? '(passing)' : '(stalled: it may be voted down)'} · ${R.months} months</div>
         <div style="display:flex;gap:6px;margin-top:6px"><button data-act="lawact" data-a="abandon">Withdraw</button>${gv.elections === 'free' ? '' : `<button class="danger" data-act="lawact" data-a="decree" ${c.pc < LAW_ACTIONS.decree.pc ? 'disabled' : ''}>Decree it (${LAW_ACTIONS.decree.pc} PC, −8 legitimacy)</button>`}</div></div>`;
     }
-    const pick = this.lawPick || {};
+    const pick = this.lawPick || {}, clout = interestClout(c);
     for (const cat of LAW_KEYS) {
       const C = LAW_CATS[cat], cur = c.laws[cat];
       h += `<div class="kv"><span>${C.name}</span><span><b title="${esc(C.opts[cur].desc)}">${esc(C.opts[cur].name)}</b>${cur !== P[cat] ? ' ◇' : ''} <a href="#" data-act="lawpick" data-cat="${cat}" data-opt="">${pick.cat === cat ? '▴' : 'change'}</a></span></div>`;
@@ -196,8 +196,8 @@ Object.assign(UI, {
         for (const opt in C.opts) {
           if (opt === cur) continue;
           const O = C.opts[opt], sup = lawSupport(g, c, cat, opt);
-          const fx = Object.fromEntries(Object.entries(O.fx).map(([k, v]) => [k, v - (C.opts[cur].fx[k] || 0)]).concat(Object.entries(C.opts[cur].fx).filter(([k]) => !(k in O.fx)).map(([k, v]) => [k, -v])).filter(([k, v]) => v && !['growth', 'pc', 'army'].includes(k)));
-          h += `<div class="opt" style="margin:6px 0;cursor:default;border:1px solid var(--line);border-radius:5px;${pick.opt === opt ? 'border-color:var(--gold)' : ''}"><div class="lbl">${esc(O.name)}${opt === P[cat] ? ' <span class="ftag">tradition</span>' : ''}</div><div class="small muted">${esc(O.desc)}</div><div>${describeEffects(fx)}</div>
+          const fx = Object.fromEntries(Object.entries(O.fx).map(([k, v]) => [k, v - (C.opts[cur].fx[k] || 0)]).concat(Object.entries(C.opts[cur].fx).filter(([k]) => !(k in O.fx)).map(([k, v]) => [k, -v])).filter(([k, v]) => v && !['growth', 'pc', 'army'].includes(k) && !FACTION_KEYS.includes(k)));
+          h += `<div class="opt" style="margin:6px 0;cursor:default;border:1px solid var(--line);border-radius:5px;${pick.opt === opt ? 'border-color:var(--gold)' : ''}"><div class="lbl">${esc(O.name)}${opt === P[cat] ? ' <span class="ftag">tradition</span>' : ''}</div><div class="small muted">${esc(O.desc)}</div><div>${describeEffects(fx)}</div>${this.winnersHtml(c, g, cat, opt, clout)}
             <div class="small" style="display:flex;justify-content:space-between;align-items:center;margin-top:4px"><span>Support: <b class="${sup >= 0.5 ? 'good' : 'bad'}">${pct(sup)}</b></span>
             <span><button class="primary" data-act="propose" data-cat="${cat}" data-opt="${opt}" ${R || c.pc < LAW_PC ? 'disabled' : ''}>Propose (${LAW_PC} PC)</button>
             ${canReferendum(c) ? `<button data-act="referendum" data-cat="${cat}" data-opt="${opt}" ${c.pc < REFERENDUM_PC ? 'disabled' : ''} title="Put it to the people: decided at once by the public's views, class by class. Win: +5 legitimacy. Lose: −6 legitimacy, −3 approval.">Referendum (${REFERENDUM_PC} PC) · public ${pct(publicSupport(g, c, cat, opt))}</button>` : ''}</span></div></div>`;
@@ -205,6 +205,21 @@ Object.assign(UI, {
       }
     }
     return h + '</div>';
+  },
+
+  // Who gains and who loses from a reform (winners.js), before it is proposed.
+  winnersHtml(c, g, cat, opt, clout) {
+    const W = lawWinners(g, c, cat, opt, clout);
+    if (!W.groups.length) return '';
+    const r = Math.round, sgn = v => (v >= 0 ? '+' : '') + v.toFixed(1);
+    const row = x => {
+      const up = (x.delta || x.later - x.now) > 0;
+      const later = Math.abs(x.later - x.after) >= 0.5 ? ` · in time → ${r(x.later)}` : '';
+      return `<div class="kv small" title="${esc(x.name)}: clout ${pct(x.clout)} of the interest groups' weight. Loyalty ${r(x.now)} now; ${r(x.after)} the day the law passes (its reaction to the change); its target then moves ${sgn(x.shift)}, so loyalty drifts toward about ${r(x.later)} over the following months. Below ${WINNERS.HOSTILE} the group counts as disloyal."><span>${x.icon} ${esc(x.name)} <span class="muted">(clout ${pct(x.clout)})</span></span><span class="${up ? 'good' : 'bad'}">${up ? '▲' : '▼'} ${r(x.now)} → ${r(x.after)}${later}${x.turns === 'against' ? ' · turns disloyal' : x.turns === 'back' ? ' · won back' : ''}</span></div>`;
+    };
+    const up = x => (x.delta || x.later - x.now) > 0;
+    const gain = W.groups.filter(up), lose = W.groups.filter(x => !up(x));
+    return `<div class="winners" style="margin-top:6px;padding-top:4px;border-top:1px dashed var(--line-soft)"><div class="small"><b>Who gains, who loses</b> <span class="muted" title="The change in the support meter the day the law passes, through the power base and the interest groups weighted by clout.">· support at once ${sgn(W.support)}</span></div>${gain.map(row).join('')}${lose.map(row).join('')}</div>`;
   },
 
   // ------------------------------------------------------------------ ledger
