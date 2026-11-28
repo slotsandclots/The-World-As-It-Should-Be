@@ -22,6 +22,7 @@ const PAPER = {
   STORIES: 6,
   WINDOW: 3,   // an edition reaches back this many months, so quiet months still fill a page
   STALE: 1.5,  // ... and older news ranks this much lower for each month of age
+  YEAR_STORIES: 8, // the year's edition: the biggest stories of the twelve months, at home and abroad
 };
 
 // How much a story matters, from the point of view of the reader's nation.
@@ -54,24 +55,32 @@ function paperMonths(game) {
   return [...ms].sort((a, b) => b - a);
 }
 
+// The best stories, one per subject line (a war or a crisis often logs several near-identical lines).
+function pickStories(items, score, n) {
+  const scored = items.map((l, i) => ({ l, i, score: score(l) }))
+    // Ties keep the order the news happened in, so the page is the same every time it is drawn.
+    .sort((a, b) => b.score - a.score || a.i - b.i);
+  const seen = new Set(), picked = [];
+  for (const x of scored) {
+    const key = x.l.text.replace(/[0-9.,%$]+/g, '#').slice(0, 60);
+    if (seen.has(key)) continue;
+    seen.add(key); picked.push(x);
+    if (picked.length >= n) break;
+  }
+  return picked;
+}
+function paperStory(x, readerId) {
+  return Object.assign({ kind: x.l.kind, ids: x.l.ids || [], score: x.score, home: (x.l.ids || []).includes(readerId), m: x.l.m }, splitHeadline(x.l.text));
+}
+
 // The front page for one month, as data the interface lays out.
 // visible (optional): which lines the reader has seen yet (the daily clock reveals a month's news over its days).
 function frontPage(game, readerId, month, visible) {
   const items = (game.log || []).filter(l => l.m <= month && l.m > month - PAPER.WINDOW && l.kind !== 'action' && (!visible || visible(l)));
   const gps = new Set(typeof greatPowers === 'function' ? greatPowers(game) : []);
   const neighbors = new Set(typeof getNeighbors === 'function' && game.countries[readerId] ? getNeighbors(game, readerId) : []);
-  const scored = items.map((l, i) => ({ l, i, score: storyScore(game, l, readerId, gps, neighbors) - (month - l.m) * PAPER.STALE }))
-    // Ties keep the order the news happened in, so the page is the same every time it is drawn.
-    .sort((a, b) => b.score - a.score || a.i - b.i);
-  // One story per subject line: a war or a crisis often logs several near-identical lines.
-  const seen = new Set(), picked = [];
-  for (const x of scored) {
-    const key = x.l.text.replace(/[0-9.,%$]+/g, '#').slice(0, 60);
-    if (seen.has(key)) continue;
-    seen.add(key); picked.push(x);
-    if (picked.length >= PAPER.STORIES) break;
-  }
-  const story = x => Object.assign({ kind: x.l.kind, ids: x.l.ids || [], score: x.score, home: (x.l.ids || []).includes(readerId), m: x.l.m }, splitHeadline(x.l.text));
+  const picked = pickStories(items, l => storyScore(game, l, readerId, gps, neighbors) - (month - l.m) * PAPER.STALE, PAPER.STORIES);
+  const story = x => paperStory(x, readerId);
   const reader = game.countries[readerId];
   const E = reader && reader.econ;
   return {
@@ -87,5 +96,42 @@ function frontPage(game, readerId, month, visible) {
       ['Unemployment', E && E.unemployment != null ? E.unemployment * 100 : null, '%'],
       ['Wars in the world', (game.wars || []).length, ''],
     ].filter(n => n[1] != null) : [],
+  };
+}
+
+// The year's edition, on the first of January: the year just ended (its twelve
+// months, ending with the month before `month`), its biggest stories at home and
+// abroad, and how the reader's nation fared over it. Read-only, like the monthly page.
+function yearEdition(game, readerId, month) {
+  const from = month - 12, to = month - 1;
+  const items = (game.log || []).filter(l => l.m >= from && l.m <= to && l.kind !== 'action');
+  const gps = new Set(typeof greatPowers === 'function' ? greatPowers(game) : []);
+  const neighbors = new Set(typeof getNeighbors === 'function' && game.countries[readerId] ? getNeighbors(game, readerId) : []);
+  const picked = pickStories(items, l => storyScore(game, l, readerId, gps, neighbors), PAPER.YEAR_STORIES);
+  const reader = game.countries[readerId], H = (reader && reader.hist) || {};
+  // Monthly series end with this month: a year ago is 12 entries back.
+  const ago = k => { const a = H[k]; return a && a.length > 12 ? a[a.length - 13] : null; };
+  const now = k => { const a = H[k]; return a && a.length ? a[a.length - 1] : null; };
+  const perHead = (g, p) => g != null && p ? g / p : null;
+  const pc0 = perHead(ago('rgdp'), ago('pop')), pc1 = perHead(now('rgdp'), now('pop'));
+  const count = re => items.filter(l => re.test(l.text)).length;
+  const numbers = reader ? [
+    ['Output per person', pc0 && pc1 ? (pc1 / pc0 - 1) * 100 : null, '%'],
+    ['Prices', typeof inflationYoY === 'function' && reader.econ && reader.econ.pl != null ? inflationYoY(reader) * 100 : null, '%'],
+    ['Unemployment', reader.econ && reader.econ.unemployment != null ? reader.econ.unemployment * 100 : null, '%'],
+    ['Stability', ago('stability') != null && now('stability') != null ? now('stability') - ago('stability') : null, ' pts'],
+  ].filter(n => n[1] != null) : [];
+  const world = [
+    ['Wars declared', count(/declares war|declare war/i)],
+    ['Governments overthrown', count(/revolution|coup|overthrown|seize[sd]? power/i)],
+    ['Banking and debt crises', count(/banking crisis|bank run|defaults/i)],
+    ['Wars still going', (game.wars || []).length],
+  ];
+  return {
+    month, from, to,
+    title: reader && typeof capitalName === 'function' ? `The ${capitalName(game, reader)} Herald` : 'The World Herald',
+    lead: picked[0] ? paperStory(picked[0], readerId) : null,
+    stories: picked.slice(1).map(x => paperStory(x, readerId)),
+    count: items.length, numbers, world,
   };
 }
