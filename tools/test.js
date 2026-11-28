@@ -399,6 +399,8 @@ test('closed loop: state debt has real holders, lenders can refuse, default hits
     const refused = D.arrears > 0 && D.payFrac < 1 && D.crisis > 0;
     const spendCut = projectBudget(c).payFrac < 1;
     // Default: holders lose, banks lose capital, the foreign lender resents it.
+    // Start from neutral relations, so the souring can show even if history left them at the floor.
+    setRel(g, c.id, l.id, 0);
     const rel0 = relation(g, c.id, l.id), debt0 = Math.max(0, -c.treasury), cap0 = E.bankCap, banks0 = D.banks;
     c.pc = 100; const res = playerDefault(g);
     const ok2 = Math.abs(debtTotal(D) - Math.max(0, -c.treasury)) < 1e-6 * (1 + debt0);
