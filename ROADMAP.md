@@ -9,6 +9,17 @@ Where the game is going. Sizes are rough: **S** = a session, **M** = a few, **L*
 
 The order at the end of this file follows these priorities, with the economic foundation (money and credit) laid before the social layer that depends on it.
 
+## Questions for the owner
+
+Open questions about where the game should go, in plain language, each with the default in place until the owner answers. Code and balance decisions are not asked here.
+
+*No open questions.*
+
+**Decided:**
+- **The gold standard stays as it is** (November 2026). Most nations on gold are forced off within 40 years when they cannot pay for their imports, as between the world wars; bank lending lets more parities hold. No change wanted.
+- **Revenge wars stay rarer** (November 2026). Since bloc partners decide whether to join, fewer alliances of defeated nations form, and wars of revenge are less common. Keep it that way; a shared grievance does not need to count for more.
+- **Substitutes, yes, the concrete way** (November 2026). Nations short of a good switch to close alternatives and can build costly synthetic industries, as described under 4d. No abstract "substitute" good.
+
 ## Design philosophy
 
 These rules apply to every milestone. A feature that breaks them should be redesigned before it's built.
@@ -486,6 +497,12 @@ The rule: no goods or money created from nothing. Every unit of money has a sour
 - **Exchange rates and capital flows:** money moves toward high interest rates and strong currencies. Devaluation helps exports, makes imports pricier and adds inflation.
 - **Sovereign debt and currency crises:** lenders stop lending, a currency peg breaks, and a forced devaluation or default follows. Bailouts come with conditions, a lever for blocs and empires.
 - **Protectionism:** raising tariffs in a depression protects jobs at home and deepens the global slump.
+- **Substitutes (M; the owner's decision):** a nation short of a good is not stuck rationing imports forever. Two concrete mechanisms, no abstract "substitute" good:
+  - **Switching between close goods:** pops' and industries' needs are grouped (fuel: coal or oil; cloth: cotton, wool or other fibers; food: grain or meat), and the mix within a group shifts toward the cheaper good as prices move. A nation short of oil burns more coal; prices do the work, nothing is scripted.
+  - **Synthetic industries:** technologies unlock costly buildings that make a scarce good from what the nation has (synthetic fuel and rubber from coal, margarine from vegetable oils). They cost more than importing, so being cut off still hurts, but less.
+  - **Why:** import rationing hits about a fifth of nation-months today in nations that lack a good entirely (closed-loop payments, layers 1–3). Substitutes ease it at a price, and make self-sufficiency a real strategy: the fascist state's push for autarky ("Governments that play differently"), preparing for blockades (Milestone 5's navies and trade routes), and "build synthetic plants or secure a supplier?" as a decision for the player and the AI.
+  - **Meshes with:** goods and markets (needs and prices), payments (imports and reserves), technology (the unlocks), war (blockades), and governments (autarky).
+  - **Measure:** import rationing and balance-of-payments crises should fall; growth, living standards and prices should stay near main; synthetic plants should be built mostly where a good is scarce or blockaded.
 - **The trade view** (in the style of Victoria 3):
   - **Step 1 ✅ (first pass): bilateral flows and the interface.**
     - `js/tradeflows.js` splits the pooled bloc and world markets into flows between nations each month: bloc partners first, then the world market, shared out by each exporter's share of world sales. Flows are valued at world prices and kept as a 12-month average.
