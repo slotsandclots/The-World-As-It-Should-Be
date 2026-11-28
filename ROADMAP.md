@@ -16,6 +16,7 @@ Open questions about where the game should go, in plain language, each with the 
 *No open questions.*
 
 **Decided:**
+- **It is a political simulator** (November 2026). The economy is modelled in depth, but it is the engine underneath: the player feels it through politics. Every economic choice has visible winners and losers, and every economic crisis becomes a political decision. War stays, as the extreme end of politics rather than a game of its own, and moves later in the order. See "Political economy" and design rule 9.
 - **The gold standard stays as it is** (November 2026). Most nations on gold are forced off within 40 years when they cannot pay for their imports, as between the world wars; bank lending lets more parities hold. No change wanted.
 - **Revenge wars stay rarer** (November 2026). Since bloc partners decide whether to join, fewer alliances of defeated nations form, and wars of revenge are less common. Keep it that way; a shared grievance does not need to count for more.
 - **Substitutes, yes, the concrete way** (November 2026). Nations short of a good switch to close alternatives and can build costly synthetic industries, as described under 4d. No abstract "substitute" good.
@@ -42,6 +43,7 @@ These rules apply to every milestone. A feature that breaks them should be redes
 6. **The AI plays the same game.** Every system is used by AI nations as it is built (crises, laws, referendums, mobilization already work this way). AI mistakes should come from their politics, not from random noise.
 7. **You have to be able to see why.** Every important number has a breakdown, every system has a chart or a map mode, and the news explains what happened. A crash the player can't explain feels random, not emergent.
 8. **Build one layer at a time:** build, measure, play-test, then move on.
+9. **Economics underneath, politics on top** (the owner's decision: this is a political simulator). Every economic decision the player makes shows, before it is made, who gains and who loses among classes and interest groups, and lands as politics afterwards (loyalty, movements, votes, coalitions, unrest). Every economic crisis reaches the player as a political choice in which every option costs someone. Sound economics can be bad politics, and the reverse.
 
 ## How the systems connect
 
@@ -642,6 +644,22 @@ New: world wars in 12 of 24 worlds (0.67 per world, about 28 months each), and a
 - inventions that spread to other nations
 - a campaign chapter
 
+## Political economy: choices that land politically (M each; the owner's decision)
+
+The economy already decides who prospers and who suffers. This milestone makes that the heart of play: the player decides through politics, and feels each economic choice as politics. In this order:
+
+1. **Who wins, who loses, before you choose.** Every economic decision (taxes, tariffs, spending, the monetary and banking laws, money growth, labour law) shows beforehand which classes and interest groups gain or lose, roughly by how much, and how angry the losers will be (from their living standards, savings, debts and jobs as the simulation computes them, not a new score). After the choice, the same view shows what actually happened.
+2. **Crises as political dilemmas.** A crisis stops being a button and becomes a choice in which every option costs someone, decided by the player and by AI governments by their politics:
+   - *banks failing:* bail them out (bankers relieved, taxpayers angry), nationalize them (the left pleased, business furious) or let them fail (savers ruined)
+   - *a run on the currency:* defend the gold parity with high interest rates (unemployment, labour unrest) or leave gold (savers and creditors betrayed, exporters pleased)
+   - *a debt crisis:* austerity (unrest, the left), printing money (inflation, angry savers) or default (lenders, the bank lobby and foreign powers hostile)
+   - *a payments crisis:* ration imports (shortages, consumers), borrow with conditions (a foreign power's leverage) or protect with tariffs (exporters and partners angry)
+3. **Economic pain lands on specific groups.** Inflation hurts savers and wage-earners and helps debtors; deflation hurts indebted farmers and firms; unemployment radicalizes workers; a devaluation splits exporters from consumers; a credit boom enriches owners and a bust ruins them. Much of this already runs through each class's living standards; it is made sharper, traced to its cause in the breakdowns, and carried into interest-group demands and movements.
+4. **Getting policy through politics.** In a democracy an economic policy needs a majority: coalition partners ask for something in return, the opposition can block it, interest groups lobby, and a failed bill costs political capital. Autocracies need their power base instead (the army, the court, the party, the clergy). This is the parliament screen of "Governments that play differently", brought forward.
+
+- **Meshes with:** pops and living standards, interest groups and their leaders, laws, movements, elections and coalitions, the budget and debt, money and banks, payments.
+- **Measure:** policies should have visible winners and losers in the balance report (living standards and loyalty by class); AI governments facing the same crisis should choose differently by their politics; no crisis option should be the right one everywhere.
+
 ## Governments that play differently (M each)
 
 Today the seven government types differ mostly in numbers: freedom, repression, growth, corruption, army size, political capital and their power base. Only a few have systems of their own (elections and coalitions in democracies, heirs and successions in absolute monarchies, no private owners under communism). Each type should play differently because of how it works, not because of its modifiers.
@@ -689,7 +707,7 @@ Long-term national goals, so a nation has a direction to work toward in peace as
 - **Folds in** the plans already listed above: communist planning (five-year plans) and the fascist push for self-sufficiency.
 - **Measure:** programmes should change outcomes they aim at (arms, industry, imports) without making any one of them the best choice everywhere.
 
-**Kept in mind, not scheduled:** playing as a lawmaker (second to the grand-strategy layer; the parliament screen is its first step) and playing as a corporation or a church.
+**Kept in mind, not scheduled:** playing as a lawmaker (the parliament screen is now step 4 of "Political economy") and playing as a corporation or a church.
 
 ## Spheres of influence (M)
 
@@ -1040,18 +1058,19 @@ Ideas for after (or alongside) the milestones. They follow the same design philo
 8. ✅ **History makers (first pass):** notable people, the memory of defeat and its demagogues, world wars and peace conferences. Pulled forward at the player's request; it uses the existing war layer and leaves the operational war layer to Milestone 5.
 9. ✅ **The time-constant refactor** (stage 2, step 1 of Time and pacing): `js/time.js`, measured on 24 worlds × 40 years to change nothing. New code uses the helpers.
 10. **The tick rework** (Time and pacing, stage 2): systems on their own rhythms, weekly markets, money and payments, measured and re-tuned against the monthly game. Steps 1–2 change nothing; step 3 is the switch. New simulation features wait until it lands.
-11. **Milestone 4c–4e,** with step 1 of "Governments that play differently" (mechanisms instead of flat per-type numbers) in 4c: labor relations and fiscal policy (including AI governments responding to the cycle), the world economy (with distance that matters, from World scale), and the stock and land markets, with the **closed-loop economy** running through all three (phase 1, the state's budget and debt, and phase 2's payments layers 1–3 are done). 4d includes substitutes and asymmetric tariffs.
-12. **Spheres of influence,** with loans with conditions, once payments and foreign ownership exist (bilateral trade flows already do).
-13. **Deeper diplomacy and trade:** treaties with terms and embargoes, then trade routes.
-14. **National programmes,** with "Governments that play differently".
-15. **AI ambitions and personalities, with the graphics-card map**, plus the first art commissions: an art direction document, map textures and an icon set. The war layer needs the new map for army counters, fronts, plan arrows and supply routes.
-16. **Milestone 5:** the war layer, an operational layer.
+11. **Political economy:** who wins and who loses shown before every economic choice, crises as political dilemmas, economic pain landing on specific groups, and getting policy through parliament or the power base (each regime's own power base comes with "Governments that play differently"). The owner's priority after the tick rework.
+12. **Milestone 4c–4e,** with step 1 of "Governments that play differently" (mechanisms instead of flat per-type numbers) in 4c: labor relations and fiscal policy (including AI governments responding to the cycle), the world economy (with distance that matters, from World scale), and the stock and land markets, with the **closed-loop economy** running through all three (phase 1, the state's budget and debt, and phase 2's payments layers 1–3 are done). 4d includes substitutes and asymmetric tariffs.
+13. **Spheres of influence,** with loans with conditions, once payments and foreign ownership exist (bilateral trade flows already do).
+14. **Deeper diplomacy and trade:** treaties with terms and embargoes, then trade routes.
+15. **National programmes,** with "Governments that play differently".
+16. **AI ambitions and personalities, with the graphics-card map**, plus the first art commissions: an art direction document, map textures and an icon set. The war layer needs the new map for army counters, fronts, plan arrows and supply routes.
 17. **The world newspaper and history book.** This can move earlier. World wars, treaties and the figures of the age are natural headlines and chapters.
-18. **Eras and scenarios (Milestone 6) and the desktop release,** together toward a public release.
+18. **Milestone 5:** the war layer, an operational layer. Moved later at the owner's decision (a political simulator): war is the extreme end of politics.
+19. **Eras and scenarios (Milestone 6) and the desktop release,** together toward a public release.
 
 Later: Milestone 8 (intrigue and dynasties), world scale (as the map and Web Worker allow), and the rest of Beyond the milestones.
 
-Playing tall runs through items 11–14: the prudent-nation check comes first (with 4c–4e), the exposure view with it, and the creditor's road to power with spheres of influence and deeper diplomacy.
+Playing tall runs through items 12–15: the prudent-nation check comes first (with 4c–4e), the exposure view with it, and the creditor's road to power with spheres of influence and deeper diplomacy.
 
 Time and pacing: the time-constant refactor (item 9) and the daily calendar (stage 1, first pass) are done; the tick rework is item 10. Numbers that slide between updates slot in between features. Staggered nation updates are no longer needed: real weekly steps replace them. Weekly ticks wait for Milestone 5 and the Web Worker.
 
