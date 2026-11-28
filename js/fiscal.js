@@ -98,6 +98,15 @@ function lendingOffers(game, c) {
   return { savers, banks, foreign, total: savers + banks + foreign.reduce((s, f) => s + f[1], 0) };
 }
 
+// State debt held abroad is paid for in foreign currency: $B of the borrower's money moves reserves
+// (payments.js, world money) from payer to receiver, as reparations and foreign loans do.
+function bondReserves(game, c, payerId, receiverId, amt) {
+  const P = game.countries[payerId], R = game.countries[receiverId];
+  if (!P || !R || !P.econ || !R.econ || P.econ.reserves == null || R.econ.reserves == null) return;
+  const b = amt / ((c.econ && c.econ.pl) || 1);
+  P.econ.reserves -= b; R.econ.reserves += b;
+}
+
 // Move $B of claims; positive = new lending to the state, negative = repayment.
 function borrowFrom(game, c, kind, amt, lenderId) {
   const D = c.debt, E = econOf(c);
@@ -109,6 +118,8 @@ function borrowFrom(game, c, kind, amt, lenderId) {
     if (D.foreign[lenderId] < 1e-9) delete D.foreign[lenderId];
     if (l && l.econ) {
       const units = amt * 1e6 / ((c.econ && c.econ.pl) || 1);
+      // The lender pays in reserves when it lends; we pay back in reserves.
+      bondReserves(game, c, l.id, c.id, amt);
       if (ownersAllowed(l)) l.econ.investPool = Math.max(0, (l.econ.investPool || 0) - units);
       else l.econ.statePool = Math.max(0, (l.econ.statePool || 0) - units);
     }
@@ -128,6 +139,8 @@ function payInterest(game, c, interest) {
     const l = game.countries[id];
     if (!l || !l.econ) continue;
     const units = D.foreign[id] * f * 1e6 / ((c.econ && c.econ.pl) || 1);
+    // Coupons to foreign holders are paid in reserves.
+    bondReserves(game, c, c.id, +id, D.foreign[id] * f);
     if (ownersAllowed(l)) l.econ.investPool = (l.econ.investPool || 0) + units;
     else l.econ.statePool = (l.econ.statePool || 0) + units;
   }

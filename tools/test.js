@@ -725,6 +725,26 @@ test('wars draw nations in and become world wars that end at a peace conference'
   assert(r.saved && r.gone, 'world wars survive a save');
 });
 
+test('closed loop, phase 2: state bonds sold abroad are paid for in reserves', () => {
+  const r = run(`(() => {
+    const g = createGame('bondfx', { size: 'small', countries: 10 }); setPlayer(g, 0);
+    for (let i = 0; i < 6; i++) { tick(g); g.pending.length = 0; }
+    const c = g.countries[1], l = g.countries[2]; ensureDebt(c);
+    const alive = g.countries.filter(o => o.alive);
+    const net = () => alive.reduce((s, o) => s + o.econ.reserves, 0);
+    const n0 = net(), c0 = c.econ.reserves, l0 = l.econ.reserves;
+    borrowFrom(g, c, 'foreign', 2, l.id);
+    const lent = c.econ.reserves > c0 && l.econ.reserves < l0;
+    const c1 = c.econ.reserves, l1 = l.econ.reserves;
+    payInterest(g, c, debtTotal(c.debt) * 0.01);
+    const paid = c.econ.reserves < c1 && l.econ.reserves > l1;
+    return { lent, paid, drift: Math.abs(net() - n0) };
+  })()`);
+  assert(r.lent, 'a foreign bond purchase should move reserves from the lender to the borrower');
+  assert(r.paid, 'coupons to foreign holders should be paid out of reserves');
+  assert(r.drift < 1e-9, `bond flows should move reserves, not create them (${r.drift})`);
+});
+
 test('closed loop, phase 2: imports are paid for, capital is lent abroad, the broke cut imports', () => {
   const r = run(`(() => {
     const g = createGame('pay', { size: 'small', countries: 10 }); setPlayer(g, 0);
