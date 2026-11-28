@@ -150,9 +150,11 @@ function tickPayments(game) {
   // Hot money: while a parity is defended, owners abroad lend more to earn its premium, and the defenders are served first.
   const defending = alive.filter(c => c.econ.attack && need[c.id] > 0);
   if (defending.length) {
-    totalOffer = 0;
-    for (const c of alive) { offer[c.id] *= PAY.HOT_MONEY; totalOffer += offer[c.id]; }
     let firstCall = 0; for (const c of defending) firstCall += need[c.id];
+    // The premium draws up to HOT_MONEY times the usual capital, but only as much more as the defenders need.
+    const extra = Math.min(totalOffer * (PAY.HOT_MONEY - 1), firstCall), k0 = totalOffer > 0 ? (totalOffer + extra) / totalOffer : 1;
+    totalOffer = 0;
+    for (const c of alive) { offer[c.id] *= k0; bankOffer[c.id] *= k0; totalOffer += offer[c.id]; }
     // Others' needs are scaled down so that the defenders' are met first from what is offered.
     const left = Math.max(0, totalOffer - firstCall), others = totalNeed - firstCall;
     if (others > 0 && left < others) {
@@ -203,8 +205,16 @@ function tickPayments(game) {
     if (E.importSqueeze < 0.005) E.importSqueeze = 0;
     if (sq > 0.2 && !E.payCrisis) { E.payCrisis = game.month; logNews(game, `${c.name} runs out of foreign currency and must cut its imports.`, 'econ', [c.id]); if (isPlayer(game, c)) notify(game, 'A Balance-of-Payments Crisis', 'Our reserves of foreign currency are gone and no one will lend us more. Imports are being cut: expect shortages and rising prices until exports recover or the debts are paid.'); }
     if (sq === 0 && E.payCrisis && E.reserves > target) E.payCrisis = null;
-
   }
+  // Gold leaves with the deficit (and with fleeing capital) and comes in with the surplus (and with capital
+  // fleeing to it); the money supply follows it (money.js). Measured once every nation has paid and fled.
+  for (const c of alive) if (onGold(c)) measureGoldFlow(c);
+}
+
+// The month's gold flow as a share of the money supply.
+function measureGoldFlow(c) {
+  const E = c.econ, moneyB = Math.max(1e-6, (E.money || 0) / 1e6 / (E.pl || 1));
+  E.goldFlow = clamp((E.reserves - (E.res0 || 0)) / moneyB, -0.01, 0.01);
 }
 
 // The currency: a gold parity held (and attacked), or a floating rate (and its crises).
@@ -219,8 +229,9 @@ function tickCurrency(game, c, r, wpl) {
     E.fxNom = E.parity;
     E.fx = clamp(E.parity * rel, PAY.FX_MIN, PAY.FX_MAX);
     // Gold leaves with the deficit and comes in with the surplus; the money supply follows it (money.js).
-    const moneyB = Math.max(1e-6, (E.money || 0) / 1e6 / (E.pl || 1));
-    E.goldFlow = clamp((E.reserves - (E.res0 || 0)) / moneyB, -0.01, 0.01);
+    measureGoldFlow(c); // measured again once all capital flight is done (tickPayments)
+    // A crisis from the floating days runs out on gold as well (lenders stay away until it does).
+    if (E.fxCrisis > 0) E.fxCrisis = Math.max(0, countdown(E.fxCrisis));
     const res = E.reserves / Math.max(0.01, c.gdp);
     // After a parity has been defended, speculators wait two years, unless the reserves fall to a new low.
     const rested = !(E.defended && game.month - E.defended.month < 24 && E.reserves > E.defended.low);
@@ -299,9 +310,11 @@ function aiLeavesGold(game, c, res) {
 function leaveGold(game, c) {
   const E = c.econ;
   const to = GOVS[c.gov] && GOVS[c.gov].elections === 'free' ? 'centralBank' : 'state';
-  if (c.reform && c.reform.cat === 'monetary') c.reform = null;
+  // enactLaw clears the bill in parliament; a bill on anything but money carries on.
+  const bill = c.reform && c.reform.cat !== 'monetary' ? c.reform : null;
   enactLaw(game, c, 'monetary', to);
-  E.leftGold = game.month; E.attack = null; E.parity = null;
+  c.reform = bill;
+  E.leftGold = game.month; E.attack = null; E.parity = null; E.goldFlow = 0;
   logNews(game, `${c.name} leaves the gold standard; its currency falls.`, 'econ', [c.id]);
   return { ok: true, msg: 'We have left the gold standard. The currency will fall over the coming months: imports dearer, exports cheaper abroad, and money is ours to manage.' };
 }

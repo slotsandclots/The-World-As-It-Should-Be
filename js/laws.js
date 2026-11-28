@@ -260,7 +260,12 @@ function tickLaws(game, c) {
     // Opponents grow restless while the bill is debated.
     for (const f of FACTION_KEYS) if (lawPreference(c, R.cat, R.opt, f) < 0) c.factions[f] = clamp(c.factions[f] - 0.3, 0, 100);
     const name = LAW_CATS[R.cat].opts[R.opt].name;
-    if (R.progress >= 100) {
+    // Going on gold needs the reserves when the bill passes, not only when it was proposed (payments.js).
+    const blocked = R.progress >= 100 && R.cat === 'monetary' && R.opt === 'gold' && typeof goldBlocked === 'function' ? goldBlocked(game, c) : null;
+    if (blocked) {
+      c.reform = null;
+      if (isPlayer(game, c)) notify(game, 'The Bill Lapses', `The gold standard bill cannot take effect. ${blocked}`);
+    } else if (R.progress >= 100) {
       enactLaw(game, c, R.cat, R.opt);
       if (isPlayer(game, c)) toastPlayer(game, `A law is passed: "${name}" is now the law of the land.`, 'good');
     } else if (sup < 0.5 && R.months > 3 && game.rng.chance(0.1)) {
@@ -301,6 +306,7 @@ function lawAction(game, action) {
   if (!R) return { ok: false, msg: 'No reform is under way.' };
   if (action === 'abandon') { c.reform = null; return { ok: true, msg: 'The bill is withdrawn.' }; }
   if (GOVS[c.gov].elections === 'free') return { ok: false, msg: 'Parliament will not allow it.' };
+  if (R.cat === 'monetary' && R.opt === 'gold' && typeof goldBlocked === 'function') { const why = goldBlocked(game, c); if (why) return { ok: false, msg: why }; }
   if (c.pc < LAW_ACTIONS.decree.pc) return { ok: false, msg: `Needs ${LAW_ACTIONS.decree.pc} political capital.` };
   c.pc -= LAW_ACTIONS.decree.pc;
   adjust(c, { legitimacy: -8, stability: -4 });

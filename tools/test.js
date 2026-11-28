@@ -824,6 +824,42 @@ test('closed loop, phase 2, layer 2: a gold parity holds, is attacked when reser
   assert(r.sane.length === 0, r.sane.join('; '));
 });
 
+test('closed loop, phase 2: review fixes (gold rules hold, crises end, bills survive, the reborn start afresh)', () => {
+  const r = run(`(() => {
+    const g = createGame('payfix', { size: 'small', countries: 10 }); setPlayer(g, 0);
+    for (let i = 0; i < 6; i++) { tick(g); g.pending.length = 0; }
+    const c = g.countries[1];
+    // Leaving gold keeps a bill on anything else that is going through parliament.
+    c.laws.monetary = 'gold'; c.econ.attack = { since: g.month, flight: 0, low: 0 };
+    c.reform = { cat: 'press', opt: 'free', progress: 40, months: 2, support: 0.6 };
+    leaveGold(g, c);
+    const billKept = !!c.reform && c.reform.cat === 'press';
+    // A currency crisis from the floating days runs out after going on gold.
+    c.reform = null; c.econ.leftGold = null; c.laws.monetary = 'gold'; c.econ.parity = null; c.econ.fxCrisis = 6;
+    for (let i = 0; i < 8; i++) tickCurrency(g, c, 0, 1);
+    const crisisOver = !(c.econ.fxCrisis > 0);
+    // A new regime that wants gold cannot impose it without the reserves to back it.
+    c.laws.monetary = 'centralBank'; c.econ.leftGold = g.month; c.econ.reserves = -c.gdp * 0.3;
+    changeGovernment(g, c, 'absMonarchy', 'revolution');
+    const keptMoney = c.laws.monetary === 'centralBank';
+    // A gold bill that passes once the reserves are gone lapses.
+    c.reform = { cat: 'monetary', opt: 'gold', progress: 99, months: 6, support: 0.9 };
+    tickLaws(g, c);
+    const lapsed = c.laws.monetary !== 'gold' && !c.reform;
+    // A nation brought back to life does not inherit its old payments troubles.
+    const d = g.countries[2];
+    d.econ.reserves = -d.gdp; d.econ.importSqueeze = 0.6; d.econ.fx = 0.3; d.econ.payCrisis = 1; d.econ.attack = { since: 0, flight: 0, low: 0 }; d.econ.fxCrisis = 6;
+    resetNation(g, d, d.gov, g.countries[0]);
+    const fresh = d.econ.reserves == null && d.econ.importSqueeze === 0 && d.econ.fx === 1 && !d.econ.payCrisis && !d.econ.attack && !d.econ.fxCrisis;
+    return { billKept, crisisOver, keptMoney, lapsed, fresh };
+  })()`);
+  assert(r.billKept, 'leaving gold should not cancel an unrelated bill');
+  assert(r.crisisOver, 'a currency crisis should run out on gold too');
+  assert(r.keptMoney, 'a new regime should not go on gold without the reserves');
+  assert(r.lapsed, 'a gold bill should lapse if the reserves are gone when it passes');
+  assert(r.fresh, 'a reborn nation should start its payments afresh');
+});
+
 test('closed loop, phase 2, layer 2: a floating currency that collapses stops foreign lending', () => {
   const r = run(`(() => {
     const g = createGame('fxc', { size: 'small', countries: 10 }); setPlayer(g, 0);
