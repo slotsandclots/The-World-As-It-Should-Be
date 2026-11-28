@@ -691,9 +691,9 @@ Object.assign(UI, {
     };
     const body = W.groups.length ? W.groups.filter(x => x.shift > 0).map(row).join('') + W.groups.filter(x => x.shift <= 0).map(row).join('')
       : '<div class="small muted">No interest group reacts to this directly. It reaches them later, through prices, jobs and living standards.</div>';
-    return `${head} <span class="muted" title="Changes since the 1st of this month: ${esc(what)}. The support meter once loyalties settle on their new targets, through the power base and the interest groups weighted by clout.">· support in time ${sgn(W.support)}</span>
-      <button class="small" data-act="policyreset" style="float:right">Put the sliders back</button></div>
-      <div class="small muted">${what}. Loyalty does not jump: it drifts toward its new target over the months. Growth, jobs and living standards then move it further.</div>${body}`;
+    return `${head} <span class="muted" title="Changes since the 1st of this month: ${esc(what)}. The support meter once loyalties settle on their new targets, through the power base and the interest groups weighted by clout.">· support in time ${sgn(W.support)}</span></div>
+      <div class="small muted">${what}. Loyalty does not jump: it drifts toward its new target over the months. Growth, jobs and living standards then move it further.</div>${body}
+      <div style="margin-top:6px"><button class="small" data-act="policyreset">Put the sliders back</button></div>`;
   },
 
   updatePolicyLabels() {

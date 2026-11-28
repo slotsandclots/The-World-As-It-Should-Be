@@ -29,6 +29,18 @@ const { chromium } = require('playwright');
   await drain();
   const tabs = await page.$$eval('#tabs [data-tab]', els => els.map(e => e.dataset.tab));
   for (const t of tabs) { await page.click(`#tabs [data-tab="${t}"]`); await drain(); }
+  // Who gains, who loses: moving the tax slider shows the interest groups' stakes, and the sliders can be put back.
+  await page.click('#tabs [data-tab="economy"]');
+  const pw = await page.evaluate(() => {
+    const el = document.querySelector('input[data-policy="tax"]'), c = App.game.countries[App.game.player], tax0 = c.policy.tax;
+    if (!el) return { err: 'no tax slider' };
+    el.value = String(Math.min(0.7, tax0 + 0.1)); el.dispatchEvent(new Event('input', { bubbles: true }));
+    const text = (document.querySelector('#policy-winners') || {}).textContent || '';
+    const back = document.querySelector('[data-act="policyreset"]'); if (back) back.click();
+    return { text, reset: Math.abs(c.policy.tax - tax0) < 1e-9 };
+  });
+  if (pw.err || !/Business/.test(pw.text) || !/heading for/.test(pw.text)) errors.push('Who gains, who loses did not show the tax rise\'s stakes: ' + (pw.err || pw.text.slice(0, 160)));
+  if (!pw.reset) errors.push('"Put the sliders back" did not restore the tax rate');
   // Put the history systems on screen: a lost war's wound, a treaty, notable people and a world war.
   await page.evaluate(() => {
     const g = App.game, c = g.countries[g.player];
