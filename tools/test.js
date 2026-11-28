@@ -1132,6 +1132,35 @@ test('who wins, who loses: a reform shows each interest group what the law reall
   assert(r.untouched, 'the view must not change the game');
 });
 
+test('who gains, who loses from a slider: the view reads the tick\'s own targets, predicts the drift, and changes nothing', () => {
+  const r = run(`(() => {
+    const g = createGame('policy-winners', { size: 'small', countries: 8 }); setPlayer(g, 0);
+    for (let i = 0; i < 18; i++) { tick(g); g.pending.length = 0; }
+    const c = g.countries[0];
+    const from = Object.assign({}, c.policy), to = Object.assign({}, c.policy, { tax: c.policy.tax + 0.15, education: c.policy.education + 2 });
+    const before = serializeGame(g);
+    const W = policyWinners(g, c, from, to), none = policyWinners(g, c, from, from);
+    const untouched = serializeGame(g) === before;
+    const by = k => W.groups.find(x => x.key === k);
+    // The same month played twice from the same state, with and without the change.
+    const save = serializeGame(g), play = pol => { const h = deserializeGame(save); Object.assign(h.countries[0].policy, pol); tick(h); h.pending.length = 0; return h.countries[0].factions; };
+    const A = play(from), B = play(to);
+    return { untouched, none: none.groups.length + none.changed.length, changed: W.changed.sort(),
+      business: by('business') && by('business').shift, workers: by('workers') && by('workers').shift, intel: by('intelligentsia') && by('intelligentsia').shift,
+      clergy: !!by('clergy'), dB: B.business - A.business, dW: B.workers - A.workers, dI: B.intelligentsia - A.intelligentsia, support: W.support, first: W.groups[0] && W.groups[0].weight, weights: W.groups.map(x => x.weight) };
+  })()`);
+  assert(r.untouched, 'the view changes nothing');
+  assert(r.none === 0, 'no change, no stakes');
+  assert(r.changed.join() === 'education,tax', 'the changed sliders are named: ' + r.changed);
+  const near = (a, b, tol) => Math.abs(a - b) <= tol;
+  assert(near(r.business, -12, 1e-6) && near(r.workers, -6, 1e-6) && near(r.intel, 6, 1e-6), 'the targets move by the tick\'s own rules: ' + [r.business, r.workers, r.intel]);
+  assert(!r.clergy, 'a group with no stake is not shown');
+  // A month later, each group's loyalty has moved about 7% of the target's shift (the economy adds a little noise).
+  assert(near(r.dB, -12 * 0.07, 0.3) && near(r.dW, -6 * 0.07, 0.3) && near(r.dI, 6 * 0.07, 0.3), 'loyalty drifts as predicted: ' + [r.dB, r.dW, r.dI].map(x => x.toFixed(3)));
+  assert(r.weights.every((w, i, a) => i === 0 || a[i - 1] >= w), 'the biggest stakes come first');
+  assert(r.support < 0, 'a tax rise that angers business and workers costs support in time: ' + r.support);
+});
+
 test('trade view: bilateral flows add up to every nation\'s trade and leave the economy unchanged', () => {
   const code = `(() => {
     const g = createGame('flows', { size: 'small', countries: 12 }); setPlayer(g, 0);

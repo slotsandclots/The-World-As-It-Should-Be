@@ -532,7 +532,7 @@ Object.assign(UI, {
       h += `<div class="slider-row"><label><span>${L.label}</span><b id="pv-${k}">${this.policyValue(c, k)}</b></label>
         <input type="range" data-policy="${k}" min="${L.min}" max="${L.max}" step="${L.step}" value="${c.policy[k]}" ${k === 'tariff' && effectiveTariff(g, c) !== c.policy.tariff ? 'disabled' : ''}><small>${k === 'military' && c.treaty && c.treaty.until > g.month && !c.treaty.broken ? `<b class="warn">Treaty limit: ${c.treaty.milCap}% of GDP until ${gameDate(g, c.treaty.until)}. Going over it breaks the treaty.</b> ` : ''}${k === 'tariff' && effectiveTariff(g, c) !== c.policy.tariff ? `Set by the ${esc(economicBloc(g, c.id).name)}: ${pct(effectiveTariff(g, c))} on imports from outside the bloc.` : L.hint}</small></div>`;
     }
-    h += '</div>';
+    h += `<div id="policy-winners">${this.policyWinnersHtml(c, g)}</div></div>`;
     h += `<div class="card"><h3>History</h3><div class="lbl small muted">GDP over the last 10 years</div>${spark(c.hist.gdp, '#5b8cff')}</div>`;
     return h;
   },
@@ -667,12 +667,43 @@ Object.assign(UI, {
       ${debt > 0.6 ? `<p class="small bad">Debt is ${pct(debt)} of GDP. Lenders grow wary and demand more interest; above 150% the state defaults.</p>` : ''}`;
   },
 
+  // The policy as this month began: what "who gains, who loses" compares the sliders with.
+  policyRef(c, g) {
+    const R = this._policyRef;
+    if (!R || R.g !== g || R.month !== g.month || R.id !== c.id) this._policyRef = { g, month: g.month, id: c.id, policy: Object.assign({}, c.policy) };
+    return this._policyRef.policy;
+  },
+
+  // Who gains, who loses from this month's slider moves (winners.js, policyWinners).
+  policyWinnersHtml(c, g) {
+    const from = this.policyRef(c, g), W = policyWinners(g, c, from, c.policy);
+    const head = '<div class="small" style="margin-top:8px;padding-top:6px;border-top:1px dashed var(--line-soft)"><b>Who gains, who loses</b>';
+    if (!W.changed.length) return `${head} <span class="muted">· move a slider to see which interest groups gain and which lose, before the month runs.</span></div>`;
+    const r = Math.round, sgn = v => (v >= 0 ? '+' : '') + v.toFixed(1);
+    const what = W.changed.map(k => {
+      const L = POLICY_LIMITS[k], name = L ? L.label : k === 'moneyGrowth' ? 'Money growth' : k;
+      const f = v => k === 'tax' || k === 'tariff' ? pct(v) : k === 'moneyGrowth' ? v.toFixed(0) + '%/yr' : v.toFixed(1) + '%';
+      return `${esc(name)} ${f(from[k] || 0)} → ${f(c.policy[k] || 0)}`;
+    }).join(', ');
+    const row = x => {
+      const up = x.shift > 0;
+      return `<div class="kv small" title="${esc(x.name)}: clout ${pct(x.clout)} of the interest groups' weight. Its loyalty is ${r(x.now)}; it was heading for ${r(x.before)}, and now heads for ${r(x.after)}. Loyalty closes about 7% of the gap each month, so in six months it would be near ${r(x.in6)} instead of ${r(x.in6Before)}. Below ${WINNERS.HOSTILE} the group counts as disloyal."><span>${x.icon} ${esc(x.name)} <span class="muted">(clout ${pct(x.clout)})</span></span><span class="${up ? 'good' : 'bad'}">${up ? '▲' : '▼'} ${sgn(x.shift)} · heading for ${r(x.after)}${x.turns === 'against' ? ' · turns disloyal' : x.turns === 'back' ? ' · won back' : ''}</span></div>`;
+    };
+    const body = W.groups.length ? W.groups.filter(x => x.shift > 0).map(row).join('') + W.groups.filter(x => x.shift <= 0).map(row).join('')
+      : '<div class="small muted">No interest group reacts to this directly. It reaches them later, through prices, jobs and living standards.</div>';
+    return `${head} <span class="muted" title="Changes since the 1st of this month: ${esc(what)}. The support meter once loyalties settle on their new targets, through the power base and the interest groups weighted by clout.">· support in time ${sgn(W.support)}</span>
+      <button class="small" data-act="policyreset" style="float:right">Put the sliders back</button></div>
+      <div class="small muted">${what}. Loyalty does not jump: it drifts toward its new target over the months. Growth, jobs and living standards then move it further.</div>${body}`;
+  },
+
   updatePolicyLabels() {
     const c = this.player();
     for (const k of Object.keys(POLICY_LIMITS)) { const el = $('#pv-' + k); if (el) el.textContent = this.policyValue(c, k); }
     const mg = $('#pv-moneyGrowth'); if (mg) mg.textContent = (c.policy.moneyGrowth || 0).toFixed(0) + '%/yr';
     const bp = $('#budget-preview');
     if (bp) bp.innerHTML = this.budgetHtml(c);
+    const pw = $('#policy-winners');
+    if (pw) pw.innerHTML = this.policyWinnersHtml(c, App.game);
   },
 
   viewMilitary(c, g) {
