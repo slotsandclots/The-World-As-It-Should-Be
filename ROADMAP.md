@@ -19,6 +19,9 @@ Open questions about where the game should go, in plain language, each with the 
 - **The gold standard stays as it is** (November 2026). Most nations on gold are forced off within 40 years when they cannot pay for their imports, as between the world wars; bank lending lets more parities hold. No change wanted.
 - **Revenge wars stay rarer** (November 2026). Since bloc partners decide whether to join, fewer alliances of defeated nations form, and wars of revenge are less common. Keep it that way; a shared grievance does not need to count for more.
 - **Substitutes, yes, the concrete way** (November 2026). Nations short of a good switch to close alternatives and can build costly synthetic industries, as described under 4d. No abstract "substitute" good.
+- **Borrowing abroad should hurt** (November 2026). State bonds sold abroad drain foreign currency like any other foreign payment, even though the world gets somewhat more financial stress (banking crises, depressions, wars) from it. Crises are what make conflict in this world; a world that is too stable would be boring.
+- **Playing tall must be possible** (November 2026). A prudent, peaceful nation should be able to stay stable and grow powerful through prosperity, finance and trade, while the world around it stays stormy. See "Playing tall".
+- **Diplomacy and trade before national focuses** (November 2026). Deeper diplomacy and trade come first. Long-term national goals come as national programmes drawn from a nation's real situation, not scripted focus trees. See "Deeper diplomacy and trade" and "National programmes".
 
 ## Design philosophy
 
@@ -666,6 +669,24 @@ Today the seven government types differ mostly in numbers: freedom, repression, 
 4. The corporate state, after corporations exist.
 5. The monarchies' court and dynasties, with Milestone 8.
 
+### National programmes (M; the owner's decision)
+
+Long-term national goals, so a nation has a direction to work toward in peace as well as in war. Not scripted focus trees: a programme is a long commitment offered by the nation's real situation, and it works through the real systems.
+
+| Programme | Offered when | What it does through the systems |
+|---|---|---|
+| Five-year plan | Communist state | Production quotas for chosen goods; shortages and queues if the targets outrun capacity |
+| Rearmament | Rivals arming, a grudge, a threat | Factories turn to arms; fewer consumer goods, more debt, a stronger army in a few years |
+| Self-sufficiency drive | Import-dependent nations, fascist or threatened ones | Builds synthetic industries and substitutes (4d); dearer goods, less exposure to blockades |
+| Public works | Mass unemployment | Infrastructure spending and deficits: jobs now, debt later |
+| Industrialization | Poor, rural nations | Pushes peasants into cities and factories; slums and unrest along the way |
+| Others as systems allow | Education drives, land reform, colonization of empty land, export promotion | |
+
+- **Each programme:** takes years, costs money and political capital, has interest groups for and against it, can be abandoned (at a cost), and shows its progress and why it is on offer.
+- **The AI chooses programmes too,** by its politics and situation, so other nations visibly pursue their own plans (news, the Diplomacy tab).
+- **Folds in** the plans already listed above: communist planning (five-year plans) and the fascist push for self-sufficiency.
+- **Measure:** programmes should change outcomes they aim at (arms, industry, imports) without making any one of them the best choice everywhere.
+
 **Kept in mind, not scheduled:** playing as a lawmaker (second to the grand-strategy layer; the parliament screen is its first step) and playing as a corporation or a church.
 
 ## Spheres of influence (M)
@@ -689,6 +710,26 @@ Formal control exists (puppets, vassals, protectorates, colonies), and so do blo
 - **The player:** lend, invest, offer protection, sponsor parties and newspapers abroad, and defend clients.
 - **Interface:** a spheres map mode, and each nation's influences in the Diplomacy tab.
 - **Order:** after phase 2 of the closed-loop economy lands, alongside phase 3 (foreign ownership) and 4d (the world economy), and before AI ambitions, so AI goals like "dominate the market" have something to aim at.
+
+## Deeper diplomacy and trade (M each; the owner's decision)
+
+The economy now records who owes whom (payments), who depends on whom (trade flows) and who will join whom (blocs). This milestone turns that into politics between nations. It comes before national programmes.
+
+- **Trade agreements and embargoes:** tariffs that can favour or punish one partner (asymmetric tariffs, with 4d), trade agreements with terms, and embargoes that cut a rival off from a good it lacks, pushing it to substitutes or to war.
+- **Loans with conditions:** bailouts from blocs and great powers to nations in a payments or debt crisis. The money comes with conditions (reforms, alignment, bases, a say in policy), as a lever of spheres of influence.
+- **Treaties with terms:** alliances, peace deals and trade pacts negotiated clause by clause (what each side gives and gets), not accepted or refused whole. The AI weighs each clause by its interests.
+- **Trade routes** (step 2 of the trade view, 4d): distance, shipping costs, chokepoints and straits, and blockades of specific routes, so geography matters.
+- **Meshes with:** payments and trade flows (what is at stake), spheres of influence (the leverage), blocs (who negotiates together), war (blockades and peace terms) and AI ambitions (what each nation wants).
+- **The player:** a negotiation screen for treaties, and the trade and lending levers in the Diplomacy tab.
+
+## Playing tall (a goal that runs through the milestones; the owner's decision)
+
+A prudent, peaceful nation should be able to stay stable and become powerful through prosperity, finance and trade, while the world around it stays stormy. The world should not be calmer; tall play is a fortress in a stormy world, and storms still arrive through trade, ideas, refugees and neighbours' wars.
+
+- **Prudence is a set of choices with costs,** all of them real systems already: regulated banks and deposit insurance (smaller booms), reserves and little foreign borrowing (less to invest), low state debt (less to spend in a slump), a central bank rather than gold (no anchor), welfare, health and schools (taxes).
+- **Proof, kept true:** a prudent-nation check in the test tools. A scripted player follows prudent policies in many worlds; its stability, crisis share and growth are measured against the world's, and must stay clearly better as features are added.
+- **Seeing it:** the interface shows how exposed the nation is to each kind of crisis (bank capital, reserves, debt, import dependence, neighbours in turmoil), from the real numbers rather than a new score.
+- **The reward:** spheres of influence and deeper diplomacy let a creditor nation turn surplus reserves and loans into influence, as Britain, the Netherlands and Switzerland did before 1914. Being the world's banker is the tall nation's road to power.
 
 ## AI ambitions and personalities (M)
 
@@ -980,17 +1021,21 @@ Ideas for after (or alongside) the milestones. They follow the same design philo
 6. ✅ **Milestone 4a–4b:** money, inflation, credit and the business cycle (first pass).
 7. ✅ **Milestone 3** (first pass), with ideas spreading through the world folded in: 3a peoples, 3b cities and demographics, 3c aging, inequality, minority movements and healthcare, 3d universities, kinship and unification, idea spread, 3e secondary schools, the minorities interest group, unification by force. Also done: **the alert bar** (see Quality of life).
 8. ✅ **History makers (first pass):** notable people, the memory of defeat and its demagogues, world wars and peace conferences. Pulled forward at the player's request; it uses the existing war layer and leaves the operational war layer to Milestone 5.
-9. **The time-constant refactor** (stage 2, step 1 of Time and pacing): every per-month rate, smoothing factor and duration into `js/time.js`, converted with `perStep()` / `smooth()`, on the monthly tick, measured on 24 worlds × 40 years to change nothing. Start it only once the open closed-loop payments PRs (layers 1–3) have merged: it touches nearly every simulation file and would conflict with them. From then on, new code uses the helpers instead of `/ 12` and fixed factors.
-10. **Milestone 4c–4e,** with step 1 of "Governments that play differently" (mechanisms instead of flat per-type numbers) in 4c: labor relations and fiscal policy (including AI governments responding to the cycle), the world economy (with distance that matters, from World scale), and the stock and land markets, with the **closed-loop economy** running through all three (phase 1, the state's budget and debt, is done; phase 2's payments layers 1–3 are in review).
-11. **Spheres of influence,** once payments and foreign ownership exist (bilateral trade flows already do).
-12. **AI ambitions and personalities, with the graphics-card map**, plus the first art commissions: an art direction document, map textures and an icon set. The war layer needs the new map for army counters, fronts, plan arrows and supply routes.
-13. **Milestone 5:** the war layer, an operational layer.
-14. **The world newspaper and history book.** This can move earlier. World wars, treaties and the figures of the age are natural headlines and chapters.
-15. **Eras and scenarios (Milestone 6) and the desktop release,** together toward a public release.
+9. ✅ **The time-constant refactor** (stage 2, step 1 of Time and pacing): `js/time.js`, measured on 24 worlds × 40 years to change nothing. New code uses the helpers.
+10. **Milestone 4c–4e,** with step 1 of "Governments that play differently" (mechanisms instead of flat per-type numbers) in 4c: labor relations and fiscal policy (including AI governments responding to the cycle), the world economy (with distance that matters, from World scale), and the stock and land markets, with the **closed-loop economy** running through all three (phase 1, the state's budget and debt, and phase 2's payments layers 1–3 are done). 4d includes substitutes and asymmetric tariffs.
+11. **Spheres of influence,** with loans with conditions, once payments and foreign ownership exist (bilateral trade flows already do).
+12. **Deeper diplomacy and trade:** treaties with terms and embargoes, then trade routes.
+13. **National programmes,** with "Governments that play differently".
+14. **AI ambitions and personalities, with the graphics-card map**, plus the first art commissions: an art direction document, map textures and an icon set. The war layer needs the new map for army counters, fronts, plan arrows and supply routes.
+15. **Milestone 5:** the war layer, an operational layer.
+16. **The world newspaper and history book.** This can move earlier. World wars, treaties and the figures of the age are natural headlines and chapters.
+17. **Eras and scenarios (Milestone 6) and the desktop release,** together toward a public release.
 
 Later: Milestone 8 (intrigue and dynasties), world scale (as the map and Web Worker allow), and the rest of Beyond the milestones.
 
-Time and pacing: the time-constant refactor comes next (item 9), once the payments PRs have merged. The daily clock (stage 1) slots in later, between features, whenever there is room: the calendar day by day at the player's speed, news on its day, numbers that slide between months, and staggered nation updates after that as their own measured step. Weekly ticks wait for Milestone 5 and the Web Worker.
+Playing tall runs through items 10–13: the prudent-nation check comes first (with 4c–4e), the exposure view with it, and the creditor's road to power with spheres of influence and deeper diplomacy.
+
+Time and pacing: the time-constant refactor is done (item 9). The daily clock (stage 1) slots in later, between features, whenever there is room: the calendar day by day at the player's speed, news on its day, numbers that slide between months, and staggered nation updates after that as their own measured step. Weekly ticks wait for Milestone 5 and the Web Worker.
 
 Flow views (visuals track) slot in as their data arrives: migration right after the trade view, capital and debt after phase 2 of the closed-loop economy, and ideas after that.
 
