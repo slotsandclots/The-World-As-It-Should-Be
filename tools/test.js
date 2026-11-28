@@ -619,8 +619,8 @@ test('notable figures come from the pops, publish works, and inventors speed res
     const wr = makeFigure(g, P, 'writer'); P.figures.push(wr);
     const pat = figureAction(g, wr.id, 'patronize'); const ban = figureAction(g, wr.id, 'ban');
     // Generals gain renown in battle.
-    const gen = bestGeneral(P); const before = gen.renown || 0; for (let i = 0; i < 20; i++) battleFought(g, P.id, 1, true);
-    return { n: all.length, kinds: kinds.size, grievance, shock: (c.ideaShock.fascism || 0) - shock0, r0, r1, pat: pat.ok, ban: ban.ok, banned: !!wr.banned, genGain: (gen.renown || 0) - before, won: gen.won,
+    const gen = bestGeneral(P); const before = gen.renown || 0, wonBefore = gen.won || 0; for (let i = 0; i < 20; i++) battleFought(g, P.id, 1, true);
+    return { n: all.length, kinds: kinds.size, grievance, shock: (c.ideaShock.fascism || 0) - shock0, r0, r1, pat: pat.ok, ban: ban.ok, banned: !!wr.banned, genGain: (gen.renown || 0) - before, won: (gen.won || 0) - wonBefore,
       named: all.every(f => f.name && f.renown >= 0 && f.renown <= 100), hall: (g.hall || []).length >= 0, top: figuresOfTheAge(g, 5).length };
   })()`);
   assert(r.n > 0 && r.kinds >= 2, `figures: ${r.n} of ${r.kinds} kinds`);
