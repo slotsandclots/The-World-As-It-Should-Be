@@ -1,21 +1,31 @@
 'use strict';
 // App controller: owns the game object, the clock and redraws.
 
-// The daily clock (ROADMAP, "Time and pacing", stage 1): the calendar runs day by
-// day at the player's speed while the simulation still steps once a month, on the
-// first of the month. Each month's news is spread over its days and appears when
-// the calendar reaches it. Milliseconds per day, by speed: 1 slow (a year in about
+// The daily clock (ROADMAP, "Time and pacing"): the calendar runs day by day at the
+// player's speed. The simulation steps by the week (sim.js, SYSTEMS): the month's
+// first week on the 1st, then the 8th, 15th and 22nd, so prices, reserves and money
+// move within the month and each week's news comes in that week, on a day of its
+// own. "Next month" (and the fastest speed) runs the whole month at once and shows
+// all of it. Milliseconds per day, by speed: 1 slow (a year in about
 // 2½ minutes), 2 normal (about a minute, the pace of a Victoria-style year),
 // 3 fast, 4 very fast; 5 skips the days and steps a month at a time.
 const DAY_MS = [0, 420, 165, 80, 30];
 const MONTH_SKIP_MS = 220;
 const MONTH_DAYS = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 function monthDays(m) { return MONTH_DAYS[((m % 12) + 12) % 12]; }
-// A day within the month for a news line, spread evenly but fixed for each line.
+// The days the weekly steps fall on, and the week a day belongs to.
+const WEEK_DAYS = [1, 8, 15, 22];
+function weekOfDay(day) { return day >= 22 ? 3 : day >= 15 ? 2 : day >= 8 ? 1 : 0; }
+// Does the game step by the week? (Every system monthly: one step a month.)
+function weeklyGame() { return typeof SYSTEMS !== 'undefined' && baseStepMonths(SYSTEMS) < 1; }
+// A day for a news line, spread evenly but fixed for each line: within its week
+// when it carries one (sim.js, logNews), otherwise within the month.
 function newsDay(l, days) {
   let h = 0;
   for (let i = 0; i < l.text.length; i++) h = (h * 31 + l.text.charCodeAt(i)) >>> 0;
-  return 1 + (h % days);
+  if (l.w == null) return 1 + (h % days);
+  const start = WEEK_DAYS[l.w], end = l.w >= 3 ? days : WEEK_DAYS[l.w + 1] - 1;
+  return start + (h % (end - start + 1));
 }
 
 const App = {
@@ -111,6 +121,8 @@ const App = {
     if (!g || UI.choosing || g.player < 0 || UI.modalOpen() || UI.dragging) return;
     if (this.day >= monthDays(g.month)) { this.step(false, true); return; }
     this.day++;
+    // A new week: the weekly systems run today, and the numbers on screen move with them.
+    if (weeklyGame() && weekOfDay(this.day) > (g.week || 0)) { this.weekStep(); return; }
     const shown = this.datedNews();
     $('#tb-date').textContent = this.dateText();
     // New news today: redraw the open tab so it appears.
@@ -144,10 +156,23 @@ const App = {
     return !g || l.m < g.month || l.d == null || l.d <= this.day;
   },
 
+  // The week's step, on its first day (the 8th, 15th or 22nd).
+  weekStep() {
+    const g = this.game;
+    while (!g.over && (g.week || 0) < weekOfDay(this.day)) { stepGame(g); if (!g.week) break; }
+    this.datedNews();
+    $('#tb-date').textContent = this.dateText();
+    if (g.mapDirty || UI.mapMode !== 'political') this.redraw();
+    UI.refresh();
+    UI.processPending();
+  },
+
   step(manual, daily) {
     const g = this.game;
     if (!g || UI.choosing || g.player < 0 || UI.modalOpen() || UI.dragging) return;
     tick(g);
+    // A step by hand (or at the fastest speed) runs the rest of the new month's weeks too, so the month shown is complete.
+    if (!daily && weeklyGame()) while (!g.over && (g.week || 0) < 3) stepGame(g);
     // Running day by day, the new month starts on the 1st and its news comes over its days.
     // A step by hand (or at the fastest speed) shows the whole month at once.
     this.datedNews();
