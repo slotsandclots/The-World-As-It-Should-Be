@@ -307,8 +307,8 @@ const UI = {
 
     window.addEventListener('keydown', e => {
       if (e.target.matches('input, select, textarea') || this.modalOpen()) return;
-      if (e.code === 'Space') { e.preventDefault(); App.setSpeed(App.speed ? 0 : 1); }
-      else if (e.key === '1' || e.key === '2' || e.key === '3') App.setSpeed(+e.key);
+      if (e.code === 'Space') { e.preventDefault(); App.setSpeed(App.speed ? 0 : 2); }
+      else if (e.key >= '1' && e.key <= '5') App.setSpeed(+e.key);
       else if (e.key === 'n' || e.key === 'N') App.step(true);
     });
   },
@@ -475,7 +475,7 @@ const UI = {
 
   renderTopbar() {
     const g = App.game, c = this.player();
-    $('#tb-date').textContent = g ? gameDate(g) : '';
+    $('#tb-date').textContent = g ? App.dateText() : '';
     $('#tb-nation').innerHTML = c ? `<span class="tb-flag">${flagSVG(c, 42, 28)}</span><div class="tb-name"><b>${esc(c.name)}</b>${govBadge(c.gov)}</div>` : (this.choosing ? '<span class="muted tb-choose">Choose your nation</span>' : '');
     if (c) {
       const atWar = isAtWar(g, c.id);

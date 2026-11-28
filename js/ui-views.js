@@ -944,7 +944,7 @@ Object.assign(UI, {
     const months = paperMonths(g);
     if (!months.length) return '';
     const i = clamp(this.paperIdx || 0, 0, months.length - 1);
-    const P = frontPage(g, c.id, months[i]);
+    const P = frontPage(g, c.id, months[i], l => App.newsVisible(l));
     if (!P.lead) return '';
     const tag = s => (s.home || s.m !== P.month) ? `<span class="paper-tag">${[s.home ? 'At home' : '', s.m !== P.month ? gameDate(g, s.m) : ''].filter(Boolean).join(' · ')}</span>` : '';
     const fmt = ([n, v, u]) => `<div class="kv"><span>${n}</span><span>${u ? (Math.round(v * 10) / 10).toFixed(1) + u : Math.round(v)}</span></div>`;
@@ -959,7 +959,7 @@ Object.assign(UI, {
   },
 
   viewNews(c, g) {
-    let items = g.log.slice().reverse();
+    let items = g.log.filter(l => App.newsVisible(l)).reverse();
     if (this.newsMine) items = items.filter(l => l.ids.includes(c.id));
     let h = this.paperHtml(c, g) + `<label class="small"><input type="checkbox" data-act="newsmine" ${this.newsMine ? 'checked' : ''}> Only news about ${esc(c.name)}</label><ul class="news">`;
     for (const l of items.slice(0, 200)) h += `<li class="${l.kind}${l.ids.includes(c.id) ? ' mine' : ''}"><span class="d">${gameDate(g, l.m)}</span>${esc(l.text)}</li>`;

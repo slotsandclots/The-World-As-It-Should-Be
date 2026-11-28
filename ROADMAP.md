@@ -749,6 +749,7 @@ Already in place from History makers: revenge as an aim (a grudge against the vi
 The world moves in monthly jumps: every nation updates at once, news arrives in batches, and numbers change in steps. The goal is a world that feels continuous, and eventually a simulation that runs in weeks, so wars, crises and markets can move faster than a month.
 
 **Stage 1: a daily clock on the monthly simulation.** The simulation still steps once a month; only how it is shown changes.
+- ✅ **First pass (at the owner's request: "it should feel like a Victoria year"):** the calendar runs day by day ("14 Mar 1955" in the top bar) at five speeds: about 2½ minutes a year, about a minute (normal, and what Space starts), 30 seconds, 12 seconds, and a month at a time. The simulation steps on the 1st; each month's news is spread over its days and appears in the News tab and the newspaper when the calendar reaches it. "Next month" steps at once and shows the whole month. Interface only: the simulation is unchanged. Still to do from this stage: numbers that slide between months, then staggered nations.
 - **The calendar runs day by day,** at speeds the player picks (pause, 1–5), with the date in the top bar.
 - **Staggered nations:** each nation updates on its own fixed day of the month, so the work and the changes are spread out. World-level steps (market clearing, payments, trade flows) still run once a month, on day 1. Anything that assumes every nation has updated in the same instant has to be found and fixed first.
 - **News on its day:** each event gets a day within the month and appears when the clock reaches it, not in a batch.
@@ -1039,7 +1040,7 @@ Later: Milestone 8 (intrigue and dynasties), world scale (as the map and Web Wor
 
 Playing tall runs through items 10–13: the prudent-nation check comes first (with 4c–4e), the exposure view with it, and the creditor's road to power with spheres of influence and deeper diplomacy.
 
-Time and pacing: the time-constant refactor is done (item 9). The daily clock (stage 1) slots in later, between features, whenever there is room: the calendar day by day at the player's speed, news on its day, numbers that slide between months, and staggered nation updates after that as their own measured step. Weekly ticks wait for Milestone 5 and the Web Worker.
+Time and pacing: the time-constant refactor is done (item 9), and the daily calendar with news on its day (stage 1, first pass). Numbers that slide between months slot in between features; staggered nation updates after that, as their own measured step. Weekly ticks wait for Milestone 5 and the Web Worker.
 
 Flow views (visuals track) slot in as their data arrives: migration right after the trade view, capital and debt after phase 2 of the closed-loop economy, and ideas after that.
 

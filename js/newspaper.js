@@ -55,8 +55,9 @@ function paperMonths(game) {
 }
 
 // The front page for one month, as data the interface lays out.
-function frontPage(game, readerId, month) {
-  const items = (game.log || []).filter(l => l.m <= month && l.m > month - PAPER.WINDOW && l.kind !== 'action');
+// visible (optional): which lines the reader has seen yet (the daily clock reveals a month's news over its days).
+function frontPage(game, readerId, month, visible) {
+  const items = (game.log || []).filter(l => l.m <= month && l.m > month - PAPER.WINDOW && l.kind !== 'action' && (!visible || visible(l)));
   const gps = new Set(typeof greatPowers === 'function' ? greatPowers(game) : []);
   const neighbors = new Set(typeof getNeighbors === 'function' && game.countries[readerId] ? getNeighbors(game, readerId) : []);
   const scored = items.map((l, i) => ({ l, i, score: storyScore(game, l, readerId, gps, neighbors) - (month - l.m) * PAPER.STALE }))
