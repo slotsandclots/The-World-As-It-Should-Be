@@ -955,6 +955,28 @@ test('the newspaper leads with the biggest news, puts our own first among equals
   assert(r.real.lead && r.real.title, 'a real month should have a front page with a title and a lead');
 });
 
+test('exposure to crises reads the real numbers, rises with them, and changes nothing', () => {
+  const r = run(`(() => {
+    const g = createGame('expo', { size: 'small', countries: 10 }); setPlayer(g, 0);
+    for (let i = 0; i < 24; i++) { tick(g); g.pending.length = 0; }
+    const c = g.countries[0], before = serializeGame(g);
+    const X = crisisExposure(g, c);
+    const keys = X.map(x => x.key).sort().join(',');
+    const untouched = serializeGame(g) === before;
+    const at = (k, f) => { const s = JSON.stringify(c); f(); const v = crisisExposure(g, c).find(x => x.key === k).level; Object.assign(c, JSON.parse(s)); return v; };
+    const banks = [at('banks', () => { const E = c.econ; E.bankCrisis = 0; E.bankCap = E.credit * CREDIT.CAP_TARGET * 1.2; }), at('banks', () => { const E = c.econ; E.bankCrisis = 0; E.bankCap = E.credit * CREDIT.CAP_MIN; c.laws.banking = 'unregulated'; })];
+    const cur = [at('currency', () => { const E = c.econ; E.attack = null; E.fxCrisis = 0; E.reserves = c.gdp * 0.5; c.extDebt = null; }), at('currency', () => { const E = c.econ; E.attack = null; E.fxCrisis = 0; E.reserves = -c.gdp * 0.2; })];
+    const debt = [at('debt', () => { c.debt.crisis = 0; c.debt.trust = 1.2; c.treasury = c.gdpNom * 0.1; }), at('debt', () => { c.debt.crisis = 0; c.debt.trust = 0.3; c.treasury = -c.gdpNom * 1.2; })];
+    return { keys, untouched, banks, cur, debt, every: X.every(x => x.why && x.fix && x.level >= 0 && x.level <= 2) };
+  })()`);
+  assert(r.keys === 'banks,currency,debt,firms,imports,neighbours', 'six kinds of crisis: ' + r.keys);
+  assert(r.untouched, 'reading the exposure must not change the game');
+  assert(r.every, 'every line says why and what to do');
+  assert(r.banks[0] === 0 && r.banks[1] === 2, 'thin bank capital without insurance is high risk, ample capital low: ' + r.banks);
+  assert(r.cur[0] === 0 && r.cur[1] === 2, 'empty reserves are high risk, ample ones low: ' + r.cur);
+  assert(r.debt[0] === 0 && r.debt[1] === 2, 'heavy distrusted debt is high risk, a surplus low: ' + r.debt);
+});
+
 test('trade view: bilateral flows add up to every nation\'s trade and leave the economy unchanged', () => {
   const code = `(() => {
     const g = createGame('flows', { size: 'small', countries: 12 }); setPlayer(g, 0);

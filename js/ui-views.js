@@ -487,9 +487,20 @@ Object.assign(UI, {
         `<tr${r.id === res.winner ? ' class="me"' : ''}><td><span class="swatch" style="background:${r.color};width:10px;height:10px"></span> ${esc(r.name)}</td><td>${pct(r.vote, 1)}</td><td>${r.seats}</td></tr>`).join('')}</table>`;
   },
 
+  // Where crises could hit us (exposure.js), from the real numbers; the prudent remedy on hover.
+  exposureHtml(c, g) {
+    const X = crisisExposure(g, c);
+    if (!X.length) return '';
+    const word = ['Low', 'Moderate', 'High'], cls = ['good', 'warn', 'bad'];
+    const high = X.filter(x => x.level === 2).length, mid = X.filter(x => x.level === 1).length;
+    return `<div class="card"><h3>Exposure to crises</h3>
+      <p class="small muted">${high ? `${high} high risk${high > 1 ? 's' : ''}` : mid ? 'No high risks' : 'Well protected'}${mid ? `, ${mid} moderate` : ''}. Hover a line for what a prudent government does about it. Prudence costs something: smaller booms, less to invest, less to spend in a slump.</p>
+      ${X.map(x => `<div class="kv" title="${esc(x.fix)}"><span>${esc(x.name)}</span><span class="${cls[x.level]}">${word[x.level]}</span></div><div class="small muted" style="margin:-2px 0 6px">${esc(x.why)}</div>`).join('')}</div>`;
+  },
+
   viewEconomy(c, g) {
     const E = c.econ;
-    let h = this.moneyHtml(c, g) + this.creditHtml(c, g) + this.debtHtml(c, g) + this.paymentsHtml(c, g) + `<div class="card grid2">
+    let h = this.exposureHtml(c, g) + this.moneyHtml(c, g) + this.creditHtml(c, g) + this.debtHtml(c, g) + this.paymentsHtml(c, g) + `<div class="card grid2">
       <div class="kv"><span>GDP</span><span>${fmtMoney(c.gdp)}</span></div>
       <div class="kv"><span>Per capita</span><span>$${(c.gdpPerCap * 1000).toFixed(0)}</span></div>
       <div class="kv"><span>Growth</span><span class="${c.growthAvg < 0 ? 'bad' : 'good'}">${fmtSigned(c.growthAvg * 1200)}%/yr</span></div>
