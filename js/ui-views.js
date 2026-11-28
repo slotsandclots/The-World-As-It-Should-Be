@@ -196,8 +196,8 @@ Object.assign(UI, {
         for (const opt in C.opts) {
           if (opt === cur) continue;
           const O = C.opts[opt], sup = lawSupport(g, c, cat, opt);
-          const fx = Object.fromEntries(Object.entries(O.fx).map(([k, v]) => [k, v - (C.opts[cur].fx[k] || 0)]).concat(Object.entries(C.opts[cur].fx).filter(([k]) => !(k in O.fx)).map(([k, v]) => [k, -v])).filter(([k, v]) => v && !['growth', 'pc', 'army'].includes(k)));
-          h += `<div class="opt" style="margin:6px 0;cursor:default;border:1px solid var(--line);border-radius:5px;${pick.opt === opt ? 'border-color:var(--gold)' : ''}"><div class="lbl">${esc(O.name)}${opt === P[cat] ? ' <span class="ftag">tradition</span>' : ''}</div><div class="small muted">${esc(O.desc)}</div><div>${describeEffects(fx)}</div>
+          const fx = Object.fromEntries(Object.entries(O.fx).map(([k, v]) => [k, v - (C.opts[cur].fx[k] || 0)]).concat(Object.entries(C.opts[cur].fx).filter(([k]) => !(k in O.fx)).map(([k, v]) => [k, -v])).filter(([k, v]) => v && !['growth', 'pc', 'army'].includes(k) && !FACTION_KEYS.includes(k)));
+          h += `<div class="opt" style="margin:6px 0;cursor:default;border:1px solid var(--line);border-radius:5px;${pick.opt === opt ? 'border-color:var(--gold)' : ''}"><div class="lbl">${esc(O.name)}${opt === P[cat] ? ' <span class="ftag">tradition</span>' : ''}</div><div class="small muted">${esc(O.desc)}</div><div>${describeEffects(fx)}</div>${this.winnersHtml(c, g, cat, opt)}
             <div class="small" style="display:flex;justify-content:space-between;align-items:center;margin-top:4px"><span>Support: <b class="${sup >= 0.5 ? 'good' : 'bad'}">${pct(sup)}</b></span>
             <span><button class="primary" data-act="propose" data-cat="${cat}" data-opt="${opt}" ${R || c.pc < LAW_PC ? 'disabled' : ''}>Propose (${LAW_PC} PC)</button>
             ${canReferendum(c) ? `<button data-act="referendum" data-cat="${cat}" data-opt="${opt}" ${c.pc < REFERENDUM_PC ? 'disabled' : ''} title="Put it to the people: decided at once by the public's views, class by class. Win: +5 legitimacy. Lose: −6 legitimacy, −3 approval.">Referendum (${REFERENDUM_PC} PC) · public ${pct(publicSupport(g, c, cat, opt))}</button>` : ''}</span></div></div>`;
@@ -205,6 +205,15 @@ Object.assign(UI, {
       }
     }
     return h + '</div>';
+  },
+
+  // Who gains and who loses from a reform (winners.js), before it is proposed.
+  winnersHtml(c, g, cat, opt) {
+    const W = lawWinners(g, c, cat, opt);
+    if (!W.groups.length) return '';
+    const row = x => `<div class="kv small" title="${esc(x.name)}: clout ${pct(x.clout)} of the interest groups' weight; loyalty ${Math.round(x.now)} now, ${Math.round(x.after)} if it passes."><span>${x.icon} ${esc(x.name)} <span class="muted">(clout ${pct(x.clout)})</span></span><span class="${x.delta > 0 ? 'good' : 'bad'}">${x.delta > 0 ? '▲' : '▼'} ${Math.round(x.now)} → ${Math.round(x.after)}${x.turns === 'against' ? ' · turns against us' : x.turns === 'back' ? ' · won back' : ''}</span></div>`;
+    const gain = W.groups.filter(x => x.delta > 0), lose = W.groups.filter(x => x.delta < 0);
+    return `<div class="winners" style="margin-top:6px;padding-top:4px;border-top:1px dashed var(--line-soft)"><div class="small"><b>Who gains, who loses</b> <span class="muted">· support from interest groups ${W.support >= 0 ? '+' : ''}${W.support.toFixed(1)}</span></div>${gain.map(row).join('')}${lose.map(row).join('')}</div>`;
   },
 
   // ------------------------------------------------------------------ ledger

@@ -997,6 +997,29 @@ test('exposure to crises reads the real numbers, rises with them, and changes no
   assert(r.debt[0] === 0 && r.debt[1] === 2, 'heavy distrusted debt is high risk, a surplus low: ' + r.debt);
 });
 
+test('who wins, who loses: a reform shows each interest group its stake, by clout, and changes nothing', () => {
+  const r = run(`(() => {
+    const g = createGame('winners', { size: 'small', countries: 10 }); setPlayer(g, 0);
+    for (let i = 0; i < 12; i++) { tick(g); g.pending.length = 0; }
+    const c = g.countries[0], before = serializeGame(g);
+    let checked = 0, matches = true, sorted = true, untouched = true;
+    for (const cat of LAW_KEYS) for (const opt in LAW_CATS[cat].opts) {
+      if (opt === c.laws[cat]) continue;
+      const W = lawWinners(g, c, cat, opt);
+      for (const x of W.groups) { checked++; if (Math.abs(x.delta - lawPreference(c, cat, opt, x.key) * WINNERS.REACTION) > 1e-9) matches = false; }
+      for (let i = 1; i < W.groups.length; i++) if (W.groups[i].weight > W.groups[i - 1].weight + 1e-12) sorted = false;
+    }
+    untouched = serializeGame(g) === before;
+    const same = lawWinners(g, c, 'monetary', c.laws.monetary).groups.length === 0;
+    return { checked, matches, sorted, untouched, same };
+  })()`);
+  assert(r.checked > 10, 'reforms should show groups with a stake: ' + r.checked);
+  assert(r.matches, 'each stake is the loyalty change the law would really cause');
+  assert(r.sorted, 'the biggest stakes, weighted by clout, come first');
+  assert(r.same, 'keeping the current law has no winners or losers');
+  assert(r.untouched, 'the view must not change the game');
+});
+
 test('trade view: bilateral flows add up to every nation\'s trade and leave the economy unchanged', () => {
   const code = `(() => {
     const g = createGame('flows', { size: 'small', countries: 12 }); setPlayer(g, 0);
