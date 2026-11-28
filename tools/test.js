@@ -321,6 +321,26 @@ test('movements are radical wings of interest groups; support is a meter', () =>
   assert(r.unique, 'characters listed twice');
 });
 
+test('a movement takes to the streets before it can seize power; defeat, not war, feeds nationalists', () => {
+  const r = run(`(() => { const g = createGame('rise1', { size: 'small', countries: 8 }); setPlayer(g, 0); const c = g.countries[0];
+    for (let i = 0; i < 3; i++) { tick(g); g.pending.length = 0; }
+    if (c.gov === 'theocracy') changeGovernment(g, c, 'democracy', 'reform', { keepLeader: true });
+    const gov0 = c.gov, m = c.movements.clerical, chance = g.rng.chance;
+    const push = st => { for (const k of MOVEMENT_KEYS) if (k !== 'clerical') c.movements[k].support = 0; m.support = 30; m.radicalism = 95; c.stability = st; c.monthsInRegime = 24; g.rng.chance = p => p > 0; tickMovements(g, c); g.rng.chance = chance; };
+    push(30);
+    const first = { gov: c.gov, screen: g.pending.some(p => p.type === 'movement' && p.key === 'clerical'), streets: m.streets === g.month };
+    g.pending.length = 0; g.month += 3; push(50);
+    const strong = c.gov; g.month += 3; push(30);
+    const N = MOVEMENTS.nationalist.support, auth = c.ideo.auth; c.ideo.auth = 0;
+    c.warExhaustion = 50; c.revanchism = 0; const winner = N(c); c.revanchism = 0.5; const loser = N(c); c.ideo.auth = auth;
+    return { gov0, first, strong, after: c.gov, winner, loser }; })()`);
+  assert(r.first.gov === r.gov0, 'the first uprising should only be strikes');
+  assert(r.first.screen && r.first.streets, 'the player should get the movement screen');
+  assert(r.strong === r.gov0, 'a movement should not seize power while stability is 45 or more');
+  assert(r.after === 'theocracy', `a warned movement should seize power when the regime is weak (got ${r.after})`);
+  assert(r.loser > r.winner * 1.8, `defeat should feed nationalists far more than war alone (${r.winner.toFixed(1)} vs ${r.loser.toFixed(1)})`);
+});
+
 test('money: central banks hit their target, printing inflates and erodes debt, wages lag', () => {
   const r = run(`(() => { const g = createGame('money1', { size: 'small', countries: 6 }); setPlayer(g, 0); const c = g.countries[0];
     c.laws.monetary = 'centralBank';

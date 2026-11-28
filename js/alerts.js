@@ -31,8 +31,10 @@ function revolutionRisk(game, c) {
   for (const k of MOVEMENT_KEYS) {
     const m = c.movements && c.movements[k];
     if (!m) continue;
-    // Movements rise at 22% support and radicalism 72 (movements.js).
-    const t = clamp(m.support / 22, 0, 1) * clamp((m.radicalism - 45) / 27, 0, 1);
+    // Movements act at 22% support and radicalism 72 (movements.js); one that
+    // wants another regime is at its most dangerous while stability is below 45.
+    const def = MOVEMENTS[k];
+    const t = clamp(m.support / UPRISING.support, 0, 1) * clamp((m.radicalism - 45) / (UPRISING.radicalism - 45), 0, 1) * (def.gov && def.gov !== c.gov && c.stability < UPRISING.stability ? 1 : 0.5);
     if (t > mov) { mov = t; which = k; }
   }
   return { value: Math.round(clamp(Math.max(crisis, streets, mov) * 100, 0, 100)), which };
@@ -120,9 +122,10 @@ function alertTipHtml(game, c, key) {
   if (key === 'revolution') {
     const r = revolutionRisk(game, c);
     const m = r.which && c.movements[r.which];
-    return title(`Revolution risk ${r.value}`) + `<div class="tt-row"><span>Stability</span><span>${Math.round(c.stability)} (crisis below ${CRISIS_LEVEL})</span></div><div class="tt-row"><span>Unrest</span><span>${Math.round(c.unrest)} (revolt above 55)</span></div>` +
-      (m ? `<div class="tt-row"><span>${esc(MOVEMENTS[r.which].name)}</span><span>${Math.round(m.support)}% · radicalism ${Math.round(m.radicalism)}</span></div>` : '') +
-      '<div class="tt-note">Low stability and high unrest can bring down the regime; a large, radical movement can rise on its own. Meet demands, appease the power base, or crack down.</div>';
+    const streets = m && m.streets != null && game.month - m.streets <= UPRISING.warn;
+    return title(`Revolution risk ${r.value}`) + `<div class="tt-row"><span>Stability</span><span>${Math.round(c.stability)} (crisis below ${CRISIS_LEVEL}; movements can seize power below ${UPRISING.stability})</span></div><div class="tt-row"><span>Unrest</span><span>${Math.round(c.unrest)} (revolt above 55)</span></div>` +
+      (m ? `<div class="tt-row"><span>${esc(MOVEMENTS[r.which].name)}</span><span>${Math.round(m.support)}% · radicalism ${Math.round(m.radicalism)}</span></div><div class="tt-row"><span></span><span class="${streets ? 'bad' : 'muted'}">${streets ? `took to the streets ${game.month - m.streets} months ago` : 'has not taken to the streets'}</span></div>` : '') +
+      `<div class="tt-note">Below stability ${CRISIS_LEVEL}, or with unrest above 55, the regime can fall at any time. A movement with ${UPRISING.support}% support and radicalism above ${UPRISING.radicalism} first takes to the streets; after that, for two years, it can seize power while stability is below ${UPRISING.stability}. Meet demands, appease the power base, or crack down.</div>`;
   }
   const list = gatherAlerts(game, c).filter(a => a.cat === key);
   return title(ALERT_CATS[key] ? ALERT_CATS[key].name : key) + list.map(a => `<div class="tt-row"><span class="${a.level}">● ${esc(a.text)}</span></div>`).join('') + '<div class="tt-note">Click to open the relevant tab.</div>';

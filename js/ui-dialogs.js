@@ -21,6 +21,45 @@ Object.assign(UI, {
     });
   },
 
+  // A movement has taken to the streets: where it stands, what happens next,
+  // and what each response would cost and do.
+  showMovementCrisis(it) {
+    const g = App.game, c = this.player(), k = it.key;
+    const def = MOVEMENTS[k], m = ensureMovements(c)[k];
+    const demand = demandText(c, k);
+    const topples = def.gov && def.gov !== c.gov;
+    const weak = c.stability < UPRISING.stability;
+    const row = (l, v) => `<div class="kv"><span>${l}</span><span>${v}</span></div>`;
+    let body = `<p>${m.leader ? `<b>${esc(m.leader.name)}</b> leads` : 'There are'} mass strikes and demonstrations across ${esc(c.name)}. Their demand: <b>${esc(demand)}</b>.</p>` +
+      row('Support', `${pct(m.support / 100)} of the population`) +
+      row('Radicalism', `${Math.round(m.radicalism)} <span class="muted">(they act above ${UPRISING.radicalism})</span>`) +
+      row('Stability', `<span class="${weak ? 'bad' : 'good'}">${Math.round(c.stability)}</span> <span class="muted">(they can seize power below ${UPRISING.stability})</span>`) +
+      (topples ? row('They want', `a ${esc(GOVS[def.gov].name)}`) : '');
+    if (!topples) body += `<div class="alert warn" style="margin-top:10px">They don't seek to overthrow the ${esc(GOVS[c.gov].name)}, but every wave of strikes raises unrest and lowers stability.</div>`;
+    else if (weak) body += `<div class="alert bad" style="margin-top:10px">This is the warning. For the next two years, if radicalism climbs back above ${UPRISING.radicalism} while stability is below ${UPRISING.stability}, they can rise up and take power: about ${pct(uprisingChance({ support: Math.max(m.support, UPRISING.support), radicalism: 80 }))} a month at radicalism 80.</div>`;
+    else body += `<div class="alert warn" style="margin-top:10px">While stability stays at ${UPRISING.stability} or above they can strike but not take power. If it falls below ${UPRISING.stability} in the next two years and radicalism climbs back above ${UPRISING.radicalism}, they can rise up.</div>`;
+    const enactNote = k === 'liberal' && GOVS[c.gov].elections !== 'free' ? ` This ends the ${esc(GOVS[c.gov].name)}.`
+      : k === 'monarchist' ? ' The crown returns.' : k === 'clerical' ? ' Clergy +15, intelligentsia −10.' : '';
+    const effects = {
+      enact: `${esc(demand)}.${enactNote} Radicalism −40, support −30%.`,
+      suppress: `Support −40%, but they grow angrier. Freedom −6, intelligentsia −5. ${m.radicalism > 60 ? '<span class="bad">Radicalism is high: expect riots (unrest +10).</span>' : 'Unrest −5.'}`,
+      coopt: m.leader ? `${pct(cooptChance(c, m))} chance ${esc(m.leader.name)} joins the government: radicalism −40%, support −15%. If they refuse, the political capital is spent.` : 'The movement has no leader to win over.',
+    };
+    const buttons = Object.entries(MOVEMENT_ACTIONS).map(([a, A]) => {
+      const why = movementActionBlock(c, k, a);
+      return {
+        cls: 'opt', disabled: !!why,
+        label: `<div class="lbl">${a === 'coopt' && m.leader ? `Co-opt ${esc(m.leader.name)}` : A.name} (${A.pc} PC)</div><div class="small muted">${why ? `<span class="bad">${esc(why)}</span>` : effects[a]}</div>`,
+        fn: () => { const r = movementAction(g, k, a); this.track('move:' + a, r.ok); this.toast(r.msg, r.ok ? 'good' : 'bad'); },
+      };
+    });
+    buttons.push({ cls: 'opt', label: `<div class="lbl">Wait and watch</div><div class="small muted">Do nothing for now. You have ${Math.round(c.pc)} political capital; you can still act from the Politics tab.</div>` });
+    this.openModal({
+      art: sceneSVG('crowd', 'mov' + k + g.month), kicker: `${def.icon} ${esc(def.name)} · ${gameDate(g)}`,
+      title: `The ${esc(def.name)} Takes to the Streets`, body: this.withPortrait(it.charId, body), buttons,
+    });
+  },
+
   withPortrait(charId, html) {
     const g = App.game;
     if (!charId || !g) return html;
@@ -216,6 +255,7 @@ Object.assign(UI, {
         }
         break;
       }
+      case 'movement': this.showMovementCrisis(it); break;
       case 'deposed': {
         if (g.campaign && !g.campaign.ended) setFlag(g, 'cDeposed');
         const how = it.how === 'coup' ? 'a military coup' : 'a revolution';

@@ -937,7 +937,7 @@ Object.assign(UI, {
   movementsHtml(c) {
     const M = ensureMovements(c);
     const active = MOVEMENT_KEYS.filter(k => M[k].support >= 2).sort((a, b) => M[b].support - M[a].support);
-    let h = `<div class="card"><h3>Political movements</h3><p class="small muted">Movements are the radical wings of the interest groups (the agrarian league speaks for peasants). They grow out of the pops when a class has a grievance, make a demand, and radicalize while it goes unmet or while their interest group is angry. A large movement is led by its group's leader, and a radical wing drags the group's loyalty down. Radical mass movements fuel unrest and can try to seize power.</p>`;
+    let h = `<div class="card"><h3>Political movements</h3><p class="small muted">Movements are the radical wings of the interest groups (the agrarian league speaks for peasants). They grow out of the pops when a class has a grievance, make a demand, and radicalize while it goes unmet or while their interest group is angry. A large movement is led by its group's leader, and a radical wing drags the group's loyalty down. Radical mass movements fuel unrest. A large, radical one first takes to the streets, and after that can try to seize power while stability is below ${UPRISING.stability}.</p>`;
     if (c.currents) h += `<div class="small" style="margin:-4px 0 8px"><span class="muted">Ideas from abroad:</span> ${CURRENT_KEYS.map(k => `${CURRENTS[k].name} <b>${Math.round(c.currents[k] * 100)}</b>`).join(' · ')}<br><span class="muted">They spread from prosperous, stable neighbors, trade partners and allies, and surge after a revolution next door; each strengthens its movement.</span></div>`;
     if (!active.length) return h + '<p class="small muted">No significant movements.</p></div>';
     for (const k of active) {
@@ -945,7 +945,8 @@ Object.assign(UI, {
       h += `<div class="person">${m.leader ? `<div class="pp">${portraitSVG(m.leader, { size: 48, gov: c.gov })}</div>` : `<div class="pp empty" style="width:48px;height:58px">${def.icon}</div>`}<div class="pinfo">
         <div><b>${def.icon} ${def.name}</b> <span class="small muted">${pct(m.support / 100)} of the population${def.gov ? ' · wants a ' + GOVS[def.gov].name : ''}</span></div>
         <div class="small">${m.leader ? 'Led by ' + esc(m.leader.name) + ' · ' : ''}Demand: <span class="${met ? 'good' : 'warn'}">${esc(demandText(c, k))}${met ? ' ✓' : ''}</span></div>
-        ${bar('Radicalism', m.radicalism, { invert: true, tip: 'Above 72, a movement with over 22% support may rise up.' })}</div>
+        ${m.streets != null && App.game.month - m.streets <= UPRISING.warn ? `<div class="small bad">On the streets ${App.game.month - m.streets} months ago${def.gov && def.gov !== c.gov ? `: can seize power while stability is below ${UPRISING.stability}` : ''}</div>` : ''}
+        ${bar('Radicalism', m.radicalism, { invert: true, tip: `Above ${UPRISING.radicalism}, a movement with ${UPRISING.support}% support takes to the streets. For two years after that it can seize power while stability is below ${UPRISING.stability}.` })}</div>
         <div class="pact">${Object.entries(MOVEMENT_ACTIONS).map(([a, A]) => `<button class="small" data-act="move" data-k="${k}" data-a="${a}" ${c.pc < A.pc || (a === 'enact' && met) || (a === 'coopt' && !m.leader) ? 'disabled' : ''} title="${A.pc} PC">${A.name}</button>`).join('')}</div></div>`;
     }
     return h + '</div>';

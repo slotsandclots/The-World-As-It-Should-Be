@@ -393,7 +393,9 @@ function tickCountry(game, c) {
   // --- Military
   c.army += (armyTarget(c) - c.army) * 0.06;
   c.warMomentum *= 0.7;
-  if (!atWar) c.warExhaustion = Math.max(0, c.warExhaustion - 2);
+  // Peace eases war-weariness: quickly after a war won or drawn, slowly for a
+  // nation that signed a losing peace in the last five years.
+  if (!atWar) c.warExhaustion = Math.max(0, c.warExhaustion - (c.wound && c.wound.since >= 0 && game.month - c.wound.since < 60 ? 2 : 4));
   if (c.bled) c.bled = c.bled > 1e-5 ? c.bled * 0.996 : 0; // the generation that fought passes on
 
   // --- Political capital & bookkeeping
@@ -620,7 +622,7 @@ function pickRevolution(game, c) {
   const opts = [
     { gov: 'junta', how: 'coup', w: Math.max(0, 55 - F.military) * 1.2 + 8 },
     { gov: 'communist', how: 'revolution', w: Math.max(0, -I.econ) * 45 + Math.max(0, 50 - F.workers) * 0.8 + c.warExhaustion * 0.12 * clamp((40 - ((c.econ && c.econ.strataSol && c.econ.strataSol.lower) || 40)) / 20 + 0.5, 0.3, 1.5) },
-    { gov: 'fascist', how: 'revolution', w: Math.max(0, I.econ) * 20 + Math.max(0, I.auth) * 30 + c.warExhaustion * 0.15 },
+    { gov: 'fascist', how: 'revolution', w: Math.max(0, I.econ) * 20 + Math.max(0, I.auth) * 30 + c.warExhaustion * 0.05 + (c.revanchism || 0) * 30 },
     { gov: 'democracy', how: 'revolution', w: Math.max(0, -I.auth) * 45 + Math.max(0, 50 - F.intelligentsia) * 0.6 },
     { gov: 'theocracy', how: 'revolution', w: Math.max(0, 50 - F.clergy) * 0.3 + Math.max(0, I.auth) * 8 + 2 },
     { gov: 'absMonarchy', how: 'coup', w: wasMon ? 12 : 2 },

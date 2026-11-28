@@ -40,7 +40,7 @@ const MOVEMENTS = {
   nationalist: {
     name: 'Nationalist Movement', icon: '⚑', gov: 'fascist',
     desc: 'Veterans and patriots demanding a strong army and national revenge.',
-    support: c => (share(c, 'soldiers') * 3 + share(c, 'officials') * 1.5 + share(c, 'peasants') * 0.25 + share(c, 'workers') * 0.3) * 100 * clamp(c.warExhaustion / 40 + Math.max(0, c.ideo.auth) + (c.revanchism || 0) * 0.5, 0, 1.6),
+    support: c => (share(c, 'soldiers') * 3 + share(c, 'officials') * 1.5 + share(c, 'peasants') * 0.25 + share(c, 'workers') * 0.3) * 100 * clamp(c.warExhaustion / 100 + Math.max(0, c.ideo.auth) + (c.revanchism || 0) * 1.2, 0, 1.6),
     demand: { text: 'Raise military spending to 5% of GDP', met: c => c.policy.military >= 5, enact: c => { c.policy.military = Math.max(c.policy.military, 5); } },
   },
   clerical: {
@@ -63,6 +63,19 @@ const MOVEMENTS = {
   },
 };
 const MOVEMENT_KEYS = Object.keys(MOVEMENTS);
+// When a movement can act. A large, radical movement first takes to the
+// streets; only one that has already shown its strength (within the last
+// WARN months, and not this very month) can try to seize power, and only
+// while the regime is weak (stability below STABILITY).
+const UPRISING = { support: 22, radicalism: 72, stability: 45, warn: 24 };
+function movementWarned(game, m) { return m.streets != null && game.month - m.streets >= 2 && game.month - m.streets <= UPRISING.warn; }
+// Can this movement overthrow the regime right now, if it rises?
+function movementCanSeize(game, c, k) {
+  const def = MOVEMENTS[k], m = c.movements && c.movements[k];
+  return !!(m && def.gov && def.gov !== c.gov && c.stability < UPRISING.stability && movementWarned(game, m));
+}
+// Chance a rising movement acts in a given month.
+function uprisingChance(m) { return m.support < UPRISING.support || m.radicalism < UPRISING.radicalism ? 0 : 0.02 + (m.radicalism - UPRISING.radicalism) * 0.002; }
 const MOVEMENT_IG = { labor: 'workers', liberal: 'intelligentsia', nationalist: 'military', clerical: 'clergy', monarchist: 'business', agrarian: null, minority: 'minorities' };
 
 // Loyalty pressure on each interest group from its radical wing.
@@ -110,21 +123,22 @@ function tickMovements(game, c) {
     // Keep the group and its radical wing under one leader.
     if (ig && m.leader && c.igLeaders && m.support > 8) { m.leader.ig = ig; c.igLeaders[ig] = m.leader; m.leader.stance = m.radicalism > 55 ? 'radical' : m.radicalism < 35 ? 'moderate' : (m.leader.stance || 'moderate'); }
   }
-  // Uprisings: radical, popular movements may try to seize power.
+  // Uprisings: radical, popular movements take to the streets, and a movement
+  // that already has can try to seize power.
   for (const k of MOVEMENT_KEYS) {
     const m = M[k], def = MOVEMENTS[k];
-    if (m.support < 22 || m.radicalism < 72 || c.monthsInRegime < 6) continue;
-    if (!game.rng.chance(0.02 + (m.radicalism - 72) * 0.002)) continue;
-    if (def.gov && def.gov !== c.gov && c.stability < 45) {
+    if (c.monthsInRegime < 6 || !game.rng.chance(uprisingChance(m))) continue;
+    if (movementCanSeize(game, c, k)) {
       logNews(game, `The ${def.name} rises up in ${c.name}!`, 'gov', [c.id]);
       const leader = m.leader;
-      m.radicalism = 30; m.support *= 0.6; m.leader = null;
+      m.radicalism = 30; m.support *= 0.6; m.leader = null; m.streets = null;
       changeGovernment(game, c, def.gov, 'revolution', leader ? { leader } : {});
     } else {
       adjust(c, { unrest: 20, stability: -6 });
       m.radicalism -= 15;
+      m.streets = game.month;
       logNews(game, `Mass strikes and riots: the ${def.name} brings ${c.name} to a standstill.`, 'crisis', [c.id]);
-      if (isPlayer(game, c)) notify(game, `The ${def.name} Takes to the Streets`, `${m.leader ? m.leader.name + ' leads' : 'There are'} mass demonstrations demanding: "${demandText(c, k)}". Unrest soars. Meet their demand, suppress them, or win over their leader before they try to seize power.`, m.leader ? { charId: m.leader.id } : {});
+      if (isPlayer(game, c)) game.pending.push({ type: 'movement', key: k, charId: m.leader ? m.leader.id : null });
     }
   }
   if (!isPlayer(game, c)) {
@@ -180,18 +194,28 @@ const MOVEMENT_ACTIONS = {
   coopt: { name: 'Co-opt the leader', pc: 20 },
 };
 
+function cooptChance(c, m) { return clamp(0.45 - m.radicalism / 200 + (c.leader.skills.cha - 5) * 0.05, 0.1, 0.8); }
+
+// Why an action can't be taken now, or null.
+function movementActionBlock(c, k, action) {
+  const m = c.movements[k], A = MOVEMENT_ACTIONS[action];
+  if (action === 'enact' && MOVEMENTS[k].demand.met(c)) return 'Their demand is already met.';
+  if (action === 'coopt' && !m.leader) return 'The movement has no leader to win over.';
+  if (c.pc < A.pc) return `Needs ${A.pc} political capital.`;
+  return null;
+}
+
 function movementAction(game, k, action) {
   const c = game.countries[game.player];
   const m = ensureMovements(c)[k];
   const A = MOVEMENT_ACTIONS[action];
-  if (c.pc < A.pc) return { ok: false, msg: `Needs ${A.pc} political capital.` };
-  if (action === 'enact' && MOVEMENTS[k].demand.met(c)) return { ok: false, msg: 'Their demand is already met.' };
-  if (action === 'coopt' && !m.leader) return { ok: false, msg: 'The movement has no leader to win over.' };
+  const block = movementActionBlock(c, k, action);
+  if (block) return { ok: false, msg: block };
   c.pc -= A.pc;
   if (action === 'enact') { enactDemand(game, c, k); return { ok: true, msg: `We meet the ${MOVEMENTS[k].name}'s demand. Radicalism falls.` }; }
   if (action === 'suppress') { const b = suppressMovement(game, c, k); return { ok: true, msg: b ? 'The crackdown provokes riots.' : 'The movement is driven underground.' }; }
   const ch = m.leader;
-  if (!game.rng.chance(clamp(0.45 - m.radicalism / 200 + (c.leader.skills.cha - 5) * 0.05, 0.1, 0.8))) return { ok: false, msg: `${ch.name} rejects our overtures.` };
+  if (!game.rng.chance(cooptChance(c, m))) return { ok: false, msg: `${ch.name} rejects our overtures.` };
   m.leader = null; m.radicalism *= 0.6; m.support *= 0.85;
   for (const p of c.parties) if (p.leader === ch) p.leader = null;
   ch.role = 'minister'; ch.loyalty = 50; ch.demagogue = false;
