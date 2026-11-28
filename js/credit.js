@@ -100,7 +100,7 @@ function tickCredit(game, c) {
   const pg = E.profitPrev ? profit / E.profitPrev - 1 : 0;
   E.profitPrev = E.profitPrev == null ? profit : E.profitPrev + (profit - E.profitPrev) * smooth(0.15);
   const confT = clamp(1 + E.gap * 4 + pg * 1 - E.defaults * 40 - (E.bankCrisis > 0 ? 0.45 : 0) - (isAtWar(game, c.id) ? 0.15 : 0)
-    - Math.max(0, c.unrest - 40) * 0.008 + rng.normal() * 0.04 * Math.sqrt(TIME.STEP_MONTHS), 0.3, 1.8);
+    - Math.max(0, c.unrest - 40) * 0.008 + rng.normal() * targetNoise(0.04), 0.3, 1.8);
   E.conf += (confT - E.conf) * smooth(0.1);
 }
 

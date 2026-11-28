@@ -952,6 +952,31 @@ test('time constants: on the monthly step every helper is exact; on a weekly ste
   assert(r.ok, 'on a shorter step a year of steps must add up to a year of months');
 });
 
+test('weekly markets: prices and reserves move every week, the month\'s work runs once, and a save keeps the week', () => {
+  const r = run(`(() => {
+    const g = createGame('weekly', { size: 'small', countries: 8 }); setPlayer(g, 0);
+    for (let i = 0; i < 12; i++) { tick(g); g.pending.length = 0; }
+    const c = g.countries[0], E = c.econ, m0 = g.month;
+    const rhythm = Object.fromEntries(SYSTEMS.map(s => [s.id, s.every]));
+    const seen = [];
+    for (let w = 0; w < 3; w++) {
+      stepGame(g); g.pending.length = 0;
+      seen.push({ week: g.week, month: g.month, price: E.prices.grain, pl: E.pl, reserves: E.reserves, gdp: E.gdpM, hist: c.hist.pl.length });
+    }
+    const mid = deserializeGame(serializeGame(g));
+    stepGame(g); stepGame(mid);
+    return { m0, seen, rhythm, midWeek: deserializeGame(serializeGame(g)).week, after: [g.month, g.week, mid.month, mid.week] };
+  })()`);
+  const s = r.seen, R = r.rhythm;
+  assert(R.markets === 0.25 && R.payments === 0.25 && R.money === 0.25 && R.tradeflows === 0.25, 'markets, payments, trade flows, money and credit are weekly');
+  assert(R.production === 1 && R.accounts === 1 && R.nations === 1 && R.politics === 1 && R.society === 1, 'production, the accounts, the budget and politics stay monthly');
+  assert(s.map(x => x.week).join() === '1,2,3' && s.every(x => x.month === r.m0), 'three more weeks of the same month: ' + JSON.stringify(s.map(x => [x.month, x.week])));
+  assert(s[0].price !== s[1].price && s[1].price !== s[2].price && s[0].pl !== s[2].pl, 'prices and the price level move within the month');
+  assert(s[0].reserves !== s[2].reserves, 'reserves move within the month');
+  assert(s[0].gdp === s[2].gdp && s[0].hist === s[2].hist, 'the month\'s accounts and the histories are not redone each week');
+  assert(r.after.join() === [r.m0 + 1, 0, r.m0 + 1, 0].join(), 'a game saved mid-month resumes at the same week: ' + r.after);
+});
+
 test('flows at their source: rates stay rates on a shorter step, and stocks move by the step\'s share', () => {
   const r = run(`(() => {
     const g = createGame('flows-src', { size: 'small', countries: 8 }); setPlayer(g, 0);
