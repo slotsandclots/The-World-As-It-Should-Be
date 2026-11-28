@@ -109,16 +109,18 @@ function yearEdition(game, readerId, month) {
   const neighbors = new Set(typeof getNeighbors === 'function' && game.countries[readerId] ? getNeighbors(game, readerId) : []);
   const picked = pickStories(items, l => storyScore(game, l, readerId, gps, neighbors), PAPER.YEAR_STORIES);
   const reader = game.countries[readerId], H = (reader && reader.hist) || {};
-  // Monthly series end with this month: a year ago is 12 entries back.
-  const ago = k => { const a = H[k]; return a && a.length > 12 ? a[a.length - 13] : null; };
-  const now = k => { const a = H[k]; return a && a.length ? a[a.length - 1] : null; };
+  // Monthly series end with this month: the edition's January is `off` entries back, a year before it 12 more.
+  const off = game.month - month;
+  const at = (k, back) => { const a = H[k], i = a ? a.length - 1 - off - back : -1; return i >= 0 && a[i] != null ? a[i] : null; };
+  const ago = k => at(k, 12), now = k => at(k, 0);
   const perHead = (g, p) => g != null && p ? g / p : null;
   const pc0 = perHead(ago('rgdp'), ago('pop')), pc1 = perHead(now('rgdp'), now('pop'));
   const count = re => items.filter(l => re.test(l.text)).length;
   const numbers = reader ? [
     ['Output per person', pc0 && pc1 ? (pc1 / pc0 - 1) * 100 : null, '%'],
-    ['Prices', typeof inflationYoY === 'function' && reader.econ && reader.econ.pl != null ? inflationYoY(reader) * 100 : null, '%'],
-    ['Unemployment', reader.econ && reader.econ.unemployment != null ? reader.econ.unemployment * 100 : null, '%'],
+    // The player's nation keeps monthly inflation and unemployment; otherwise, today's (for this year's edition).
+    ['Prices', now('infl') != null ? now('infl') : !off && typeof inflationYoY === 'function' && reader.econ && reader.econ.pl != null ? inflationYoY(reader) * 100 : null, '%'],
+    ['Unemployment', now('unemp') != null ? now('unemp') : !off && reader.econ && reader.econ.unemployment != null ? reader.econ.unemployment * 100 : null, '%'],
     ['Stability', ago('stability') != null && now('stability') != null ? now('stability') - ago('stability') : null, ' pts'],
   ].filter(n => n[1] != null) : [];
   const world = [

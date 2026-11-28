@@ -1014,10 +1014,13 @@ test('the year\'s edition covers the twelve months just ended, puts the year\'s 
     g.log.push({ m: 20, text: 'An older revolution elsewhere: the king flees.', kind: 'gov', ids: [o] });
     const before = serializeGame(g);
     const Y = yearEdition(g, 0, g.month), Z = yearEdition(g, 0, g.month);
+    // An earlier year's edition reads that year's numbers from the histories.
+    const E = yearEdition(g, 0, 24), H = g.countries[0].hist, L = H.stability.length;
+    const past = { from: E.from, to: E.to, stab: (E.numbers.find(n => n[0] === 'Stability') || [])[1], want: H.stability[L - 1 - 12] - H.stability[L - 1 - 24] };
     const all = [Y.lead].concat(Y.stories);
     return { from: Y.from, to: Y.to, lead: Y.lead && Y.lead.head, has: all.some(s => /^Revolution in/.test(s.head)), leads: all.every(s => s.score <= Y.lead.score), inRange: all.every(s => s.m >= 24 && s.m <= 35), n: all.length,
       older: all.some(s => /older revolution/.test(s.head)), numbers: Y.numbers.map(x => x[0]), world: Y.world.length, max: PAPER.YEAR_STORIES,
-      same: JSON.stringify(Y) === JSON.stringify(Z), untouched: serializeGame(g) === before };
+      same: JSON.stringify(Y) === JSON.stringify(Z), untouched: serializeGame(g) === before, past };
   })()`);
   assert(r.from === 24 && r.to === 35, 'the edition of January covers the twelve months before it: ' + r.from + '..' + r.to);
   assert(r.has && r.leads, 'the year\'s revolution makes the page, and the biggest story leads: ' + r.lead);
@@ -1025,6 +1028,7 @@ test('the year\'s edition covers the twelve months just ended, puts the year\'s 
   assert(r.n > 1 && r.n <= r.max, 'a full page of stories: ' + r.n);
   assert(r.numbers.includes('Output per person') && r.numbers.includes('Stability') && r.world === 4, 'our year and the world\'s year in numbers: ' + r.numbers);
   assert(r.same && r.untouched, 'the same edition every time, and the game unchanged');
+  assert(r.past.from === 12 && r.past.to === 23 && r.past.stab === r.past.want, 'an earlier year\'s edition uses that year\'s numbers: ' + JSON.stringify(r.past));
 });
 
 test('exposure to crises reads the real numbers, rises with them, and changes nothing', () => {

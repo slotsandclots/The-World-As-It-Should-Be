@@ -33,6 +33,11 @@ const { chromium } = require('playwright');
   }
   await drain();
   if (!yearPaper || !/The year in review/.test(yearPaper)) errors.push('The year in review did not open in January: ' + yearPaper);
+  // ... and it can be opened again from the News tab.
+  await page.click('#tabs [data-tab="news"]');
+  const yb = await page.$('[data-act="yearpaper"]');
+  if (!yb) errors.push('The News tab has no button for the year in review');
+  else { await yb.click(); if (!(await page.$('.backdrop .modal.paper'))) errors.push('The year in review did not open from the News tab'); await drain(); }
   const tabs = await page.$$eval('#tabs [data-tab]', els => els.map(e => e.dataset.tab));
   for (const t of tabs) { await page.click(`#tabs [data-tab="${t}"]`); await drain(); }
   // Put the history systems on screen: a lost war's wound, a treaty, notable people and a world war.

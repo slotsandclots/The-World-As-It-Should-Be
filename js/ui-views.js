@@ -962,6 +962,8 @@ Object.assign(UI, {
     const i = clamp(this.paperIdx || 0, 0, months.length - 1);
     const P = frontPage(g, c.id, months[i], l => App.newsVisible(l));
     if (!P.lead) return '';
+    // The last year in review at or before this edition: the January that closed it.
+    const jan = Math.floor(P.month / 12) * 12;
     const tag = s => (s.home || s.m !== P.month) ? `<span class="paper-tag">${[s.home ? 'At home' : '', s.m !== P.month ? gameDate(g, s.m) : ''].filter(Boolean).join(' · ')}</span>` : '';
     const fmt = ([n, v, u]) => `<div class="kv"><span>${n}</span><span>${u ? (Math.round(v * 10) / 10).toFixed(1) + u : Math.round(v)}</span></div>`;
     return `<div class="card paper">
@@ -971,7 +973,8 @@ Object.assign(UI, {
       <div class="paper-lead ${P.lead.kind}">${tag(P.lead)}<h2>${esc(P.lead.head)}</h2>${P.lead.deck ? `<p>${esc(P.lead.deck)}</p>` : ''}</div>
       <div class="paper-body"><div class="paper-stories">${P.stories.map(s => `<div class="paper-story ${s.kind}">${tag(s)}<h4>${esc(s.head)}</h4>${s.deck ? `<p>${esc(s.deck)}</p>` : ''}</div>`).join('')}</div>
         ${P.numbers.length ? `<div class="paper-numbers"><h4>${esc(c.name)} this month</h4><div class="grid2">${P.numbers.map(fmt).join('')}</div></div>` : ''}</div>
-      <p class="small muted">The month's most important news, chosen by what it is, who it involves and how big they are. Each edition covers the last three months. ${P.count > P.stories.length + 1 ? `${P.count - P.stories.length - 1} more items below.` : ''}</p></div>`;
+      <p class="small muted">The month's most important news, chosen by what it is, who it involves and how big they are. Each edition covers the last three months. ${P.count > P.stories.length + 1 ? `${P.count - P.stories.length - 1} more items below.` : ''}</p>
+      ${jan > 0 ? `<button class="small" data-act="yearpaper" data-m="${jan}">📰 The year in review: ${g.startYear + jan / 12 - 1}</button>` : ''}</div>`;
   },
 
   // The year's edition (newspaper.js, yearEdition), laid out like the front page.
