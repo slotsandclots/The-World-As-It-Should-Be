@@ -487,9 +487,10 @@ const UI = {
   },
   // A weekly figure in a tab that slides between updates: drawn with the tab, then moved
   // day by day by renderTopbar(true) without redrawing the tab.
-  slideSpan(key, actual, fmt) {
+  // weekly: false for a monthly figure (it slides over the whole month).
+  slideSpan(key, actual, fmt, weekly = true) {
     (this.slideFmt || (this.slideFmt = {}))[key] = fmt;
-    return `<span data-slide="${key}">${fmt(this.slideVal('tab:' + key, actual, true))}</span>`;
+    return `<span data-slide="${key}">${fmt(this.slideVal('tab:' + key, actual, weekly))}</span>`;
   },
   slideTab() {
     const S = this.slides || {}, F = this.slideFmt || {}, now = App.calIndex();

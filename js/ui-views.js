@@ -323,8 +323,8 @@ Object.assign(UI, {
       <div class="kv"><span>Per capita</span><span>$${(c.gdpPerCap * 1000).toFixed(0)}</span></div>
       <div class="kv"><span>Growth</span><span class="${c.growthAvg < 0 ? 'bad' : 'good'}">${fmtSigned(c.growthAvg * 1200)}%/yr</span></div>
       <div class="kv" data-tip="treasury"><span>Treasury</span><span class="${c.treasury < 0 ? 'bad' : ''}">${fmtMoney(c.treasury)}${debt > 0 ? ` (${pct(debt)} debt)` : ''}</span></div>
-      <div class="kv"><span>Army</span><span>${fmtPop(c.army)}</span></div>
-      <div class="kv"><span>Strength</span><span>${strength(c).toFixed(0)}</span></div>
+      <div class="kv"><span>Army</span><span>${this.slideSpan('army', c.army, fmtPop, false)}</span></div>
+      <div class="kv"><span>Strength</span><span>${this.slideSpan('strength', strength(c), v => v.toFixed(0), false)}</span></div>
       <div class="kv" data-tip="pc"><span>Political capital</span><span>${Math.floor(c.pc)} (+${pcIncome(c).toFixed(1)}/mo)</span></div>
       ${c.overlord != null ? `<div class="kv"><span>Overlord</span><span class="warn">${esc(g.countries[c.overlord].name)} (${SUBJECT_TYPES[c.subjectType].name})</span></div>` : subjectsOf(g, c.id).length ? `<div class="kv"><span>Subjects</span><span>${subjectsOf(g, c.id).length}</span></div>` : ''}
       <div class="kv" data-tip="infamy"><span>Infamy</span><span class="${(c.infamy || 0) >= INFAMY.coalitionAt ? 'bad' : (c.infamy || 0) > 15 ? 'warn' : ''}">${Math.round(c.infamy || 0)}</span></div>
@@ -681,7 +681,7 @@ Object.assign(UI, {
     let h = `<div class="card grid2">
       <div class="kv"><span>Soldiers</span><span>${fmtPop(c.army)}</span></div>
       <div class="kv"><span>Target size</span><span>${fmtPop(armyTarget(c))}</span></div>
-      <div class="kv"><span>Strength</span><span>${strength(c).toFixed(0)}</span></div>
+      <div class="kv"><span>Strength</span><span>${this.slideSpan('strength', strength(c), v => v.toFixed(0), false)}</span></div>
       <div class="kv"><span>World rank</span><span>#${all.indexOf(c) + 1} of ${all.length}</span></div>
       <div class="kv"><span>War exhaustion</span><span class="${c.warExhaustion > 40 ? 'bad' : ''}">${Math.round(c.warExhaustion)}</span></div>
       <div class="kv"><span>Infamy</span><span class="${(c.infamy || 0) >= INFAMY.coalitionAt ? 'bad' : ''}">${Math.round(c.infamy || 0)} / ${INFAMY.coalitionAt}</span></div>
