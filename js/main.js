@@ -16,6 +16,12 @@ function monthDays(m) { return MONTH_DAYS[((m % 12) + 12) % 12]; }
 // The days the weekly steps fall on, and the week a day belongs to.
 const WEEK_DAYS = [1, 8, 15, 22];
 function weekOfDay(day) { return day >= 22 ? 3 : day >= 15 ? 2 : day >= 8 ? 1 : 0; }
+// The calendar day for a game as it stands: the last day of the week it has reached
+// (the 1st for a new game, which has not run a step yet).
+function calendarDay(g) {
+  if (!g || g.week == null) return 1;
+  return g.week >= 3 ? monthDays(g.month) : WEEK_DAYS[g.week + 1] - 1;
+}
 // Does the game step by the week? (Every system monthly: one step a month.)
 function weeklyGame() { return typeof SYSTEMS !== 'undefined' && baseStepMonths(SYSTEMS) < 1; }
 // A day for a news line, spread evenly but fixed for each line: within its week
@@ -35,6 +41,7 @@ const App = {
     this.setSpeed(0);
     const key = JSON.stringify([seed, opts]);
     this.game = this.preview && this.preview.key === key ? this.preview.game : createGame(seed, opts);
+    this.day = calendarDay(this.game);
     this.preview = null;
     this.stash = null;
     if (this.renderer.world !== this.game.world) this.renderer.setWorld(this.game.world);
@@ -50,7 +57,7 @@ const App = {
   showPreview(seed, opts) {
     const key = JSON.stringify([seed, opts]);
     if (this.preview && this.preview.key === key) return;
-    if (!this.stash && this.game && !this.preview) this.stash = { game: this.game, choosing: UI.choosing };
+    if (!this.stash && this.game && !this.preview) this.stash = { game: this.game, choosing: UI.choosing, day: this.day };
     const game = createGame(seed, opts);
     this.preview = { key, game };
     this.game = game;
@@ -66,6 +73,7 @@ const App = {
   cancelPreview() {
     if (!this.stash) return;
     this.game = this.stash.game;
+    this.day = this.stash.day || calendarDay(this.game);
     UI.choosing = this.stash.choosing;
     this.stash = null;
     this.preview = null;
@@ -80,6 +88,7 @@ const App = {
     this.preview = null;
     this.stash = null;
     this.game = startCampaign();
+    this.day = calendarDay(this.game);
     this.renderer.setWorld(this.game.world);
     UI.resetView();
     UI.choosing = false;
@@ -216,6 +225,8 @@ const App = {
     try {
       this.setSpeed(0);
       this.game = deserializeGame(str);
+      // A game saved mid-month opens on the last day of the week it reached.
+      this.day = calendarDay(this.game);
       this.preview = null;
       this.stash = null;
       UI.closeAllModals();
