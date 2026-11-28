@@ -153,8 +153,8 @@ function productivity(game, c) {
   // and disorder builds and fades with instability instead of tracking its
   // month-to-month noise.
   if (E.infraStock == null) E.infraStock = p.infrastructure;
-  E.infraStock += (p.infrastructure - E.infraStock) * 0.03;
-  E.disorder = (E.disorder || 0) + (Math.max(0, 35 - c.stability) - (E.disorder || 0)) * 0.08;
+  E.infraStock += (p.infrastructure - E.infraStock) * smooth(0.03);
+  E.disorder = (E.disorder || 0) + (Math.max(0, 35 - c.stability) - (E.disorder || 0)) * smooth(0.08);
   let prod = E.tech * (0.85 + E.infraStock * 0.05) * (c.id === game.player ? 1 : 1 + difficulty(game).aiProd);
   prod *= 1 - E.disorder * 0.006;
   if (isAtWar(game, c.id)) prod *= 0.96;
@@ -336,7 +336,7 @@ function tickEconomy(game, warmup) {
       E.vec[tier] = v; E.cost[tier] = cost;
     }
     // Budgets are set on a year's average economy, not last month's.
-    E.budgetBase = E.budgetBase == null ? E.gdpM : E.budgetBase + (E.gdpM - E.budgetBase) / 12;
+    E.budgetBase = E.budgetBase == null ? E.gdpM : E.budgetBase + (E.gdpM - E.budgetBase) / lagMonths(12);
     const gm = E.budgetBase * (c.debt && c.debt.payFrac != null ? c.debt.payFrac : 1), pol = c.policy;
     E.gov = {
       military: gm * pol.military / 100, welfare: gm * pol.welfare / 100, education: gm * pol.education / 100,
@@ -434,7 +434,7 @@ function tickEconomy(game, warmup) {
       for (const g in b.outQ) rev += b.outQ[g] * P[g];
       for (const g in b.inQ) inCost += b.inQ[g] * Math.min(E.fulfillS ? (E.fulfillS[g] ?? E.fulfill[g]) : E.fulfill[g], SUPPORT_GOODS[g] ? 1 : b.inF) * PC[g];
       const va = rev - inCost;
-      b.va = b.va * 0.7 + (b.level > 0 ? va / b.level : 0) * 0.3;
+      b.va = b.va * (1 - smooth(0.3)) + (b.level > 0 ? va / b.level : 0) * smooth(0.3);
       // Potential value added at full staffing and inputs decides whether the owners keep it running.
       let pva = 0;
       for (const g in def.out) pva += def.out[g] * P[g];
@@ -453,7 +453,7 @@ function tickEconomy(game, warmup) {
       const act = b.level * b.active * (b.staff == null ? 1 : b.staff);
       const vaA = act > 0.01 ? va / act : 0;
       // Pay follows a smoothed value added, so only lasting declines (not monthly noise) meet sticky wages.
-      if (act > 0.01) b.vaS = b.vaS == null ? vaA : b.vaS + (vaA - b.vaS) * 0.1;
+      if (act > 0.01) b.vaS = b.vaS == null ? vaA : b.vaS + (vaA - b.vaS) * smooth(0.1);
       const wT = Math.max(0, b.vaS || 0) * ECON.LABOR_SHARE * (E.realWage || 1);
       if (!(b.wb >= 0)) b.wb = wT;
       b.wb += (wT - b.wb) * (wT > b.wb ? 0.15 : wageFall(c));
@@ -570,10 +570,11 @@ function tickEconomy(game, warmup) {
     for (const b of p.buildings) {
       // Private owners lay off when wages eat the margin; a planned economy keeps them running.
       const squeezed = ownersAllowed(c) && c.laws.economy !== 'planned' && (b.sq || 0) > 1;
-      if (b.pva <= 0) b.active = Math.max(0, b.active - 0.1);
-      else if (squeezed) b.active = Math.max(0.3, b.active - 0.02);
-      else if (b.staff > 0.85 && (b.sq || 0) < 0.96) b.active = Math.min(1, b.active + 0.05);
-      b.idle = b.active < 0.15 ? b.idle + 1 : 0;
+      if (b.pva <= 0) b.active = Math.max(0, b.active - perStep(0.1));
+      else if (squeezed) b.active = Math.max(0.3, b.active - perStep(0.02));
+      else if (b.staff > 0.85 && (b.sq || 0) < 0.96) b.active = Math.min(1, b.active + perStep(0.05));
+      // Months spent idle; a building idle for two years is closed.
+      b.idle = b.active < 0.15 ? b.idle + TIME.STEP_MONTHS : 0;
     }
     if (!warmup) {
       p.buildings = p.buildings.filter(b => {
@@ -618,8 +619,8 @@ function tickEconomy(game, warmup) {
       if (c.id !== game.player || E.autoInvest) invest(game, c, 'state');
     }
     // Capital that finds no use at home looks abroad; what is lent leaves (payments.js).
-    E.capitalOffer = Math.max(0, E.investPool) * 0.005;
-    if (typeof tickPayments !== 'function') E.investPool *= 0.995;
+    E.capitalOffer = Math.max(0, E.investPool) * smooth(0.005);
+    if (typeof tickPayments !== 'function') E.investPool *= decay(0.995);
   }
 
   // 8. National statistics
@@ -667,7 +668,7 @@ function tickEconomy(game, warmup) {
     E.gdpM = Math.max(1, E.gdpNew);
     E.prevGdpRealM = E.gdpRealM || E.gdpRealNew;
     E.gdpRealM = Math.max(1, E.gdpRealNew);
-    E.gdpAnnual = E.gdpM * 12 / 1e6;
+    E.gdpAnnual = annualize(E.gdpM) / 1e6;
     E.taxBase = E.taxGross / 1e6;
     E.stateProfit = E.stateProfitK / 1e6;
     const desiredArms = (E.gov.military * 0.35 + E.gov.police * 0.3) / GOODS.arms.base;
@@ -699,7 +700,7 @@ function clearMarkets(game, alive) {
       const traded = Math.min(ex, need);
       const rE = ex > 0 ? traded / ex : 0, rI = need > 0 ? traded / need : 0;
       const bpT = base * clamp(Math.pow((DD + 1e-6) / (SS + 1e-6), ECON.ELASTICITY), ECON.PRICE_MIN, ECON.PRICE_MAX);
-      b.prices[g] = (b.prices[g] || base) * (1 - ECON.PRICE_SPEED) + bpT * ECON.PRICE_SPEED;
+      b.prices[g] = (b.prices[g] || base) * (1 - smooth(ECON.PRICE_SPEED)) + bpT * smooth(ECON.PRICE_SPEED);
       for (const c of ms) {
         const r = res[c.id];
         const [wE, wI] = fw(c);
@@ -720,7 +721,7 @@ function clearMarkets(game, alive) {
     const traded = Math.min(exportable, need);
     const rE = exportable > 0 ? traded / exportable : 0, rI = need > 0 ? traded / need : 0;
     const wpT = base * clamp(Math.pow((DD + 1e-6) / (SS + 1e-6), ECON.ELASTICITY), ECON.PRICE_MIN, ECON.PRICE_MAX);
-    const wp = W.prices[g] = (W.prices[g] || base) * (1 - ECON.PRICE_SPEED) + wpT * ECON.PRICE_SPEED;
+    const wp = W.prices[g] = (W.prices[g] || base) * (1 - smooth(ECON.PRICE_SPEED)) + wpT * smooth(ECON.PRICE_SPEED);
     W.S[g] = SS; W.D[g] = DD; W.traded[g] = traded;
     for (const c of alive) {
       const E = c.econ, r = res[c.id], S = E.S[g], D = E.D[g];
@@ -734,7 +735,7 @@ function clearMarkets(game, alive) {
       E.fulfill[g] = D > 0 ? Math.min(1, avail / D) : 1;
       // Firms hold a few months of inputs in stock, so a short month dents output gradually.
       E.fulfillS = E.fulfillS || {};
-      E.fulfillS[g] = E.fulfillS[g] == null ? E.fulfill[g] : E.fulfillS[g] + (E.fulfill[g] - E.fulfillS[g]) * 0.3;
+      E.fulfillS[g] = E.fulfillS[g] == null ? E.fulfill[g] : E.fulfillS[g] + (E.fulfill[g] - E.fulfillS[g]) * smooth(0.3);
       let localT;
       if (D <= 0 && S <= 0) localT = base;
       else if (avail <= 0) localT = base * ECON.PRICE_MAX;
@@ -747,7 +748,7 @@ function clearMarkets(game, alive) {
       const tb = b ? BLOC_TYPES[b.type].openness * 0.6 : 0;
       const tw = Math.min(E.tau, 0.9 - tb);
       const target = Math.exp((1 - tw - tb) * Math.log(localT) + tw * Math.log(wpEff) + (b ? tb * Math.log(b.prices[g]) : 0));
-      E.prices[g] = E.prices[g] * (1 - ECON.PRICE_SPEED) + target * ECON.PRICE_SPEED;
+      E.prices[g] = E.prices[g] * (1 - smooth(ECON.PRICE_SPEED)) + target * smooth(ECON.PRICE_SPEED);
       // Producers sell exports at the bloc or world price.
       const bp = b ? b.prices[g] : wp;
       E.pprod[g] = S > 0 ? ((S - ex - r.exB) * E.prices[g] + ex * wp / fxP + r.exB * bp) / S : E.prices[g];
@@ -779,7 +780,7 @@ function buildingProspects(game, c) {
     const va = (rev - cost) * E.prod;
     const price = constructionCost(c, t) * (prov && prov.designation === 'sez' ? DESIGNATIONS.sez.buildCost : 1);
     const g0 = Object.keys(def.out)[0];
-    return { t, prov, va, cost: price, roi: va * 12 / price, scarcity: P[g0] / GOODS[g0].base, reason: prov ? null : def.res ? `No free ${RES_INFO[def.res].toLowerCase()}` : 'No province' };
+    return { t, prov, va, cost: price, roi: annualize(va) / price, scarcity: P[g0] / GOODS[g0].base, reason: prov ? null : def.res ? `No free ${RES_INFO[def.res].toLowerCase()}` : 'No province' };
   });
 }
 
