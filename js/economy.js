@@ -218,7 +218,7 @@ function initEconomy(game) {
   }
   // Warm up the markets so prices, staffing and incomes settle before play starts.
   for (const c of game.countries) {
-    c.gdp = c.pop * 0.33 * c.econ.tech * 12 / 1e6;
+    c.gdp = annualize(c.pop * 0.33 * c.econ.tech) / 1e6;
     c.econ.gdpM = c.econ.prevGdpM = c.pop * 0.33 * c.econ.tech;
     c.econ.taxBase = c.econ.gdpM / 1e6;
     c.budget = projectBudget(c);

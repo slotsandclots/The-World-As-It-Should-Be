@@ -178,6 +178,7 @@ The game saves to your browser's local storage (Menu → Save game).
 | `js/warfare.js` | Fronts, occupation, terrain and supply, posture, mobilization |
 | `js/money.js` | Currency, price level, inflation, wages, interest rates, monetary systems |
 | `js/fiscal.js` | State budget and debt: lenders, holders, debt crises, default |
+| `js/time.js` | Time constants: the length of a step and the helpers that convert per-month rates, smoothing, chances and durations |
 | `js/payments.js` | Balance of payments: reserves, foreign lending and debt, exchange rates, import rationing |
 | `js/credit.js` | Private credit, confidence, defaults and bankruptcies, banking crises |
 | `js/peoples.js` | Cultures, faiths, assimilation, grievance, migration, nationalist claims |

@@ -59,8 +59,9 @@ function tickTradeFlows(game) {
   // A smoothed 12-month view, so the interface shows trade patterns rather than monthly noise.
   const avg = game._flowAvg;
   if (!avg) { const a = {}; for (const k in cur) a[k] = cur[k].slice(); game._flowAvg = a; return; }
-  for (const k in avg) { avg[k][0] *= 1 - FLOW_SMOOTH; avg[k][1] *= 1 - FLOW_SMOOTH; }
-  for (const k in cur) { const e = avg[k] || (avg[k] = [0, 0]); e[0] += cur[k][0] * FLOW_SMOOTH; e[1] += cur[k][1] * FLOW_SMOOTH; }
+  const fs = smooth(FLOW_SMOOTH);
+  for (const k in avg) { avg[k][0] *= 1 - fs; avg[k][1] *= 1 - fs; }
+  for (const k in cur) { const e = avg[k] || (avg[k] = [0, 0]); e[0] += cur[k][0] * fs; e[1] += cur[k][1] * fs; }
   for (const k in avg) if (avg[k][1] < 1e-7 && avg[k][0] < 1e-3) delete avg[k];
 }
 

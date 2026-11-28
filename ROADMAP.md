@@ -914,6 +914,9 @@ Ideas for after (or alongside) the milestones. They follow the same design philo
 
 ### Under the hood
 
+- ✅ **Time constants (first pass, `js/time.js`):** the length of a step (`TIME.STEP_MONTHS`, 1 today) and helpers (`perStep`, `perYear`, `annualize`, `smooth`, `decay`, `perStepChance`, `lagMonths`, `countdown`). Converted: markets and production (`economy.js`), money, credit, the budget and its financing (`fiscal.js`, the budget in `sim.js`), payments, trade flows, war (fronts, exhaustion, mobilization, peace chances, reparations) and the army. On the monthly step each helper returns exactly what the old code computed, so 24 worlds × 40 years give identical reports. New code uses the helpers.
+  - **Still monthly, by design:** politics (meters, elections, laws, movements), society and demographics, ideas, figures, research, diplomacy and events. When the step shrinks they run only at the start of each month.
+  - **Before weekly ticks can run:** flows (production, consumption, wages, the budget) are computed as a month's amount each step and must be scaled at their sources; per-step histories (`c.hist`) assume months; and the "still monthly" systems need their month-start gate. A test steps the helpers at a quarter-month and checks that a year adds up the same.
 - **The Web Worker:** the simulation runs in a background thread. Needed for world scale and weekly war turns.
 - **Data-driven content:** goods, buildings, laws, events and campaigns defined in JSON.
 - **Save compression and versioning,** so saves keep loading across updates.
