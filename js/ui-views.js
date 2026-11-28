@@ -928,10 +928,29 @@ Object.assign(UI, {
     return h;
   },
 
+  // The front page of the month (newspaper.js): the most important news, at home and abroad.
+  paperHtml(c, g) {
+    const months = paperMonths(g);
+    if (!months.length) return '';
+    const i = clamp(this.paperIdx || 0, 0, months.length - 1);
+    const P = frontPage(g, c.id, months[i]);
+    if (!P.lead) return '';
+    const tag = s => (s.home || s.m !== P.month) ? `<span class="paper-tag">${[s.home ? 'At home' : '', s.m !== P.month ? gameDate(g, s.m) : ''].filter(Boolean).join(' · ')}</span>` : '';
+    const fmt = ([n, v, u]) => `<div class="kv"><span>${n}</span><span>${u ? (Math.round(v * 10) / 10).toFixed(1) + u : Math.round(v)}</span></div>`;
+    return `<div class="card paper">
+      <div class="paper-mast"><button class="small" data-act="paper" data-d="1" ${i >= months.length - 1 ? 'disabled' : ''} title="An earlier edition">◀</button>
+        <div><div class="paper-title">${esc(P.title)}</div><div class="paper-date">${gameDate(g, P.month)}${i === 0 ? ' · latest edition' : ''}</div></div>
+        <button class="small" data-act="paper" data-d="-1" ${i === 0 ? 'disabled' : ''} title="A later edition">▶</button></div>
+      <div class="paper-lead ${P.lead.kind}">${tag(P.lead)}<h2>${esc(P.lead.head)}</h2>${P.lead.deck ? `<p>${esc(P.lead.deck)}</p>` : ''}</div>
+      <div class="paper-body"><div class="paper-stories">${P.stories.map(s => `<div class="paper-story ${s.kind}">${tag(s)}<h4>${esc(s.head)}</h4>${s.deck ? `<p>${esc(s.deck)}</p>` : ''}</div>`).join('')}</div>
+        ${P.numbers.length ? `<div class="paper-numbers"><h4>${esc(c.name)} this month</h4><div class="grid2">${P.numbers.map(fmt).join('')}</div></div>` : ''}</div>
+      <p class="small muted">The month's most important news, chosen by what it is, who it involves and how big they are. Each edition covers the last three months. ${P.count > P.stories.length + 1 ? `${P.count - P.stories.length - 1} more items below.` : ''}</p></div>`;
+  },
+
   viewNews(c, g) {
     let items = g.log.slice().reverse();
     if (this.newsMine) items = items.filter(l => l.ids.includes(c.id));
-    let h = `<label class="small"><input type="checkbox" data-act="newsmine" ${this.newsMine ? 'checked' : ''}> Only news about ${esc(c.name)}</label><ul class="news">`;
+    let h = this.paperHtml(c, g) + `<label class="small"><input type="checkbox" data-act="newsmine" ${this.newsMine ? 'checked' : ''}> Only news about ${esc(c.name)}</label><ul class="news">`;
     for (const l of items.slice(0, 200)) h += `<li class="${l.kind}${l.ids.includes(c.id) ? ' mine' : ''}"><span class="d">${gameDate(g, l.m)}</span>${esc(l.text)}</li>`;
     return h + '</ul>';
   },
