@@ -128,6 +128,8 @@ The game saves to your browser's local storage (Menu → Save game).
 
 **Ideas and kin.** Liberalism, socialism, fascism and traditionalism spread between nations through borders, trade and alliances; a revolution next door inspires your own radicals. Related peoples can unite peacefully, and universities speed research and staff the state.
 
+**Every import is paid for.** Exports earn foreign reserves and imports spend them; reparations are paid out of them too. Capital that finds no use at home is lent to nations short of reserves, and earns interest. A currency falls as its reserves drain: imports grow dearer and the nation buys less abroad, while exporters earn more. A nation that can neither pay nor borrow has to ration its imports. See the Balance of payments card in the Economy tab.
+
 **Every debt is someone's asset.** The state pays from cash. Deficits are lent by savers (crowding out private investment), banks or foreign nations, who earn the interest. When lenders lose trust, yields climb, and if they refuse, bills go unpaid and spending is cut: a sovereign debt crisis. Defaulting hits the bondholders, the banks and your foreign creditors.
 
 **Slumps hurt like real ones.** Wages are slow to fall, so a drop in demand becomes layoffs, and unemployment insurance cushions the jobless. AI governments spend, cut or bail out banks through the cycle, according to their politics.
@@ -176,6 +178,7 @@ The game saves to your browser's local storage (Menu → Save game).
 | `js/warfare.js` | Fronts, occupation, terrain and supply, posture, mobilization |
 | `js/money.js` | Currency, price level, inflation, wages, interest rates, monetary systems |
 | `js/fiscal.js` | State budget and debt: lenders, holders, debt crises, default |
+| `js/payments.js` | Balance of payments: reserves, foreign lending and debt, exchange rates, import rationing |
 | `js/credit.js` | Private credit, confidence, defaults and bankruptcies, banking crises |
 | `js/peoples.js` | Cultures, faiths, assimilation, grievance, migration, nationalist claims |
 | `js/society.js` | Cities, housing and rents, slums, births and deaths, aging |

@@ -701,6 +701,60 @@ test('wars draw nations in and become world wars that end at a peace conference'
   assert(r.saved && r.gone, 'world wars survive a save');
 });
 
+test('closed loop, phase 2: imports are paid for, capital is lent abroad, the broke cut imports', () => {
+  const r = run(`(() => {
+    const g = createGame('pay', { size: 'small', countries: 10 }); setPlayer(g, 0);
+    for (let i = 0; i < 24; i++) { tick(g); g.pending.length = 0; }
+    const alive = g.countries.filter(c => c.alive);
+    const net = () => alive.reduce((s, c) => s + c.econ.reserves, 0);
+    const gross = alive.reduce((s, c) => s + Math.abs(c.econ.tradeBalance), 0);
+    // Reserves only move between nations: world trade balances, loans and interest are someone's payment.
+    const r0 = net(); tickPayments(g); const drift = Math.abs(net() - r0 - alive.reduce((s, c) => s + c.econ.tradeBalance, 0));
+    const tradeNet = Math.abs(alive.reduce((s, c) => s + c.econ.tradeBalance, 0));
+    const debts = alive.reduce((s, c) => s + extDebtOf(c), 0), assets = alive.reduce((s, c) => s + extAssetsOf(g, c), 0);
+    // A nation with no reserves and no credit has to cut its imports.
+    const c = alive[1]; c.econ.reserves = -c.gdp * 0.3; c.debt = c.debt || {}; c.debt.crisis = 6;
+    for (let i = 0; i < 4; i++) { tick(g); g.pending.length = 0; c.debt.crisis = 6; }
+    return { drift, tradeNet, gross, debts, assets, squeeze: c.econ.importSqueeze, sane: __sane(g) };
+  })()`);
+  assert(r.tradeNet < r.gross * 0.05 + 1e-6, `world trade should balance (net ${r.tradeNet}, gross ${r.gross})`);
+  assert(r.drift < 1e-6, `loans and interest should move reserves, not create them (${r.drift})`);
+  assert(Math.abs(r.debts - r.assets) < 1e-6, 'every foreign debt is someone\'s asset');
+  assert(r.squeeze > 0.2, `a nation out of reserves and credit should cut its imports (${r.squeeze})`);
+  assert(r.sane.length === 0, r.sane.join('; '));
+});
+
+test('closed loop, phase 2: a strong currency never imports past the shortfall; defaulters and the dead lose their credit', () => {
+  const r = run(`(() => {
+    const g = createGame('pay2', { size: 'small', countries: 10 }); setPlayer(g, 0);
+    for (let i = 0; i < 12; i++) { tick(g); g.pending.length = 0; }
+    const alive = g.countries.filter(c => c.alive);
+    // An open nation (many partners, no tariffs) with the strongest currency buys more abroad,
+    // but never more of a good than it lacks at home.
+    let over = 0;
+    for (const c of alive) {
+      c.econ.fx = PAY.FX_MAX; c.trade = alive.filter(o => o.id !== c.id).map(o => o.id);
+      tickEconomy(g, false);
+      for (const k of GOOD_KEYS) { const E = c.econ, gap = Math.max(0, E.D[k] - E.S[k]); if (E.imports[k] > gap * 1.0001 + 1e-6) over++; }
+    }
+    // A nation that defaults abroad gets no new loans for five years.
+    const d = alive[1], L = alive[2];
+    d.extDebt = { [L.id]: d.gdp * 1.5 }; d.econ.reserves = -d.gdp * 0.05;
+    tickPayments(g);
+    const defaulted = d.extDefaulted === g.month, lockedOut = d.econ.borrowed === 0;
+    // A borrower that ceases to exist takes its debts with it.
+    const b = alive[3]; b.extDebt = { [L.id]: 1 }; b.alive = false;
+    tickPayments(g);
+    const gone = b.extDebt === null && !foreignPositions(g, L).owed.some(([n]) => n === b.name);
+    b.alive = true;
+    return { over, defaulted, lockedOut, gone, sane: __sane(g) };
+  })()`);
+  assert(r.over === 0, `${r.over} goods imported beyond the shortfall at a strong currency`);
+  assert(r.defaulted && r.lockedOut, 'a nation that defaults abroad should get no new foreign loans');
+  assert(r.gone, 'debts of a nation that no longer exists should be written off');
+  assert(r.sane.length === 0, r.sane.join('; '));
+});
+
 test('trade view: bilateral flows add up to every nation\'s trade and leave the economy unchanged', () => {
   const code = `(() => {
     const g = createGame('flows', { size: 'small', countries: 12 }); setPlayer(g, 0);

@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 
-const SIM_FILES = ['rng', 'names', 'governments', 'earth-data', 'mapgen', 'economy', 'sim', 'balance', 'empire', 'blocs', 'federal', 'coalitions', 'laws', 'arena', 'warfare', 'money', 'credit', 'fiscal', 'peoples', 'society', 'ideas', 'characters', 'tech', 'movements', 'figures', 'events', 'revanchism', 'worldwar', 'campaign', 'alerts'];
+const SIM_FILES = ['rng', 'names', 'governments', 'earth-data', 'mapgen', 'economy', 'sim', 'balance', 'empire', 'blocs', 'federal', 'coalitions', 'laws', 'arena', 'warfare', 'money', 'credit', 'fiscal', 'payments', 'peoples', 'society', 'ideas', 'characters', 'tech', 'movements', 'figures', 'events', 'revanchism', 'worldwar', 'campaign', 'alerts'];
 
 // Bilateral trade flows: accounting on top of the economy (tradeflows.js).
 SIM_FILES.push('tradeflows');

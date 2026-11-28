@@ -617,7 +617,9 @@ function tickEconomy(game, warmup) {
       invest(game, c, 'private');
       if (c.id !== game.player || E.autoInvest) invest(game, c, 'state');
     }
-    E.investPool *= 0.995; // capital that finds no use slowly leaks abroad
+    // Capital that finds no use at home looks abroad; what is lent leaves (payments.js).
+    E.capitalOffer = Math.max(0, E.investPool) * 0.005;
+    if (typeof tickPayments !== 'function') E.investPool *= 0.995;
   }
 
   // 8. National statistics
@@ -691,15 +693,18 @@ function clearMarkets(game, alive) {
       const ms = b.members.map(id => game.countries[id]).filter(c => c.alive);
       const tb = BLOC_TYPES[b.type].openness;
       let ex = 0, need = 0, SS = 0, DD = 0;
-      for (const c of ms) { const r = res[c.id]; SS += r.S; DD += r.D; if (r.S > r.D) ex += (r.S - r.D) * tb; else need += (r.D - r.S) * tb; }
+      // The exchange rate shifts trade inside a bloc too (payments.js).
+      const fw = c => (typeof fxWeights === 'function' ? fxWeights(c) : [1, 1]);
+      for (const c of ms) { const r = res[c.id], [wE, wI] = fw(c); SS += r.S; DD += r.D; if (r.S > r.D) ex += (r.S - r.D) * tb * wE; else need += (r.D - r.S) * Math.min(1, tb * wI) * (1 - (c.econ.importSqueeze || 0)); }
       const traded = Math.min(ex, need);
       const rE = ex > 0 ? traded / ex : 0, rI = need > 0 ? traded / need : 0;
       const bpT = base * clamp(Math.pow((DD + 1e-6) / (SS + 1e-6), ECON.ELASTICITY), ECON.PRICE_MIN, ECON.PRICE_MAX);
       b.prices[g] = (b.prices[g] || base) * (1 - ECON.PRICE_SPEED) + bpT * ECON.PRICE_SPEED;
       for (const c of ms) {
         const r = res[c.id];
-        r.exB = r.S > r.D ? (r.S - r.D) * tb * rE : 0;
-        r.imB = r.D > r.S ? (r.D - r.S) * tb * rI : 0;
+        const [wE, wI] = fw(c);
+        r.exB = r.S > r.D ? (r.S - r.D) * tb * wE * rE : 0;
+        r.imB = r.D > r.S ? (r.D - r.S) * Math.min(1, tb * wI) * rI * (1 - (c.econ.importSqueeze || 0)) : 0;
       }
     }
     let exportable = 0, need = 0, SS = 0, DD = 0;
@@ -707,7 +712,10 @@ function clearMarkets(game, alive) {
       const E = c.econ, r = res[c.id];
       const S = r.S - r.exB, D = r.D - r.imB;
       SS += E.S[g]; DD += E.D[g];
-      if (S > D) exportable += (S - D) * E.tau; else need += (D - S) * E.tau;
+      // A nation out of foreign currency can only buy what it can pay for (payments.js).
+      const [wE, wI] = typeof fxWeights === 'function' ? fxWeights(c) : [1, 1];
+      // A strong currency buys more abroad, but never more than the nation lacks.
+      if (S > D) exportable += (S - D) * E.tau * wE; else need += (D - S) * Math.min(1, E.tau * wI) * (1 - (E.importSqueeze || 0));
     }
     const traded = Math.min(exportable, need);
     const rE = exportable > 0 ? traded / exportable : 0, rI = need > 0 ? traded / need : 0;
@@ -717,8 +725,9 @@ function clearMarkets(game, alive) {
     for (const c of alive) {
       const E = c.econ, r = res[c.id], S = E.S[g], D = E.D[g];
       const S2 = r.S - r.exB, D2 = r.D - r.imB;
-      const ex = S2 > D2 ? (S2 - D2) * E.tau * rE : 0;
-      const im = D2 > S2 ? (D2 - S2) * E.tau * rI : 0;
+      const [wE, wI] = typeof fxWeights === 'function' ? fxWeights(c) : [1, 1];
+      const ex = S2 > D2 ? (S2 - D2) * E.tau * wE * rE : 0;
+      const im = D2 > S2 ? (D2 - S2) * Math.min(1, E.tau * wI) * rI * (1 - (E.importSqueeze || 0)) : 0;
       const avail = S - r.exB - ex + r.imB + im;
       E.exports[g] = ex + r.exB; E.imports[g] = im + r.imB;
       E.blocEx[g] = r.exB; E.blocIm[g] = r.imB;
@@ -731,7 +740,9 @@ function clearMarkets(game, alive) {
       else if (avail <= 0) localT = base * ECON.PRICE_MAX;
       else localT = base * clamp(Math.pow((D + 1e-6) / avail, ECON.ELASTICITY), ECON.PRICE_MIN, ECON.PRICE_MAX);
       const tariff = effectiveTariff(game, c);
-      const wpEff = wp * (im > 0 ? 1 + tariff : 1);
+      // Imports cost more at home when the currency is weak, though only part of the fall reaches prices (payments.js).
+      const fxP = Math.sqrt(E.fx || 1);
+      const wpEff = wp * (im > 0 ? 1 + tariff : 1) / fxP;
       const b = blocOf[c.id];
       const tb = b ? BLOC_TYPES[b.type].openness * 0.6 : 0;
       const tw = Math.min(E.tau, 0.9 - tb);
@@ -739,7 +750,7 @@ function clearMarkets(game, alive) {
       E.prices[g] = E.prices[g] * (1 - ECON.PRICE_SPEED) + target * ECON.PRICE_SPEED;
       // Producers sell exports at the bloc or world price.
       const bp = b ? b.prices[g] : wp;
-      E.pprod[g] = S > 0 ? ((S - ex - r.exB) * E.prices[g] + ex * wp + r.exB * bp) / S : E.prices[g];
+      E.pprod[g] = S > 0 ? ((S - ex - r.exB) * E.prices[g] + ex * wp / fxP + r.exB * bp) / S : E.prices[g];
       E.tariffK += im * wp * tariff;
     }
   }
