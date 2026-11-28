@@ -441,7 +441,7 @@ The rule: no goods or money created from nothing. Every unit of money has a sour
 
   New: about 5 balance-of-payments crises per world; imports rationed (by more than 10%) in 18% of nation-months, mostly resource-poor nations that now pay for their imports; foreign debt about 0.5% of GDP.
 - **Review fixes** (re-measured on 24 worlds × 40 years; every measure within the noise of the first pass): a strong currency could import up to twice a nation's shortfall in open economies; a foreign default's mark on credit was erased the next month; debts of annexed nations stayed on their lenders' books forever.
-- **Side effects to watch:** frequent rationing in import-dependent nations; no foreign default has happened yet in the measured worlds, because new borrowing stops at 60% of GDP; foreign lending is small because only 0.5% of private capital looks abroad each month.
+- **Side effects to watch:** frequent rationing in import-dependent nations; no foreign default happened in the layer-1 worlds (new borrowing then stopped at 60% of GDP; 25% since layer 3); foreign lending is small because only 0.5% of private capital looks abroad each month.
 - **Still to do in phase 2:** recycling surpluses without the debt pile-up (lending at market rates by banks), tariffs that cut imports without cutting exports (with 4d), currency crises and pegs, foreign ownership (with phase 3).
 
 **Phase 2, layer 2 ✅ (first pass): pegs and currency crises** (`js/payments.js`, `js/money.js`).
@@ -455,6 +455,18 @@ The rule: no goods or money created from nothing. Every unit of money has a sour
 - **Measured** (24 worlds × 40 years, against layer 1; z is the difference in standard errors): growth 1.31 → 1.26 (−0.8), inflation 3.8% → 4.3% (+1.5, more nations leave gold), stability 47.3 → 47.6, crisis share 0.070 → 0.069, unemployment 1.53% → 1.54%, regime changes 17.6 → 16.8, wars 5.8 → 5.6, sovereign defaults 1.9 → 3.0 (+1.2), debt crises 11.5 → 14.6 (+1.0), imports rationed in 19% → 21% of nation-months. New per world: 5.6 attacks on gold parities, 1.0 defended, 4.5 exits from gold, 0.3 currency crises.
 - **Side effects to watch:** most gold nations leave gold within 40 years; slightly more inflation, sovereign defaults and debt crises (all within noise so far).
 - **Still to do:** bank lending abroad at market rates (it would let pegs be defended and ease rationing), pegs to another nation's currency (with spheres of influence), the player choosing the parity on returning to gold.
+
+**Phase 2, layer 3 ✅ (first pass): banks lend abroad at market rates** (`js/payments.js`).
+- **Bank lending:** banks in nations with reserves to spare lend 1% of the surplus a month abroad, as far as their capital allows (none in a banking crisis; state banks half as much, unregulated banks more). Together with the owners' capital, it goes to nations short of reserves.
+- **Market rates:** borrowers pay a base of 6% plus premiums for debt abroad (0.2 points per point of GDP), war and empty reserves, and borrow less when the rate is high. Borrowing stops at 25% of GDP (was 60%).
+- **Paid down:** foreign loans are repaid over about ten years, out of reserves when there are any.
+- **Contagion:** a foreign default costs the lending banks their share of the loss in capital, which can bring on a banking crisis at home (credit.js); news and a notice when it hits the player's banks.
+- **Interface:** the card shows the rate we pay abroad with its parts, and our banks' loans abroad.
+- **What we learned tuning it:** at 3% of surplus reserves a month and a 60% cap, structural deficits were rolled over until foreign debt reached 36% of GDP; banking crises doubled and sovereign defaults rose 2.6×. A third of the lending, a 25% cap and a steeper premium brought debt to 14% of GDP with every other measure in the noise.
+- **Measured** (24 worlds × 40 years, against layer 2; z in standard errors): growth 1.26 → 1.28, stability 47.6 → 47.4, crisis share 0.069 → 0.066, banking crises 5.9 → 5.8, sovereign defaults 3.0 → 3.1, debt crises 14.6 → 16.0, living standard 42.1 → 42.0, rationing 21% → 22% of nation-months; foreign debt 1% → 14% of GDP. Gold: attacks 5.6 → 10.8 per world (more nations stay on gold to be attacked), defended 1.0 → 7.3, exits 4.5 → 3.4 (−2.1). Balance-of-payments crises 5.3 → 6.4 (+1.9).
+- **Fixed on the way:** reparations and the treasury's share of foreign debt service moved the treasury after the budget was financed, so the state's debt briefly did not match what its holders owned. Both are now charged with the next month's budget.
+- **Side effects to watch:** rationing did not ease (the deficits are in goods some nations cannot make, and lending only postpones paying for them); more balance-of-payments crises.
+- **Still to do:** lending with conditions (bailouts by blocs and great powers), pegs to another nation's currency (with spheres of influence), foreign ownership (phase 3).
 
 **Phase 2 (folds into 4d): balanced trade.** Every import is someone's export. A trade deficit is paid with reserves, foreign borrowing or a falling currency. This is the base for contagion, exchange rates, capital flows and currency crises. The investment pool's leak abroad becomes real foreign lending and ownership.
 

@@ -296,6 +296,8 @@ function tickCountry(game, c) {
   c.budget = projectBudget(c);
   payInterest(game, c, c.budget.interest);
   c.treasury += c.budget.net;
+  // What the state paid abroad last month for the nation's foreign debts (payments.js).
+  if (typeof chargeTreasuryAbroad === 'function') chargeTreasuryAbroad(c);
   financeBudget(game, c);
   if (-c.treasury / c.gdpNom > 1.5) sovereignDefault(game, c);
 
@@ -970,7 +972,9 @@ function tickReparations(game) {
   game.reparations = game.reparations.filter(r => {
     const A = game.countries[r.from], B = game.countries[r.to];
     if (!A.alive || !B.alive || r.months <= 0) return false;
-    A.treasury -= r.amount; B.treasury += r.amount;
+    // Paid with next month's budget, so each side's lenders see it (fiscal.js, payments.js).
+    if (typeof chargeTreasuryAbroad === 'function' && A.econ && B.econ) { A.econ.treasuryAbroad = (A.econ.treasuryAbroad || 0) + r.amount; B.econ.treasuryAbroad = (B.econ.treasuryAbroad || 0) - r.amount; }
+    else { A.treasury -= r.amount; B.treasury += r.amount; }
     // Reparations are paid abroad, in foreign currency the loser has to earn (payments.js).
     if (A.econ && B.econ && A.econ.reserves != null && B.econ.reserves != null) { A.econ.reserves -= r.amount / (A.econ.pl || 1); B.econ.reserves += r.amount / (A.econ.pl || 1); }
     r.months--;

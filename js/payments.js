@@ -23,7 +23,14 @@
 // A floating currency that falls fast has a currency crisis: foreign lenders
 // stop lending and capital flees for a while.
 //
-// Still to come: bank lending at market rates, pegs to another currency.
+// Layer 3, banks lend abroad: banks in nations with reserves to spare lend part
+// of them abroad, as far as their capital allows. Borrowers pay a market rate
+// (a base plus premiums for their debt, war and empty reserves) and borrow less
+// when it is high. Foreign loans are paid down over about ten years. A foreign
+// default hits the lending banks' capital, so it can bring on a banking crisis
+// at home (credit.js).
+//
+// Still to come: pegs to another currency, lending with conditions.
 //
 // c.econ.reserves (billions, world money) · c.econ.fx (0.3-1.6) · c.extDebt = { lenderId: billions }
 // c.econ.importSqueeze (0-0.6) · c.extDefaulted (month of the last foreign default)
@@ -31,10 +38,11 @@
 // home over prices abroad); c.econ.fxNom is the rate in currency. A floating rate moves the
 // nominal rate; a gold parity fixes it, so only prices at home can move the real rate.
 // c.econ.parity (gold nations, nominal) · c.econ.goldFlow (share of the money supply, last month)
+// c.econ.bankAbroad (billions our banks have lent abroad) · c.econ.rateAbroad (the market rate we pay)
 // c.econ.attack { since, flight } · c.econ.fxCrisis (months left) · c.econ.fxHist (last 13 rates)
 
 const PAY = {
-  RESERVE_MONTHS: 3, LEND_LIMIT: 0.6, BASE_RATE: 0.04, FX_MIN: 0.3, FX_MAX: 1.6, DEFAULT_MEMORY: 60,
+  RESERVE_MONTHS: 3, LEND_LIMIT: 0.25, BASE_RATE: 0.04, FX_MIN: 0.3, FX_MAX: 1.6, DEFAULT_MEMORY: 60,
   ATTACK_AT: -0.08,     // reserves (share of GDP) at which speculators attack a gold parity
   ATTACK_OVER: -0.03,   // ... and above which the attack is beaten off
   FLIGHT: 0.02,         // share of owners' capital that flees each month in an attack
@@ -42,6 +50,9 @@ const PAY = {
   FX_CRISIS_DROP: 0.2,  // a floating currency down this much in a year is in crisis
   FX_CRISIS_MONTHS: 6,
   HOT_MONEY: 3,         // a defended parity draws this many times more foreign capital (the premium)
+  BANK_LEND: 0.01,      // share of their surplus reserves banks offer abroad each month
+  REPAY: 1 / 120,       // foreign loans are paid down over about ten years
+  RATE_CUT: 8,          // borrowing falls by this much per point of rate above the base plus 2%
 };
 function onGold(c) { return !!(c.laws && c.laws.monetary === 'gold'); }
 
@@ -61,7 +72,27 @@ function importBill(game, c) {
 function reserveTarget(c) { return Math.max(c.econ.avgBill * PAY.RESERVE_MONTHS, c.gdp * 0.02); }
 function extDebtOf(c) { let d = 0; for (const k in c.extDebt || {}) d += c.extDebt[k]; return d; }
 function extAssetsOf(game, c) { let a = 0; for (const o of game.countries) if (o.alive && o.extDebt && o.extDebt[c.id]) a += o.extDebt[c.id]; return a; }
-function extRate(c) { return PAY.BASE_RATE + 0.02 + extDebtOf(c) / Math.max(0.01, c.gdp) * 0.1; }
+// The market rate a nation pays abroad, and why.
+function extRateParts(game, c) {
+  const E = c.econ, G = Math.max(0.01, c.gdp);
+  return [
+    ['Base rate', PAY.BASE_RATE + 0.02],
+    ['Debt abroad', extDebtOf(c) / G * 0.2],
+    ['At war', game && isAtWar(game, c.id) ? 0.02 : 0],
+    ['Reserves short', E.reserves != null && E.reserves < 0 ? Math.min(0.06, -E.reserves / G * 0.3) : 0],
+  ];
+}
+function extRate(c, game) { return extRateParts(game, c).reduce((s, p) => s + p[1], 0); }
+// A bank's share of what a nation is owed abroad: its losses and repayments go to the banks, not the owners.
+function bankShareOf(game, L) { const a = extAssetsOf(game, L); return a > 0 ? clamp((L.econ.bankAbroad || 0) / a, 0, 1) : 0; }
+// How much its banks can lend abroad: none in a crisis, more when well capitalized; state banks lend as directed (less).
+function bankHealth(c) {
+  const E = c.econ;
+  if (!E.credit || E.bankCrisis > 0) return 0;
+  const capF = clamp((E.bankCap / Math.max(1, E.credit) - CREDIT.CAP_MIN) / (CREDIT.CAP_TARGET - CREDIT.CAP_MIN), 0, 1);
+  const law = c.laws && c.laws.banking;
+  return capF * (law === 'unregulated' ? 1.2 : law === 'state' ? 0.5 : 1);
+}
 
 function tickPayments(game) {
   // A nation that no longer exists pays no one: its lenders lose what it owed them.
@@ -77,7 +108,8 @@ function tickPayments(game) {
     E.res0 = E.reserves;
     E.reserves += E.tradeBalance || 0;
     E.interestOut = 0;
-    const rate = extRate(c) / 12;
+    E.rateAbroad = extRate(c, game);
+    const rate = E.rateAbroad / 12;
     for (const k in c.extDebt || {}) {
       const L = game.countries[k], due = c.extDebt[k] * rate;
       if (!L || !L.alive) { delete c.extDebt[k]; continue; }
@@ -85,9 +117,16 @@ function tickPayments(game) {
       E.reserves -= due; L.econ.reserves += due; E.interestOut += due;
       payAtHome(c, due); L.econ.investPool += due * 1e6;
     }
+    // Loans are paid down over time, out of reserves when there are any; the banks' share goes back to the banks.
+    const debt0 = extDebtOf(c);
+    if (debt0 > 0 && E.reserves > 0) {
+      const pay = Math.min(E.reserves, debt0 * PAY.REPAY);
+      for (const k in c.extDebt) repayTo(game, c, k, pay * c.extDebt[k] / debt0);
+      E.reserves -= pay; payAtHome(c, pay);
+    }
   }
   // 2. Owners' capital looking abroad is lent to nations short of reserves.
-  const need = {}, offer = {};
+  const need = {}, offer = {}, bankOffer = {};
   let totalNeed = 0, totalOffer = 0;
   for (const c of alive) {
     const E = c.econ;
@@ -100,6 +139,11 @@ function tickPayments(game) {
     need[c.id] = E.reserves < target && room > 0 && trusted ? Math.min(target - E.reserves, room) : 0;
     // Capital goes abroad only from nations with reserves to spare: a nation short of them keeps its savings home.
     offer[c.id] = Math.max(0, (E.capitalOffer || 0) / 1e6) * clamp((E.reserves - target) / Math.max(1e-6, target), 0, 1);
+    // Banks lend part of the reserves to spare, as far as their capital allows.
+    bankOffer[c.id] = Math.max(0, E.reserves - target) * PAY.BANK_LEND * bankHealth(c);
+    offer[c.id] += bankOffer[c.id];
+    // Borrowers borrow less when the market rate is high.
+    need[c.id] *= clamp(1 - (extRate(c, game) - PAY.BASE_RATE - 0.02) * PAY.RATE_CUT, 0.2, 1);
     totalNeed += need[c.id]; totalOffer += offer[c.id];
   }
   // Hot money: while a parity is defended, owners abroad lend more to earn its premium, and the defenders are served first.
@@ -120,8 +164,10 @@ function tickPayments(game) {
   for (const c of alive) {
     const E = c.econ;
     // Lenders: what was lent leaves, as reserves paid over and a claim on the borrowers.
-    const out = offer[c.id] * lentShare;
-    E.investPool -= out * 1e6; E.reserves -= out; E.lentOut = out;
+    // The banks' part is lent out of reserves; the owners' part out of their capital too.
+    const out = offer[c.id] * lentShare, bankPart = offer[c.id] > 0 ? out * bankOffer[c.id] / offer[c.id] : 0;
+    E.investPool -= (out - bankPart) * 1e6; E.reserves -= out; E.lentOut = out;
+    E.bankAbroad = (E.bankAbroad || 0) + bankPart;
     E.borrowed = need[c.id] * filled;
     E.reserves += E.borrowed;
     // Foreign capital funds investment at home (the state's fund where there are no private owners).
@@ -142,7 +188,7 @@ function tickPayments(game) {
     const debt = extDebtOf(c);
     if (debt > 0 && E.reserves > target * 2) {
       const pay = Math.min(debt, (E.reserves - target * 2) * 0.1);
-      for (const k in c.extDebt) { const part = pay * c.extDebt[k] / debt; c.extDebt[k] -= part; const L = game.countries[k]; L.econ.reserves += part; L.econ.investPool += part * 1e6; }
+      for (const k in c.extDebt) repayTo(game, c, k, pay * c.extDebt[k] / debt);
       E.reserves -= pay; payAtHome(c, pay);
     }
     if (debt > c.gdp * 1.2) foreignDefault(game, c);
@@ -273,24 +319,54 @@ function playerLeaveGold(game) {
 }
 
 // Debt service at home comes out of the owners' capital, then the state's fund, then the treasury.
+// The treasury's part is charged with next month's budget, so the state borrows it from real lenders (fiscal.js).
 function payAtHome(c, amount) {
   const E = c.econ;
   let k = amount * 1e6;
   const a = Math.min(Math.max(0, E.investPool), k); E.investPool -= a; k -= a;
   const b = Math.min(Math.max(0, E.statePool), k); E.statePool -= b; k -= b;
-  if (k > 0) c.treasury -= k / 1e6 * (E.pl || 1);
+  if (k > 0) E.treasuryAbroad = (E.treasuryAbroad || 0) + k / 1e6 * (E.pl || 1);
+}
+
+// Charged before the budget is financed (sim.js). Reparations go through it too: negative for the receiver.
+function chargeTreasuryAbroad(c) {
+  const E = c.econ;
+  if (!E || !E.treasuryAbroad) return 0;
+  const t = E.treasuryAbroad; E.treasuryAbroad = 0;
+  c.treasury -= t;
+  return t;
 }
 
 // Debts abroad past paying: the lenders take the loss and remember it.
 function foreignDefault(game, c) {
   for (const k in c.extDebt) {
-    const L = game.countries[k];
-    c.extDebt[k] *= 0.5;
-    if (L && L.alive) addRel(game, c.id, L.id, -20);
+    const L = game.countries[k], loss = c.extDebt[k] * 0.5;
+    if (L && L.alive && L.econ) {
+      // The lending banks take their share of the loss out of their capital: contagion.
+      const bs = bankShareOf(game, L), bankLoss = loss * bs;
+      L.econ.bankAbroad = Math.max(0, (L.econ.bankAbroad || 0) - bankLoss);
+      if (bankLoss > 0 && L.econ.bankCap != null) {
+        L.econ.bankCap -= bankLoss * 1e6;
+        if (bankLoss > L.gdp * 0.002) logNews(game, `${c.name}'s default costs the banks of ${L.name} $${bankLoss.toFixed(1)}B.`, 'econ', [c.id, L.id]);
+        if (isPlayer(game, L)) notify(game, 'Our Banks Lose Abroad', `${c.name} has defaulted on its foreign debts. Our banks lose $${bankLoss.toFixed(1)}B of what they lent; if their capital runs thin, lending at home will freeze.`);
+      }
+      addRel(game, c.id, L.id, -20);
+    }
+    c.extDebt[k] -= loss;
   }
   c.extDefaulted = game.month;
   logNews(game, `${c.name} defaults on its foreign debts; its creditors abroad take heavy losses.`, 'econ', [c.id, ...Object.keys(c.extDebt).map(Number)]);
   if (isPlayer(game, c)) notify(game, 'Default on Foreign Debts', 'We could not pay what we owe abroad. Half of our foreign debt is written off, but lenders and their governments will not forget: no one abroad will lend to us for five years.');
+}
+
+// A repayment to one lender: the banks' share back to the banks (as reserves), the rest to the owners.
+function repayTo(game, c, k, part) {
+  const L = game.countries[k];
+  c.extDebt[k] -= part;
+  if (!L || !L.econ) return;
+  const bs = bankShareOf(game, L), bankPart = part * bs;
+  L.econ.bankAbroad = Math.max(0, (L.econ.bankAbroad || 0) - bankPart);
+  L.econ.reserves += part; L.econ.investPool += (part - bankPart) * 1e6;
 }
 
 // Who we owe and who owes us, for the interface.
