@@ -42,11 +42,11 @@ function tickCredit(game, c) {
   const law = c.laws.banking || 'regulated';
   const Y = Math.max(1, E.gdpRealM || E.gdpM || 1);
   // The trend grows with the economy, so a growing nation is not always "above trend".
-  E.trendY = E.trendY * (1 + (E.gY || 0)) + (Y - E.trendY) / 60;
+  E.trendY = E.trendY * (1 + (E.gY || 0)) + (Y - E.trendY) / lagMonths(60);
   E.gap = Math.log(Y / E.trendY);
-  const piEa = Math.pow(1 + (E.piE || 0), 12) - 1;
+  const piEa = annual(E.piE || 0);
   const realRate = (E.rate == null ? 0.04 : E.rate) - piEa;
-  const annualY = Y * 12;
+  const annualY = annualize(Y);
   const lev = E.credit / annualY;
 
   // 1. New lending: confidence, the real interest rate, and how indebted firms already are.
@@ -56,15 +56,15 @@ function tickCredit(game, c) {
   const crisisF = E.bankCrisis > 0 ? 0.1 : 1;
   const capF = clamp((E.bankCap / Math.max(1, E.credit) - CREDIT.CAP_MIN) / (CREDIT.CAP_TARGET - CREDIT.CAP_MIN), 0.1, 1.2);
   const stateF = law === 'state' ? 0.7 : 1;
-  E.lending = Y * CREDIT.LEND * Math.pow(E.conf, 2) * rateF * levF * crisisF * capF * stateF;
+  E.lending = perStep(Y * CREDIT.LEND * Math.pow(E.conf, 2) * rateF * levF * crisisF * capF * stateF);
   // State banks lend steadily, whatever the mood.
-  if (law === 'state') E.lending = E.lending * 0.5 + Y * CREDIT.LEND * 0.35 * crisisF;
+  if (law === 'state') E.lending = E.lending * 0.5 + perStep(Y * CREDIT.LEND * 0.35 * crisisF);
   E.credit += E.lending;
-  E.creditTrend = E.creditTrend == null ? E.credit : E.creditTrend + (E.credit - E.creditTrend) / 120;
+  E.creditTrend = E.creditTrend == null ? E.credit : E.creditTrend + (E.credit - E.creditTrend) / lagMonths(120);
 
   // 2. Debt service out of owners' profits; interest goes to the savers who lent it.
   const rateL = Math.max(0.01, (E.rate == null ? 0.04 : E.rate) + CREDIT.SPREAD);
-  const interest = E.credit * rateL / 12, principal = E.credit * CREDIT.REPAY;
+  const interest = perYear(E.credit * rateL), principal = perStep(E.credit * CREDIT.REPAY);
   E.credit -= principal;
   const profit = Math.max(1e-6, ownerProfit(c));
   E.dsr = (interest + principal) / profit;
@@ -74,30 +74,30 @@ function tickCredit(game, c) {
 
   // 3. Defaults: when debts outrun profits, firms go under, closing real buildings.
   const distress = Math.max(0, E.dsr - 0.4);
-  E.defaults = clamp(distress * 0.03 / Math.max(0.5, E.conf), 0, 0.02);
-  if (E.defaults > 0.001) {
+  E.defaults = perStep(clamp(distress * 0.03 / Math.max(0.5, E.conf), 0, 0.02));
+  if (E.defaults > perStep(0.001)) {
     const loss = E.credit * E.defaults;
     E.credit -= loss;
     E.bankCap -= loss * (law === "unregulated" ? 0.8 : 0.55);
     bankruptcies(game, c, E.defaults);
   }
   // Banks earn the spread and build capital back up.
-  E.bankCap += E.credit * CREDIT.SPREAD / 12 * 0.5;
+  E.bankCap += perYear(E.credit * CREDIT.SPREAD) * 0.5;
   // Free banks run thin buffers; regulated ones must hold more.
   E.bankCap = Math.min(E.bankCap, E.credit * (law === "unregulated" ? 0.065 : 0.12));
 
   // 4. Banking crises.
   if (E.bankCrisis > 0) {
-    E.bankCrisis--;
-    if (!E.bankCrisis) logNews(game, `${c.name}'s banks are lending again.`, 'econ', [c.id]);
+    E.bankCrisis = countdown(E.bankCrisis);
+    if (!(E.bankCrisis > 0)) logNews(game, `${c.name}'s banks are lending again.`, 'econ', [c.id]);
   } else if (E.bankCap < E.credit * CREDIT.CAP_MIN && lev > 0.15) bankingCrisis(game, c, law);
 
   // 5. Confidence: growth breeds optimism, defaults and crises breed fear.
   const pg = E.profitPrev ? profit / E.profitPrev - 1 : 0;
-  E.profitPrev = E.profitPrev == null ? profit : E.profitPrev + (profit - E.profitPrev) * 0.15;
+  E.profitPrev = E.profitPrev == null ? profit : E.profitPrev + (profit - E.profitPrev) * smooth(0.15);
   const confT = clamp(1 + E.gap * 4 + pg * 1 - E.defaults * 40 - (E.bankCrisis > 0 ? 0.45 : 0) - (isAtWar(game, c.id) ? 0.15 : 0)
-    - Math.max(0, c.unrest - 40) * 0.008 + rng.normal() * 0.04, 0.3, 1.8);
-  E.conf += (confT - E.conf) * 0.1;
+    - Math.max(0, c.unrest - 40) * 0.008 + rng.normal() * 0.04 * Math.sqrt(TIME.STEP_MONTHS), 0.3, 1.8);
+  E.conf += (confT - E.conf) * smooth(0.1);
 }
 
 // Close capacity, the least profitable buildings first.
