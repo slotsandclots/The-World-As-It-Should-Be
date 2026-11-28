@@ -64,7 +64,7 @@ function debtYield(c, trust) {
 // Monthly interest, paid to the holders (arrears earn nothing).
 function debtInterest(c) {
   const D = ensureDebt(c);
-  return (debtTotal(D) - D.arrears) * D.yield / 12;
+  return perYear((debtTotal(D) - D.arrears) * D.yield);
 }
 
 function econOf(c) { return c.econ || {}; }
@@ -79,11 +79,11 @@ function lendingOffers(game, c) {
   // Savers: in a slump the idle pool flees to safe bonds; in a boom firms bid for it.
   const safety = clamp(1.6 - (E.conf == null ? 1 : E.conf), 0.4, 1.4);
   const yieldF = clamp(0.7 + (D.yield - (E.rate || 0.04)) * 15, 0.5, 1.6);
-  const savers = own ? toMoney(c, Math.max(0, E.investPool || 0)) * FISCAL.SAVERS_TAKE * Math.min(1, T) * safety * yieldF : 0;
+  const savers = own ? toMoney(c, Math.max(0, E.investPool || 0)) * smooth(FISCAL.SAVERS_TAKE) * Math.min(1, T) * safety * yieldF : 0;
   // Banks: up to a share of their deposits (the money stock), less in a banking crisis.
   const lim = law === 'state' ? FISCAL.BANK_STATE_LIMIT : FISCAL.BANK_LIMIT;
   const deposits = E.money != null ? E.money / 1e6 : toMoney(c, (E.gdpRealM || E.gdpM || 0) * 8);
-  const banks = Math.max(0, deposits * lim - D.banks) * 0.2 * (law === 'state' ? 1 : Math.min(1, T)) * (E.bankCrisis > 0 ? 0.3 : 1);
+  const banks = Math.max(0, deposits * lim - D.banks) * smooth(0.2) * (law === 'state' ? 1 : Math.min(1, T)) * (E.bankCrisis > 0 ? 0.3 : 1);
   // Foreign lenders: other nations at peace with us, by how they regard us.
   const foreign = [];
   if (T > 0.3) for (const l of game.countries) {
@@ -92,7 +92,7 @@ function lendingOffers(game, c) {
     if (rel < -20) continue;
     const pool = ownersAllowed(l) ? l.econ.investPool : l.econ.statePool;
     // Real value moves across the border: the lender's output units, in our currency.
-    const offer = Math.max(0, pool || 0) * FISCAL.FOREIGN_TAKE * (T - 0.3) * clamp(0.6 + rel / 100, 0.2, 1.3) * ((c.econ && c.econ.pl) || 1) / 1e6;
+    const offer = Math.max(0, pool || 0) * smooth(FISCAL.FOREIGN_TAKE) * (T - 0.3) * clamp(0.6 + rel / 100, 0.2, 1.3) * ((c.econ && c.econ.pl) || 1) / 1e6;
     if (offer > 1e-7) foreign.push([l.id, offer]);
   }
   return { savers, banks, foreign, total: savers + banks + foreign.reduce((s, f) => s + f[1], 0) };
@@ -142,7 +142,7 @@ function financeBudget(game, c) {
   for (const id in D.foreign) if (!game.countries[id] || !game.countries[id].alive) { c.treasury += D.foreign[id]; delete D.foreign[id]; }
   // No private owners left: their bonds were nationalized with the banks.
   if (!ownersAllowed(c) && D.savers > 0) { D.banks += D.savers; D.savers = 0; }
-  if (D.defaulted > 0) D.defaulted++;
+  if (D.defaulted > 0) D.defaulted += TIME.STEP_MONTHS;
   if (D.defaulted > 240) D.defaulted = 0;
   const tr = debtTrust(game, c);
   D.trust = tr.value;
@@ -162,11 +162,11 @@ function financeBudget(game, c) {
       D.banks -= D.banks * f;
       for (const id of Object.keys(D.foreign)) borrowFrom(game, c, 'foreign', -D.foreign[id] * f, +id);
     }
-    D.payFrac += (1 - D.payFrac) * 0.3;
+    D.payFrac += (1 - D.payFrac) * smooth(0.3);
     calmMonth(D);
     return;
   }
-  if (change <= 1e-9) { D.payFrac += (1 - D.payFrac) * 0.3; calmMonth(D); return; }
+  if (change <= 1e-9) { D.payFrac += (1 - D.payFrac) * smooth(0.3); calmMonth(D); return; }
   // New borrowing.
   const off = lendingOffers(game, c);
   const take = Math.min(1, change / Math.max(1e-12, off.total));
@@ -185,9 +185,9 @@ function financeBudget(game, c) {
       logNews(game, `Lenders refuse ${c.name} credit: the state cannot pay its bills.`, 'econ', [c.id]);
       if (isPlayer(game, c)) notify(game, 'Sovereign Debt Crisis', 'Lenders will no longer cover our deficit. The state is falling behind on wages and suppliers, and spending is being cut to what we can pay. We can raise taxes, cut spending, print money if the law allows it, or default on our debts (Economy tab).');
     }
-    D.crisis = (D.crisis || 0) + 1;
+    D.crisis = (D.crisis || 0) + TIME.STEP_MONTHS;
   } else {
-    D.payFrac += (1 - D.payFrac) * 0.15;
+    D.payFrac += (1 - D.payFrac) * smooth(0.15);
     calmMonth(D);
   }
 }
@@ -195,9 +195,9 @@ function financeBudget(game, c) {
 // A debt crisis ends after six months in which lenders covered every bill.
 function calmMonth(D) {
   if (!(D.crisis > 0)) return;
-  D.calm = (D.calm || 0) + 1;
+  D.calm = (D.calm || 0) + TIME.STEP_MONTHS;
   if (D.calm >= 6) { D.crisis = 0; D.calm = 0; }
-  else D.crisis++;
+  else D.crisis += TIME.STEP_MONTHS;
 }
 
 // The deficit lenders will tolerate, as a share of GDP: more in a slump stimulus, less as trust fades.
@@ -263,7 +263,7 @@ function aiDebt(game, c) {
   const lean = typeof econLean === 'function' ? econLean(c) : 0;
   // Populists default sooner; orthodox governments squeeze harder first.
   const burden = c.budget && c.budget.revenue > 0 ? c.budget.interest / c.budget.revenue : 0;
-  if (D.crisis > 3 && (debt > 0.5 || burden > 0.25) && game.rng.chance(0.08 + Math.max(0, -lean) * 0.08 + Math.max(0, burden - 0.25) * 0.5)) defaultOnDebt(game, c);
+  if (D.crisis > 3 && (debt > 0.5 || burden > 0.25) && game.rng.chance(perStepChance(0.08 + Math.max(0, -lean) * 0.08 + Math.max(0, burden - 0.25) * 0.5))) defaultOnDebt(game, c);
 }
 
 // For the interface: who holds the debt.
