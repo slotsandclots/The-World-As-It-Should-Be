@@ -1009,6 +1009,21 @@ test('flows at their source: rates stay rates on a shorter step, and stocks move
   }
 });
 
+test('a banking crisis counts down by the week, and the player sees whole months', () => {
+  const r = run(`(() => {
+    const g = createGame('bank-weeks', { size: 'small', countries: 8 }); setPlayer(g, 0);
+    for (let i = 0; i < 3; i++) { tick(g); g.pending.length = 0; }
+    const c = g.countries[0];
+    bankingCrisis(g, c, c.laws.banking || 'regulated');
+    stepGame(g); g.pending.length = 0;
+    const left = c.econ.bankCrisis;
+    const texts = gatherAlerts(g, c).map(a => a.text).filter(t => /Banking crisis/.test(t));
+    return { left, texts };
+  })()`);
+  assert(r.left > 0 && r.left % 1 !== 0, 'after a week the crisis has a fraction of a month left (' + r.left + ')');
+  assert(r.texts.length && r.texts.every(t => !/\d\.\d/.test(t)), 'the alert shows whole months: ' + r.texts.join(' | '));
+});
+
 test('the scheduler: systems run on their own rhythms, each with its own step', () => {
   const r = run(`(() => {
     const seen = { w: 0, m: 0, y: [], steps: [] };

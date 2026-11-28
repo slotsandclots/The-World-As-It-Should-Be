@@ -519,7 +519,7 @@ const UI = {
         med('stability', 'stability', Math.round(sv('stability', c.stability)), 'Stability', '', `color:${statColor(sv('stability', c.stability))}`) +
         ((c.infamy || 0) >= 1 ? med('infamy', 'infamy', Math.round(c.infamy), 'Infamy', '', `color:${statColor(100 - (c.infamy || 0) * 2)}`) : '') +
         (Math.abs(infl) > 0.06 ? med('inflation', 'coin', fmtSigned(infl * 100, 0) + '%', infl > 0 ? 'Inflation' : 'Deflation', 'war') : '') +
-        (c.econ.bankCrisis > 0 ? med('confidence', 'alert', 'Banking crisis', `${c.econ.bankCrisis} months`, 'war') : '') +
+        (c.econ.bankCrisis > 0 ? med('confidence', 'alert', 'Banking crisis', `${Math.ceil(c.econ.bankCrisis)} months`, 'war') : '') +
         (atWar ? med('war', 'military', 'At war', `${warsOf(g, c.id).length} front${warsOf(g, c.id).length > 1 ? 's' : ''}`, 'war') : '') +
         (c.emergency ? med('emergency', 'alert', 'Emergency', 'Martial law', 'war') : '');
     } else $('#tb-stats').innerHTML = '';
