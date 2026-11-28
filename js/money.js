@@ -42,8 +42,13 @@ function tickMoney(game, c) {
   E.moneyStep = TIME.STEP_MONTHS;
   const Y = Math.max(1, E.gdpRealM || E.gdpM || 1);
   if (E.money == null) E.money = Y * E.pl * MONEY_MONTHS;
-  if (E.prevRealForMoney) E.gY += (clamp(Y / E.prevRealForMoney - 1, -perStep(0.03), perStep(0.03)) - E.gY) * smooth(0.03);
-  E.prevRealForMoney = Y;
+  // Real output is measured once a month (economy.js, the accounts): its latest monthly
+  // growth, converted to this step, is what money and the banks expect.
+  if (Y !== E.prevRealForMoney) {
+    if (E.prevRealForMoney) E.gYm = clamp(Y / E.prevRealForMoney - 1, -0.03, 0.03);
+    E.prevRealForMoney = Y;
+  }
+  if (E.gYm != null) E.gY += (growStep(E.gYm) - E.gY) * smooth(0.03);
 
   // Money growth, by monetary system.
   let g;
