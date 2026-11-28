@@ -96,7 +96,7 @@ Object.assign(UI, {
     return `<div class="card"><h3>Balance of payments</h3>
       <p class="small muted">Every import is paid for in foreign currency, earned by exports or borrowed from abroad. Owners' capital that finds no use at home is lent to nations short of reserves, and earns interest. A nation that can neither pay nor borrow must cut its imports. ${onGold(c) ? 'On the gold standard the currency is held at its parity: deficits are paid in gold, so money shrinks and prices fall, and if the reserves run out speculators attack the parity.' : 'The currency floats: it falls as reserves drain.'}</p>
       <div class="grid2 small">
-        <div class="kv"><span>Foreign reserves</span><span class="${E.reserves < 0 ? 'bad' : E.reserves < reserveTarget(c) ? 'warn' : ''}">${fmtMoney(E.reserves)} (${pct(E.reserves / Math.max(0.01, c.gdp))} of GDP, ${months.toFixed(0)} months of imports)</span></div>
+        <div class="kv"><span>Foreign reserves</span><span class="${E.reserves < 0 ? 'bad' : E.reserves < reserveTarget(c) ? 'warn' : ''}">${this.slideSpan('reserves', E.reserves, fmtMoney)} (${pct(E.reserves / Math.max(0.01, c.gdp))} of GDP, ${months.toFixed(0)} months of imports)</span></div>
         <div class="kv"><span>Trade balance</span><span class="${E.tradeBalance < 0 ? 'bad' : 'good'}">${fmtMoney(E.tradeBalance)}/mo</span></div>
         <div class="kv"><span>Owed abroad</span><span>${fmtMoney(extDebtOf(c))} (${pct(extDebtOf(c) / Math.max(0.01, c.gdp))} of GDP)</span></div>
         ${c.debt && c.debt.foreign && Object.keys(c.debt.foreign).length ? `<div class="kv" title="State bonds bought by lenders abroad. They paid for them in foreign currency, and their interest and repayments are paid out of our reserves."><span>State bonds held abroad</span><span>${fmtMoney(Object.values(c.debt.foreign).reduce((a, v) => a + v, 0))}</span></div>` : ''}
@@ -105,7 +105,7 @@ Object.assign(UI, {
         <div class="kv" title="Banks lend part of the reserves we have to spare abroad, as far as their capital allows. If a borrower defaults, our banks lose capital."><span>Our banks' loans abroad</span><span>${fmtMoney(E.bankAbroad || 0)}</span></div>
         <div class="kv"><span>Borrowed this month</span><span>${fmtMoney(E.borrowed || 0)}</span></div>
         ${c.extDefaulted != null && g.month - c.extDefaulted < PAY.DEFAULT_MEMORY ? `<div class="kv" title="Lenders abroad remember a default for five years."><span>Credit abroad</span><span class="bad">None for ${Math.ceil((PAY.DEFAULT_MEMORY - (g.month - c.extDefaulted)) / 12)} more year(s): we defaulted</span></div>` : ''}
-        <div class="kv" title="${onGold(c) ? 'On the gold standard the currency is held at its parity. Deficits are paid in gold, so the money supply shrinks and prices fall instead of the currency.' : 'A floating currency: it falls as reserves run short: imports cost more at home and exporters earn more at home.'}"><span>Exchange rate</span><span class="${(E.fx || 1) < 0.9 ? 'warn' : ''}">${(E.fx || 1).toFixed(2)}× real, ${onGold(c) ? `gold parity ${(E.parity || 1).toFixed(2)}` : 'floating'}</span></div>
+        <div class="kv" title="${onGold(c) ? 'On the gold standard the currency is held at its parity. Deficits are paid in gold, so the money supply shrinks and prices fall instead of the currency.' : 'A floating currency: it falls as reserves run short: imports cost more at home and exporters earn more at home.'}"><span>Exchange rate</span><span class="${(E.fx || 1) < 0.9 ? 'warn' : ''}">${this.slideSpan('fx', E.fx || 1, v => v.toFixed(2) + '×')} real, ${onGold(c) ? `gold parity ${(E.parity || 1).toFixed(2)}` : 'floating'}</span></div>
         ${onGold(c) ? `<div class="kv" title="Speculators attack the parity when reserves fall below ${pct(-PAY.ATTACK_AT)} of GDP."><span>Gold flow</span><span class="${(E.goldFlow || 0) < 0 ? 'warn' : ''}">${fmtSigned((E.goldFlow || 0) * 1200)}% of money a year</span></div>` : ''}
       </div>
       ${P.owe.length ? `<div class="small">We owe: ${list(P.owe)}</div>` : ''}${P.owed.length ? `<div class="small">Owe us: ${list(P.owed)}</div>` : ''}
@@ -146,8 +146,8 @@ Object.assign(UI, {
       <div class="grid2">
         <div class="kv" data-tip="inflation"><span>Inflation</span><span class="${inf > 0.08 ? 'bad' : inf < -0.01 ? 'warn' : ''}">${fmtSigned(inf * 100)}%/yr</span></div>
         <div class="kv" data-tip="inflation"><span>Expected</span><span>${fmtSigned(moneyAnnual(E, E.piE) * 100)}%/yr</span></div>
-        <div class="kv"><span>Price level</span><span>${(E.pl * 100).toFixed(0)} <small class="muted">(1950 = 100)</small></span></div>
-        <div class="kv"><span>Interest rate</span><span>${(E.rate * 100).toFixed(1)}%</span></div>
+        <div class="kv"><span>Price level</span><span>${this.slideSpan('pl', E.pl * 100, v => v.toFixed(0))} <small class="muted">(1950 = 100)</small></span></div>
+        <div class="kv"><span>Interest rate</span><span>${this.slideSpan('rate', E.rate * 100, v => v.toFixed(1) + '%')}</span></div>
         <div class="kv"><span>Money growth</span><span>${fmtSigned(moneyAnnual(E, E.moneyGrowth) * 100)}%/yr</span></div>
         <div class="kv" title="Nominal wages relative to prices: below 100, pay is lagging behind prices"><span>Real wages</span><span class="${E.realWage < 0.98 ? 'bad' : E.realWage > 1.02 ? 'good' : ''}">${Math.round(E.realWage * 100)}</span></div>
       </div>`;
@@ -323,8 +323,8 @@ Object.assign(UI, {
       <div class="kv"><span>Per capita</span><span>$${(c.gdpPerCap * 1000).toFixed(0)}</span></div>
       <div class="kv"><span>Growth</span><span class="${c.growthAvg < 0 ? 'bad' : 'good'}">${fmtSigned(c.growthAvg * 1200)}%/yr</span></div>
       <div class="kv" data-tip="treasury"><span>Treasury</span><span class="${c.treasury < 0 ? 'bad' : ''}">${fmtMoney(c.treasury)}${debt > 0 ? ` (${pct(debt)} debt)` : ''}</span></div>
-      <div class="kv"><span>Army</span><span>${fmtPop(c.army)}</span></div>
-      <div class="kv"><span>Strength</span><span>${strength(c).toFixed(0)}</span></div>
+      <div class="kv"><span>Army</span><span>${this.slideSpan('army', c.army, fmtPop, false)}</span></div>
+      <div class="kv"><span>Strength</span><span>${this.slideSpan('strength', strength(c), v => v.toFixed(0), false)}</span></div>
       <div class="kv" data-tip="pc"><span>Political capital</span><span>${Math.floor(c.pc)} (+${pcIncome(c).toFixed(1)}/mo)</span></div>
       ${c.overlord != null ? `<div class="kv"><span>Overlord</span><span class="warn">${esc(g.countries[c.overlord].name)} (${SUBJECT_TYPES[c.subjectType].name})</span></div>` : subjectsOf(g, c.id).length ? `<div class="kv"><span>Subjects</span><span>${subjectsOf(g, c.id).length}</span></div>` : ''}
       <div class="kv" data-tip="infamy"><span>Infamy</span><span class="${(c.infamy || 0) >= INFAMY.coalitionAt ? 'bad' : (c.infamy || 0) > 15 ? 'warn' : ''}">${Math.round(c.infamy || 0)}</span></div>
@@ -605,7 +605,8 @@ Object.assign(UI, {
       const r = E.prices[gk] / G.base, wr = W.prices[gk] / G.base;
       const tr = E.exports[gk] > E.imports[gk] ? `<span class="good">+${fmtQ(E.exports[gk])}</span>` : E.imports[gk] > 0.5 ? `<span class="warn">−${fmtQ(E.imports[gk])}</span>` : '';
       const f = E.fulfill[gk];
-      h += `<tr><td>${G.name}</td><td style="color:${r > 1.4 ? 'var(--bad)' : r < 0.75 ? 'var(--good)' : 'inherit'}">${pct(r)}</td><td class="muted">${pct(wr)}</td>
+      // Prices are weekly: they slide between the market's updates.
+      h += `<tr><td>${G.name}</td><td style="color:${r > 1.4 ? 'var(--bad)' : r < 0.75 ? 'var(--good)' : 'inherit'}">${this.slideSpan('price:' + gk, r, pct)}</td><td class="muted">${this.slideSpan('world:' + gk, wr, pct)}</td>
         <td>${fmtQ(E.S[gk])}</td><td>${fmtQ(E.D[gk])}</td><td>${tr}</td><td class="${f < 0.95 ? 'bad' : ''}">${pct(f)}</td></tr>`;
     }
     h += '</table><p class="small muted">Price 100% = base price. Shortages ("Met" below 100%) ration goods for everyone: pops go without, factories stall, and the army runs short of arms.</p>';
@@ -711,7 +712,7 @@ Object.assign(UI, {
     let h = `<div class="card grid2">
       <div class="kv"><span>Soldiers</span><span>${fmtPop(c.army)}</span></div>
       <div class="kv"><span>Target size</span><span>${fmtPop(armyTarget(c))}</span></div>
-      <div class="kv"><span>Strength</span><span>${strength(c).toFixed(0)}</span></div>
+      <div class="kv"><span>Strength</span><span>${this.slideSpan('strength', strength(c), v => v.toFixed(0), false)}</span></div>
       <div class="kv"><span>World rank</span><span>#${all.indexOf(c) + 1} of ${all.length}</span></div>
       <div class="kv"><span>War exhaustion</span><span class="${c.warExhaustion > 40 ? 'bad' : ''}">${Math.round(c.warExhaustion)}</span></div>
       <div class="kv"><span>Infamy</span><span class="${(c.infamy || 0) >= INFAMY.coalitionAt ? 'bad' : ''}">${Math.round(c.infamy || 0)} / ${INFAMY.coalitionAt}</span></div>
