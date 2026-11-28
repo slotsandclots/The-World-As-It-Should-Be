@@ -94,7 +94,7 @@ Object.assign(UI, {
     const P = foreignPositions(g, c);
     const list = arr => arr.slice(0, 3).map(([n, v]) => `${esc(n)} ${fmtMoney(v)}`).join(', ');
     return `<div class="card"><h3>Balance of payments</h3>
-      <p class="small muted">Every import is paid for in foreign currency, earned by exports or borrowed from abroad. Owners' capital that finds no use at home is lent to nations short of reserves, and earns interest. A nation that can neither pay nor borrow must cut its imports.</p>
+      <p class="small muted">Every import is paid for in foreign currency, earned by exports or borrowed from abroad. Owners' capital that finds no use at home is lent to nations short of reserves, and earns interest. A nation that can neither pay nor borrow must cut its imports. ${onGold(c) ? 'On the gold standard the currency is held at its parity: deficits are paid in gold, so money shrinks and prices fall, and if the reserves run out speculators attack the parity.' : 'The currency floats: it falls as reserves drain.'}</p>
       <div class="grid2 small">
         <div class="kv"><span>Foreign reserves</span><span class="${E.reserves < 0 ? 'bad' : E.reserves < reserveTarget(c) ? 'warn' : ''}">${fmtMoney(E.reserves)} (${pct(E.reserves / Math.max(0.01, c.gdp))} of GDP, ${months.toFixed(0)} months of imports)</span></div>
         <div class="kv"><span>Trade balance</span><span class="${E.tradeBalance < 0 ? 'bad' : 'good'}">${fmtMoney(E.tradeBalance)}/mo</span></div>
@@ -103,9 +103,12 @@ Object.assign(UI, {
         <div class="kv"><span>Interest paid abroad</span><span>${fmtMoney(E.interestOut || 0)}/mo at ${(extRate(c) * 100).toFixed(1)}%</span></div>
         <div class="kv"><span>Borrowed this month</span><span>${fmtMoney(E.borrowed || 0)}</span></div>
         ${c.extDefaulted != null && g.month - c.extDefaulted < PAY.DEFAULT_MEMORY ? `<div class="kv" title="Lenders abroad remember a default for five years."><span>Credit abroad</span><span class="bad">None for ${Math.ceil((PAY.DEFAULT_MEMORY - (g.month - c.extDefaulted)) / 12)} more year(s): we defaulted</span></div>` : ''}
-        <div class="kv" title="The currency's value abroad. It falls as reserves run short: exports sell better, imports cost more at home."><span>Exchange rate</span><span class="${(E.fx || 1) < 0.9 ? 'warn' : ''}">${(E.fx || 1).toFixed(2)}×</span></div>
+        <div class="kv" title="${onGold(c) ? 'On the gold standard the currency is held at its parity. Deficits are paid in gold, so the money supply shrinks and prices fall instead of the currency.' : 'A floating currency: it falls as reserves run short, so exports sell better and imports cost more at home.'}"><span>Exchange rate</span><span class="${(E.fx || 1) < 0.9 ? 'warn' : ''}">${(E.fx || 1).toFixed(2)}× real, ${onGold(c) ? `gold parity ${(E.parity || 1).toFixed(2)}` : 'floating'}</span></div>
+        ${onGold(c) ? `<div class="kv" title="Speculators attack the parity when reserves fall below ${pct(-PAY.ATTACK_AT)} of GDP."><span>Gold flow</span><span class="${(E.goldFlow || 0) < 0 ? 'warn' : ''}">${fmtSigned((E.goldFlow || 0) * 1200)}% of money a year</span></div>` : ''}
       </div>
       ${P.owe.length ? `<div class="small">We owe: ${list(P.owe)}</div>` : ''}${P.owed.length ? `<div class="small">Owe us: ${list(P.owed)}</div>` : ''}
+      ${E.attack ? `<div class="alert bad small"><b>Run on the currency</b> for ${g.month - E.attack.since} month(s): owners are sending ${fmtMoney(E.attack.flight)} a month abroad and interest rates carry a ${pct(PAY.DEFEND_PREMIUM)} premium to defend the parity. The attack ends when reserves are back above ${pct(PAY.ATTACK_OVER)} of GDP, or once they have risen four months running. <button class="danger" data-act="leavegold" style="margin-left:6px">Leave the gold standard</button></div>` : onGold(c) && E.reserves / Math.max(0.01, c.gdp) < PAY.ATTACK_AT / 2 ? `<div class="alert warn small">Reserves are running low: speculators will attack the parity if they fall below ${pct(-PAY.ATTACK_AT)} of GDP.</div>` : ''}
+      ${E.fxCrisis > 0 ? `<div class="alert bad small"><b>Currency crisis:</b> foreign lenders have pulled out for ${E.fxCrisis} more month(s), and owners are moving capital abroad.</div>` : ''}
       ${E.importSqueeze > 0.02 ? `<div class="alert bad small">Out of foreign currency: imports are cut by ${pct(E.importSqueeze)}.</div>` : ''}</div>`;
   },
 

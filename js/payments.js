@@ -14,12 +14,36 @@
 // (c.econ.fx) that falls as reserves drain: imports grow dearer at home and the
 // nation buys less abroad, while exporters earn more at home.
 //
-// Still to come: currency crises and pegs, bank lending at market rates.
+// Layer 2, pegs and currency crises: a nation on the gold standard holds its
+// currency at a parity. It adjusts through gold flowing in and out (the money
+// supply follows its reserves, money.js), not through the exchange rate. When
+// its reserves run out, speculators attack the parity: owners send their
+// capital to safe havens, interest rates are raised to defend it, and the
+// government either rides it out or leaves gold and lets the currency fall.
+// A floating currency that falls fast has a currency crisis: foreign lenders
+// stop lending and capital flees for a while.
+//
+// Still to come: bank lending at market rates, pegs to another currency.
 //
 // c.econ.reserves (billions, world money) · c.econ.fx (0.3-1.6) · c.extDebt = { lenderId: billions }
 // c.econ.importSqueeze (0-0.6) · c.extDefaulted (month of the last foreign default)
+// c.econ.fx is the real exchange rate (what trade responds to: the currency's value times prices at
+// home over prices abroad); c.econ.fxNom is the rate in currency. A floating rate moves the
+// nominal rate; a gold parity fixes it, so only prices at home can move the real rate.
+// c.econ.parity (gold nations, nominal) · c.econ.goldFlow (share of the money supply, last month)
+// c.econ.attack { since, flight } · c.econ.fxCrisis (months left) · c.econ.fxHist (last 13 rates)
 
-const PAY = { RESERVE_MONTHS: 3, LEND_LIMIT: 0.6, BASE_RATE: 0.04, FX_MIN: 0.3, FX_MAX: 1.6, DEFAULT_MEMORY: 60 };
+const PAY = {
+  RESERVE_MONTHS: 3, LEND_LIMIT: 0.6, BASE_RATE: 0.04, FX_MIN: 0.3, FX_MAX: 1.6, DEFAULT_MEMORY: 60,
+  ATTACK_AT: -0.08,     // reserves (share of GDP) at which speculators attack a gold parity
+  ATTACK_OVER: -0.03,   // ... and above which the attack is beaten off
+  FLIGHT: 0.02,         // share of owners' capital that flees each month in an attack
+  DEFEND_PREMIUM: 0.04, // interest-rate premium a defended parity costs (money.js)
+  FX_CRISIS_DROP: 0.2,  // a floating currency down this much in a year is in crisis
+  FX_CRISIS_MONTHS: 6,
+  HOT_MONEY: 3,         // a defended parity draws this many times more foreign capital (the premium)
+};
+function onGold(c) { return !!(c.laws && c.laws.monetary === 'gold'); }
 
 // The exchange rate: a currency falls as reserves run short and rises as they pile up.
 // A weak currency makes imports dearer, so the nation buys less abroad; a strong one
@@ -50,6 +74,7 @@ function tickPayments(game) {
     bill[c.id] = Math.max(1e-4, importBill(game, c));
     E.avgBill = E.avgBill == null ? bill[c.id] : E.avgBill * 0.9 + bill[c.id] * 0.1;
     if (E.reserves == null) E.reserves = c.gdp * 0.03;
+    E.res0 = E.reserves;
     E.reserves += E.tradeBalance || 0;
     E.interestOut = 0;
     const rate = extRate(c) / 12;
@@ -69,11 +94,26 @@ function tickPayments(game) {
     const target = reserveTarget(c);
     const room = c.gdp * PAY.LEND_LIMIT - extDebtOf(c);
     // No one lends to a state in a debt crisis, or to one that defaulted abroad in the last five years.
-    const trusted = !(c.debt && c.debt.crisis > 0) && !(c.extDefaulted != null && game.month - c.extDefaulted < PAY.DEFAULT_MEMORY);
+    // Nor to a falling floating currency: lenders wait to see where it settles.
+    // A gold parity defended with high interest rates is another matter: the premium draws capital in.
+    const trusted = !(c.debt && c.debt.crisis > 0) && !(c.extDefaulted != null && game.month - c.extDefaulted < PAY.DEFAULT_MEMORY) && !(E.fxCrisis > 0);
     need[c.id] = E.reserves < target && room > 0 && trusted ? Math.min(target - E.reserves, room) : 0;
     // Capital goes abroad only from nations with reserves to spare: a nation short of them keeps its savings home.
     offer[c.id] = Math.max(0, (E.capitalOffer || 0) / 1e6) * clamp((E.reserves - target) / Math.max(1e-6, target), 0, 1);
     totalNeed += need[c.id]; totalOffer += offer[c.id];
+  }
+  // Hot money: while a parity is defended, owners abroad lend more to earn its premium, and the defenders are served first.
+  const defending = alive.filter(c => c.econ.attack && need[c.id] > 0);
+  if (defending.length) {
+    totalOffer = 0;
+    for (const c of alive) { offer[c.id] *= PAY.HOT_MONEY; totalOffer += offer[c.id]; }
+    let firstCall = 0; for (const c of defending) firstCall += need[c.id];
+    // Others' needs are scaled down so that the defenders' are met first from what is offered.
+    const left = Math.max(0, totalOffer - firstCall), others = totalNeed - firstCall;
+    if (others > 0 && left < others) {
+      const k = left / others; totalNeed = firstCall;
+      for (const c of alive) if (!c.econ.attack) { need[c.id] *= k; totalNeed += need[c.id]; }
+    }
   }
   const lentShare = totalOffer > 0 ? Math.min(1, totalNeed / totalOffer) : 0;
   const filled = totalNeed > 0 ? Math.min(1, totalOffer / totalNeed) : 0;
@@ -93,6 +133,10 @@ function tickPayments(game) {
     for (const L of alive) { const share = offer[L.id] * lentShare / Math.max(1e-9, totalOffer * lentShare); if (share > 0 && L.id !== c.id) c.extDebt[L.id] = (c.extDebt[L.id] || 0) + need[c.id] * filled * share; }
   }
   // 3. Surpluses repay old debts; nations that cannot pay must cut imports.
+  // Prices abroad: the world's price level, weighted by the size of each economy.
+  let wplN = 0, wplD = 0;
+  for (const c of alive) { wplN += (c.econ.pl || 1) * c.gdp; wplD += c.gdp; }
+  const wpl = wplD > 0 ? wplN / wplD : 1;
   for (const c of alive) {
     const E = c.econ, target = reserveTarget(c);
     const debt = extDebtOf(c);
@@ -104,9 +148,7 @@ function tickPayments(game) {
     if (debt > c.gdp * 1.2) foreignDefault(game, c);
     // Reserves are judged against the size of the economy: trade is small, but reparations and debts are not.
     const r = (E.reserves - target) / Math.max(0.01, c.gdp);
-    // A floating currency keeps falling while reserves drain: imports grow dearer at home and exporters earn more.
-    const fxT = clamp(1 + r * 4, PAY.FX_MIN, PAY.FX_MAX);
-    E.fx = (E.fx || 1) + (fxT - (E.fx || 1)) * 0.04;
+    tickCurrency(game, c, r, wpl);
     // Only a nation in arrears (deep in the red, no one left to lend) has to ration its imports outright.
     const sq = E.reserves < -c.gdp * 0.1 ? clamp((-E.reserves / c.gdp - 0.1) / 0.2, 0, 0.6) : 0;
     E.importSqueeze = (E.importSqueeze || 0) + (sq - (E.importSqueeze || 0)) * 0.3;
@@ -115,6 +157,119 @@ function tickPayments(game) {
     if (sq === 0 && E.payCrisis && E.reserves > target) E.payCrisis = null;
 
   }
+}
+
+// The currency: a gold parity held (and attacked), or a floating rate (and its crises).
+function tickCurrency(game, c, r, wpl) {
+  const E = c.econ;
+  E.flightOut = 0;
+  if (onGold(c)) {
+    // A nation joining gold fixes its parity at today's rate. The parity holds the currency;
+    // the real rate then moves only with prices: deflation at home makes its goods cheaper than imports.
+    const rel = (E.pl || 1) / Math.max(1e-6, wpl || 1);
+    if (E.parity == null) E.parity = (E.fx || 1) / rel;
+    E.fxNom = E.parity;
+    E.fx = clamp(E.parity * rel, PAY.FX_MIN, PAY.FX_MAX);
+    // Gold leaves with the deficit and comes in with the surplus; the money supply follows it (money.js).
+    const moneyB = Math.max(1e-6, (E.money || 0) / 1e6 / (E.pl || 1));
+    E.goldFlow = clamp((E.reserves - (E.res0 || 0)) / moneyB, -0.01, 0.01);
+    const res = E.reserves / Math.max(0.01, c.gdp);
+    // After a parity has been defended, speculators wait two years, unless the reserves fall to a new low.
+    const rested = !(E.defended && game.month - E.defended.month < 24 && E.reserves > E.defended.low);
+    if (!E.attack && res < PAY.ATTACK_AT && rested) {
+      E.attack = { since: game.month, flight: 0, low: E.reserves };
+      logNews(game, `Speculators attack the ${c.name} gold parity; capital flees the country.`, 'econ', [c.id]);
+      if (isPlayer(game, c)) notify(game, 'A Run on the Currency', 'Our gold reserves are gone and speculators are betting the parity will break. Owners are sending their capital abroad. Interest rates have been raised to defend the parity, which will deepen the slump. We can ride it out until the reserves recover, or leave the gold standard and let the currency fall (Economy tab).');
+    }
+    if (E.attack) {
+      flee(game, c, PAY.FLIGHT);
+      // Speculators give up once the drain is clearly reversing, or the reserves are rebuilt.
+      E.attack.rising = E.reserves > (E.res0 || 0) ? (E.attack.rising || 0) + 1 : 0;
+      E.attack.low = Math.min(E.attack.low, E.reserves);
+      if (res > PAY.ATTACK_OVER || E.attack.rising >= 4) {
+        logNews(game, `${c.name} defends its gold parity; the speculators retreat.`, 'econ', [c.id]);
+        E.defended = { month: game.month, low: E.attack.low };
+        E.attack = null;
+      } else if (!isPlayer(game, c) && aiLeavesGold(game, c, res)) leaveGold(game, c);
+    }
+  } else {
+    E.parity = null; E.goldFlow = 0; E.attack = null;
+    // A floating currency keeps falling while reserves drain: imports grow dearer at home and exporters earn more.
+    // Just after leaving gold it falls fast: the devaluation.
+    const fxT = clamp(1 + r * 4, PAY.FX_MIN, PAY.FX_MAX);
+    const speed = E.leftGold != null && game.month - E.leftGold < 6 ? 0.25 : 0.04;
+    E.fx = (E.fx || 1) + (fxT - (E.fx || 1)) * speed;
+    // In currency, a floating rate also falls with inflation at home beyond inflation abroad.
+    E.fxNom = E.fx * (wpl || 1) / Math.max(1e-6, E.pl || 1);
+    if (E.fxCrisis > 0) { E.fxCrisis--; flee(game, c, PAY.FLIGHT * 0.5); }
+  }
+  // A year of rates, to spot a collapse.
+  E.fxHist = E.fxHist || [];
+  E.fxHist.push(E.fx); if (E.fxHist.length > 13) E.fxHist.shift();
+  const yearAgo = E.fxHist[0];
+  // A devaluation after leaving gold is not a crisis, and a crisis is not called again while the last one is fresh.
+  const recent = m => m != null && game.month - m < 36;
+  if (!onGold(c) && !(E.fxCrisis > 0) && E.fxHist.length === 13 && E.fx < yearAgo * (1 - PAY.FX_CRISIS_DROP) && !recent(E.leftGold) && !recent(E.fxCrisisAt)) {
+    E.fxCrisis = PAY.FX_CRISIS_MONTHS; E.fxCrisisAt = game.month;
+    logNews(game, `The ${c.name} currency collapses, down ${Math.round((1 - E.fx / yearAgo) * 100)}% in a year; foreign lenders pull out.`, 'econ', [c.id]);
+    if (isPlayer(game, c)) notify(game, 'A Currency Crisis', 'Our currency has lost a fifth of its value in a year. Foreign lenders will not lend to us until it settles, and owners are moving their capital abroad. Imports are dearer; exporters earn more.');
+  }
+}
+
+// Capital flight: owners move a share of their capital to the nation with the most reserves to spare.
+// It leaves as reserves paid over, so nothing is created or lost.
+function flee(game, c, share) {
+  const E = c.econ;
+  let haven = null, best = -Infinity;
+  for (const o of game.countries) {
+    if (!o.alive || !o.econ || o.id === c.id || o.econ.attack || o.econ.fxCrisis > 0) continue;
+    const v = (o.econ.reserves || 0) / Math.max(0.01, o.gdp);
+    if (v > best) { best = v; haven = o; }
+  }
+  const f = Math.max(0, E.investPool) * share / 1e6;
+  if (!haven || f <= 0) { if (E.attack) E.attack.flight = 0; return 0; }
+  E.investPool -= f * 1e6; E.reserves -= f;
+  haven.econ.investPool += f * 1e6; haven.econ.reserves += f;
+  if (E.attack) E.attack.flight = f;
+  E.flightOut = f;
+  return f;
+}
+
+// How long an AI government defends gold depends on who it answers to.
+function aiLeavesGold(game, c, res) {
+  const E = c.econ, months = game.month - E.attack.since;
+  if (res < PAY.ATTACK_AT * 4) return true; // nothing left to defend with
+  let patience = 9;
+  if (c.gov === 'absMonarchy' || c.gov === 'theocracy' || c.gov === 'constMonarchy') patience += 6; // gold is the old order's money
+  if (GOVS[c.gov] && GOVS[c.gov].elections === 'free' && (E.unemployment || 0) > 0.06) patience -= 5; // voters out of work
+  if (c.gov === 'fascist' || c.gov === 'communist' || c.gov === 'junta') patience -= 4;
+  return months >= Math.max(2, patience);
+}
+
+// Leaving gold: the parity is abandoned, money is managed, and the currency falls.
+function leaveGold(game, c) {
+  const E = c.econ;
+  const to = GOVS[c.gov] && GOVS[c.gov].elections === 'free' ? 'centralBank' : 'state';
+  if (c.reform && c.reform.cat === 'monetary') c.reform = null;
+  enactLaw(game, c, 'monetary', to);
+  E.leftGold = game.month; E.attack = null; E.parity = null;
+  logNews(game, `${c.name} leaves the gold standard; its currency falls.`, 'econ', [c.id]);
+  return { ok: true, msg: 'We have left the gold standard. The currency will fall over the coming months: imports dearer, exports cheaper abroad, and money is ours to manage.' };
+}
+
+// Going (back) on gold needs reserves to back the parity, and markets remember a recent exit.
+function goldBlocked(game, c) {
+  const E = c.econ;
+  if (!E || E.reserves == null) return null;
+  if (E.leftGold != null && game.month - E.leftGold < 120) return 'We left the gold standard less than ten years ago; no one would believe a new parity yet.';
+  if (E.reserves < reserveTarget(c)) return `Going on gold needs reserves to back the parity: at least $${reserveTarget(c).toFixed(1)}B (we hold $${E.reserves.toFixed(1)}B).`;
+  return null;
+}
+
+function playerLeaveGold(game) {
+  const c = game.countries[game.player];
+  if (!onGold(c)) return { ok: false, msg: 'We are not on the gold standard.' };
+  return leaveGold(game, c);
 }
 
 // Debt service at home comes out of the owners' capital, then the state's fund, then the treasury.
