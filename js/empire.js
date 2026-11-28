@@ -195,6 +195,8 @@ function resetNation(game, N, gov, patron) {
   N.cabinet = {}; N.generals = []; N.dissidents = []; N.heir = null; N.monarch = null;
   N.movements = null;
   N.wound = null; N.revanchism = 0; N.treaty = null; N.figures = null; N.bled = 0; N.extDebt = null; N.extDefaulted = null;
+  // A reborn nation starts its payments afresh: reserves are re-seeded from its new economy (payments.js).
+  if (N.econ) { N.econ.reserves = null; N.econ.avgBill = null; N.econ.fx = 1; N.econ.fxNom = 1; N.econ.importSqueeze = 0; N.econ.payCrisis = null; N.econ.parity = null; N.econ.attack = null; N.econ.defended = null; N.econ.fxCrisis = 0; N.econ.fxHist = null; N.econ.goldFlow = 0; N.econ.bankAbroad = 0; }
   if (N.econ && patron.econ) N.econ.tech = Math.max(N.econ.tech, patron.econ.tech * 0.85);
   N.research = N.research || { current: null, progress: 0, done: [] };
 }

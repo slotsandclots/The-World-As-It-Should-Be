@@ -765,7 +765,12 @@ test('closed loop, phase 2: a strong currency never imports past the shortfall; 
     const d = alive[1], L = alive[2];
     d.extDebt = { [L.id]: d.gdp * 1.5 }; d.econ.reserves = -d.gdp * 0.05;
     tickPayments(g);
-    const defaulted = d.extDefaulted === g.month, lockedOut = d.econ.borrowed === 0;
+    const defaulted = d.extDefaulted === g.month, once = d.extDefaulted;
+    // Even with room to borrow again and reserves drained, no one lends, and it does not default twice.
+    d.extDebt = { [L.id]: d.gdp * 0.05 }; d.econ.reserves = -d.gdp * 0.05; d.debt = d.debt || {}; d.debt.crisis = 0;
+    g.month += 1; tickPayments(g);
+    d.extDebt = { [L.id]: d.gdp * 1.5 }; tickPayments(g);
+    const lockedOut = d.econ.borrowed === 0 && d.extDefaulted === once;
     // A borrower that ceases to exist takes its debts with it.
     const b = alive[3]; b.extDebt = { [L.id]: 1 }; b.alive = false;
     tickPayments(g);
@@ -774,7 +779,7 @@ test('closed loop, phase 2: a strong currency never imports past the shortfall; 
     return { over, defaulted, lockedOut, gone, sane: __sane(g) };
   })()`);
   assert(r.over === 0, `${r.over} goods imported beyond the shortfall at a strong currency`);
-  assert(r.defaulted && r.lockedOut, 'a nation that defaults abroad should get no new foreign loans');
+  assert(r.defaulted && r.lockedOut, 'a nation that defaults abroad should get no new foreign loans, and should not default again at once');
   assert(r.gone, 'debts of a nation that no longer exists should be written off');
   assert(r.sane.length === 0, r.sane.join('; '));
 });
@@ -817,6 +822,42 @@ test('closed loop, phase 2, layer 2: a gold parity holds, is attacked when reser
   assert(r.floated, 'leaving gold should float the currency and let it fall');
   assert(r.refused, 'a nation that just left gold cannot go straight back');
   assert(r.sane.length === 0, r.sane.join('; '));
+});
+
+test('closed loop, phase 2: review fixes (gold rules hold, crises end, bills survive, the reborn start afresh)', () => {
+  const r = run(`(() => {
+    const g = createGame('payfix', { size: 'small', countries: 10 }); setPlayer(g, 0);
+    for (let i = 0; i < 6; i++) { tick(g); g.pending.length = 0; }
+    const c = g.countries[1];
+    // Leaving gold keeps a bill on anything else that is going through parliament.
+    c.laws.monetary = 'gold'; c.econ.attack = { since: g.month, flight: 0, low: 0 };
+    c.reform = { cat: 'press', opt: 'free', progress: 40, months: 2, support: 0.6 };
+    leaveGold(g, c);
+    const billKept = !!c.reform && c.reform.cat === 'press';
+    // A currency crisis from the floating days runs out after going on gold.
+    c.reform = null; c.econ.leftGold = null; c.laws.monetary = 'gold'; c.econ.parity = null; c.econ.fxCrisis = 6;
+    for (let i = 0; i < 8; i++) tickCurrency(g, c, 0, 1);
+    const crisisOver = !(c.econ.fxCrisis > 0);
+    // A new regime that wants gold cannot impose it without the reserves to back it.
+    c.laws.monetary = 'centralBank'; c.econ.leftGold = g.month; c.econ.reserves = -c.gdp * 0.3;
+    changeGovernment(g, c, 'absMonarchy', 'revolution');
+    const keptMoney = c.laws.monetary === 'centralBank';
+    // A gold bill that passes once the reserves are gone lapses.
+    c.reform = { cat: 'monetary', opt: 'gold', progress: 99, months: 6, support: 0.9 };
+    tickLaws(g, c);
+    const lapsed = c.laws.monetary !== 'gold' && !c.reform;
+    // A nation brought back to life does not inherit its old payments troubles.
+    const d = g.countries[2];
+    d.econ.reserves = -d.gdp; d.econ.importSqueeze = 0.6; d.econ.fx = 0.3; d.econ.payCrisis = 1; d.econ.attack = { since: 0, flight: 0, low: 0 }; d.econ.fxCrisis = 6;
+    resetNation(g, d, d.gov, g.countries[0]);
+    const fresh = d.econ.reserves == null && d.econ.importSqueeze === 0 && d.econ.fx === 1 && !d.econ.payCrisis && !d.econ.attack && !d.econ.fxCrisis;
+    return { billKept, crisisOver, keptMoney, lapsed, fresh };
+  })()`);
+  assert(r.billKept, 'leaving gold should not cancel an unrelated bill');
+  assert(r.crisisOver, 'a currency crisis should run out on gold too');
+  assert(r.keptMoney, 'a new regime should not go on gold without the reserves');
+  assert(r.lapsed, 'a gold bill should lapse if the reserves are gone when it passes');
+  assert(r.fresh, 'a reborn nation should start its payments afresh');
 });
 
 test('closed loop, phase 2, layer 2: a floating currency that collapses stops foreign lending', () => {

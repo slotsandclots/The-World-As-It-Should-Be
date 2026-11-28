@@ -562,6 +562,8 @@ function changeGovernment(game, c, newGov, how, opts) {
   const oldLaws = c.laws;
   c.laws = presetLaws(newGov);
   if (oldLaws && how !== 'revolution') for (const k of ['church', 'economy', 'labor', 'electoral', 'monetary', 'banking', 'migration']) if (oldLaws[k]) c.laws[k] = oldLaws[k];
+  // A new regime that wants gold still needs the reserves to back it (payments.js); otherwise money stays as it was.
+  if (oldLaws && oldLaws.monetary && oldLaws.monetary !== 'gold' && c.laws.monetary === 'gold' && typeof goldBlocked === 'function' && goldBlocked(game, c)) c.laws.monetary = oldLaws.monetary;
   c.reform = null;
   if (g.party === 'multi' && GOVS[old].party === 'multi') {
     // keep the existing party system

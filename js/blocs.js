@@ -139,7 +139,8 @@ function memberVote(game, b, applicantId) {
 // in, and then it decides. Shown on the Blocs tab beside each candidate.
 function inviteChance(game, b, targetId) {
   const v = memberVote(game, b, targetId);
-  return v.passed ? clamp(joinAppeal(game, game.countries[targetId], b) + 0.1, 0, 1) : 0;
+  if (!v.passed || b.members.some(m => atWarWith(game, targetId, m))) return 0;
+  return clamp(joinAppeal(game, game.countries[targetId], b) + 0.1, 0, 1);
 }
 
 // Collective defense, called from declareWar.
