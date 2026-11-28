@@ -626,6 +626,31 @@ Already in place from History makers: revenge as an aim (a grudge against the vi
 - **Diplomatic memory:** grudges, trust and broken promises.
 - **Recognizable national personalities,** so each world's history feels different.
 
+## Time and pacing (M)
+
+The world moves in monthly jumps: every nation updates at once, news arrives in batches, and numbers change in steps. The goal is a world that feels continuous, and eventually a simulation that runs in weeks, so wars, crises and markets can move faster than a month.
+
+**Stage 1: a daily clock on the monthly simulation.** The simulation still steps once a month; only how it is shown changes.
+- **The calendar runs day by day,** at speeds the player picks (pause, 1–5), with the date in the top bar.
+- **Staggered nations:** each nation updates on its own fixed day of the month, so the work and the changes are spread out. World-level steps (market clearing, payments, trade flows) still run once a month, on day 1. Anything that assumes every nation has updated in the same instant has to be found and fixed first.
+- **News on its day:** each event gets a day within the month and appears when the clock reaches it, not in a batch.
+- **Smoothly moving numbers:** values shown in the interface (treasury, prices, exchange rate, army strength) slide between last month's and this month's values.
+- **Unchanged:** the economy, politics, tests and balance report. A 40-year run must give the same numbers, apart from the nation-order effects of staggering, which are measured and explained.
+
+**Stage 2: weekly ticks.** The simulation steps four times as often (or 52 times a year, with months as calendar labels).
+- **One time constant per rate:** every per-month rate, smoothing factor and duration goes into a single table of time constants (`js/time.js`) and is converted with `perStep(monthlyRate)` / `smooth(monthlyFactor)` helpers instead of `/ 12` and fixed factors scattered through the code. This can be done first, on the monthly tick, with no change in behaviour: a pure refactor that the balance report checks.
+- **Durations in time, not ticks:** crises, memories, elections, reforms, wars and cooldowns are counted in months (or days) of game time, whatever the step.
+- **What runs weekly and what stays monthly:** war, markets and payments benefit most. Slow systems (demographics, ideas, figures, research) may stay monthly to save time.
+- **Speed:** about 4× the work per game year. It needs the Web Worker (deferred from Foundations) and profiling, so a 40-year run stays playable and the 24-world balance report stays under about 20 minutes.
+- **Re-tuning:** compare 24 worlds × 40 years against the monthly baseline (growth, calm-year falling-GDP share, inflation, stability, crisis share, unemployment, regime changes, wars, banking and debt crises, payments, speed) and tune until they match, or explain the changes kept. Shocks and random events must be rescaled so their yearly frequency stays the same.
+- **The player:** weekly turns for war (fronts, supply, battles) arrive with Milestone 5; the daily clock from stage 1 stays the pacing layer on top.
+
+**Order:**
+1. Stage 1 (the daily clock), any time; it touches only the clock and the interface.
+2. The time-constant refactor, on the monthly tick, measured to change nothing.
+3. Weekly ticks for war, with Milestone 5 and the Web Worker.
+4. Weekly ticks for markets and payments, then the rest as speed allows.
+
 ## Milestone 5: Military strategy, an operational layer (L)
 
 **Design principle:** war should be an economic and political act, not a separate game. We take the parts of Hearts of Iron that make war about places and timing (fronts, breakthroughs, supply, encirclement) and skip the parts that demand constant micromanagement (division templates, combat width, daily ticks). The war layer runs itself; the player steps in for the big decisions and goes back to running the country.
@@ -643,7 +668,7 @@ Already in place (first pass): occupation until peace, fighting along the front 
 - **The home front:** casualty reports, anti-war movements, draft riots, a hostile press. Losing a war can bring down the government.
 - **Casus belli and war goals:** a justification is needed to declare war, which can be fabricated. War goals come from politics (reconquest, nationalism from Milestone 3, interest-group demands) and drive war score.
 - **The seas and the skies, abstracted:** fleets contest control of sea routes (landings, blockades that cut world-market trade, convoy raiding); air power is a regional superiority modifier, not units.
-- **Time:** the game runs in weekly steps while a war is on, and monthly in peace. On the map: army counters, battle markers, the front line between the sides, plan arrows, and highlighted encircled pockets.
+- **Time:** the game runs in weekly steps while a war is on, and monthly in peace (stage 2 of Time and pacing). On the map: army counters, battle markers, the front line between the sides, plan arrows, and highlighted encircled pockets.
 - **AI:** fights with the same fronts and orders, so it can spearhead and encircle too.
 
 **Retune world wars** (built early in History makers, on the first-pass war layer):
@@ -886,6 +911,8 @@ Ideas for after (or alongside) the milestones. They follow the same design philo
 14. **Eras and scenarios (Milestone 6) and the desktop release,** together toward a public release.
 
 Later: Milestone 8 (intrigue and dynasties), world scale (as the map and Web Worker allow), and the rest of Beyond the milestones.
+
+Time and pacing slots in by stages: the daily clock any time (it touches only the clock and the interface), the time-constant refactor before Milestone 5, and weekly ticks with Milestone 5 and the Web Worker.
 
 Flow views (visuals track) slot in as their data arrives: migration right after the trade view, capital and debt after phase 2 of the closed-loop economy, and ideas after that.
 
