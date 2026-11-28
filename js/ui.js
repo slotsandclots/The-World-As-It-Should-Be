@@ -485,6 +485,19 @@ const UI = {
     if (actual !== s.to) S[key] = s = { g, from: this.slideAt(s, now), to: actual, d0: now, d1: Math.max(now + 1, App.nextUpdateIndex(weekly)) };
     return this.slideAt(s, now);
   },
+  // A weekly figure in a tab that slides between updates: drawn with the tab, then moved
+  // day by day by renderTopbar(true) without redrawing the tab.
+  slideSpan(key, actual, fmt) {
+    (this.slideFmt || (this.slideFmt = {}))[key] = fmt;
+    return `<span data-slide="${key}">${fmt(this.slideVal('tab:' + key, actual, true))}</span>`;
+  },
+  slideTab() {
+    const S = this.slides || {}, F = this.slideFmt || {}, now = App.calIndex();
+    document.querySelectorAll('#tab-body [data-slide]').forEach(el => {
+      const k = el.dataset.slide, s = S['tab:' + k];
+      if (s && F[k] && s.g === App.game) el.textContent = F[k](this.slideAt(s, now));
+    });
+  },
   slideAt(s, now) { return s.d1 > s.d0 ? s.from + (s.to - s.from) * clamp((now - s.d0) / (s.d1 - s.d0), 0, 1) : s.to; },
 
   // light: a day on the calendar with no step, only the sliding numbers and the date change.
@@ -509,7 +522,7 @@ const UI = {
         (atWar ? med('war', 'military', 'At war', `${warsOf(g, c.id).length} front${warsOf(g, c.id).length > 1 ? 's' : ''}`, 'war') : '') +
         (c.emergency ? med('emergency', 'alert', 'Emergency', 'Martial law', 'war') : '');
     } else $('#tb-stats').innerHTML = '';
-    if (light) return;
+    if (light) { this.slideTab(); return; }
     document.querySelectorAll('[data-speed]').forEach(b => {
       b.classList.toggle('active', +b.dataset.speed === App.speed);
       b.disabled = !c;

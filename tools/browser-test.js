@@ -63,19 +63,20 @@ const { chromium } = require('playwright');
     UI.modalOpen = () => false;
     try {
       App.setSpeed(0);
+      UI.tab = 'economy'; UI.renderTab();
       App.step(false, true);
       const m = g.month, days = monthDays(m), weeks = [], grain = [];
       weeks.push([App.day, g.week]);
       grain.push(g.countries[g.player].econ.prices.grain);
       // Numbers that slide: the top bar's approval, stability and treasury between the monthly updates.
       const bar = () => ['approval', 'stability', 'treasury'].map(k => { const el = document.querySelector(`#tb-stats [data-tip="${k}"] b`); return el ? el.textContent : ''; }).join('|');
-      const shownBars = [bar()];
-      while (App.day < days) { App.nextDay(); weeks.push([App.day, g.week]); shownBars.push(bar()); if ([8, 15, 22].includes(App.day)) grain.push(g.countries[g.player].econ.prices.grain); }
+      const shownBars = [bar()], tabFigures = [], tabFigure = () => { const el = document.querySelector('#tab-body [data-slide="pl"]'); return el ? el.textContent + '|' + document.querySelector('#tab-body [data-slide="reserves"]').textContent : ''; };
+      while (App.day < days) { App.nextDay(); weeks.push([App.day, g.week]); shownBars.push(bar()); if (![8, 15, 22].includes(App.day)) tabFigures.push(tabFigure()); if ([8, 15, 22].includes(App.day)) grain.push(g.countries[g.player].econ.prices.grain); }
       const c = g.countries[g.player];
       var slid = new Set(shownBars).size, settled = Math.round(c.approval) + '|' + Math.round(c.stability);
       const lines = g.log.filter(l => l.m === m);
       const misplaced = lines.filter(l => l.w != null && l.d != null && (l.d < [1, 8, 15, 22][l.w] || (l.w < 3 && l.d >= [1, 8, 15, 22][l.w + 1]))).length;
-      return { m, month: g.month, weeks, grain, lines: lines.length, weekly: lines.filter(l => l.w > 0).length, misplaced, text: App.dateText(), slid, last: shownBars[shownBars.length - 1], settled };
+      return { m, month: g.month, weeks, grain, lines: lines.length, weekly: lines.filter(l => l.w > 0).length, misplaced, text: App.dateText(), slid, tabSlid: new Set(tabFigures).size, tabHas: tabFigures.some(Boolean), last: shownBars[shownBars.length - 1], settled };
     } finally { UI.modalOpen = keep; }
   });
   const wk = Object.fromEntries(clock.weeks);
@@ -83,6 +84,7 @@ const { chromium } = require('playwright');
   if (!(wk[1] === 0 && wk[7] === 0 && wk[8] === 1 && wk[14] === 1 && wk[15] === 2 && wk[22] === 3 && wk[28] === 3)) errors.push('Weekly steps should fall on the 1st, 8th, 15th and 22nd: ' + JSON.stringify(clock.weeks));
   if (new Set(clock.grain).size < 3) errors.push('Prices should move from week to week: ' + clock.grain.join(', '));
   if (clock.misplaced) errors.push(clock.misplaced + ' news lines were shown outside their week');
+  if (!clock.tabHas || clock.tabSlid < 2) errors.push('The Economy tab\'s weekly figures should slide between updates: ' + clock.tabSlid);
   if (clock.slid < 2) errors.push('The top bar should move between updates: ' + clock.slid + ' different readings in a month');
   if (!clock.last.startsWith(clock.settled + '|')) errors.push('By the end of the month the top bar should show the real values: ' + clock.last + ' vs ' + clock.settled);
   console.log(`Sliding top bar: ${clock.slid} different readings over the month, ending at ${clock.last}.`);
