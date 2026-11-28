@@ -805,7 +805,7 @@ Object.assign(UI, {
           : `<div class="kv small"><span>Common external tariff</span><span>${pct(b.tariff)} (set by ${esc(g.countries[b.leader].name)})</span></div>`;
       }
       h += `<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;align-items:center">`;
-      if (lead && candidates.length) h += `<select id="invite-${b.id}">${candidates.map(o => `<option value="${o.id}">${esc(o.name)} (rel ${Math.round(relation(g, c.id, o.id))})</option>`).join('')}</select><button class="small" data-act="bloc" data-a="invite" data-bloc="${b.id}" ${c.pc < 10 ? 'disabled' : ''} title="Members vote; then they decide. 10 PC">Invite</button>`;
+      if (lead && candidates.length) h += `<select id="invite-${b.id}">${candidates.map(o => { const v = memberVote(g, b, o.id); return `<option value="${o.id}">${esc(o.name)} (rel ${Math.round(relation(g, c.id, o.id))}, ${v.passed ? `${pct(inviteChance(g, b, o.id))} to join` : `members vote no, ${v.yes} of ${v.total}`})</option>`; }).join('')}</select><button class="small" data-act="bloc" data-a="invite" data-bloc="${b.id}" ${c.pc < 10 ? 'disabled' : ''} title="Members vote; then they decide. 10 PC">Invite</button>`;
       if (b.type === 'confederation' && lead) { const why = federateCheck(g, b); h += `<button class="small gold" data-act="federal" data-a="federate" data-bloc="${b.id}" ${why || c.pc < 50 ? 'disabled' : ''} title="${esc(why || 'Merge every member into one federal state led by us. 50 PC')}">Propose federation</button>`; }
       h += `<button class="small" data-act="bloc" data-a="leave" data-bloc="${b.id}">Leave</button></div></div>`;
     }
@@ -818,12 +818,12 @@ Object.assign(UI, {
       }
       h += '</table></div>';
     }
-    h += `<div class="card"><h3>Found a bloc</h3><p class="small muted">Choose a founding partner; they decide based on relations, shared politics, and what the bloc offers them.</p>`;
+    h += `<div class="card"><h3>Found a bloc</h3><p class="small muted">Choose a founding partner; they decide based on relations, shared politics, the threats they face and what the bloc offers them. Every nation founds blocs this way, so AI partners turn each other down too. The chance each would accept is shown beside its name.</p>`;
     const partners = g.countries.filter(o => o.alive && o.id !== c.id && o.overlord == null).sort((x, y) => relation(g, c.id, y.id) - relation(g, c.id, x.id));
     for (const k of BLOC_KEYS) {
       const T = BLOC_TYPES[k], why = canJoin(g, c, k);
       h += `<div class="person" style="align-items:center"><div class="pinfo"><b>${T.icon} ${T.name}</b><div class="small muted">${T.desc}</div>${why ? `<div class="small bad">${why}</div>` : ''}</div>
-        <div class="pact">${why ? '' : `<select id="found-partner-${k}">${partners.filter(o => !canJoin(g, o, k)).map(o => `<option value="${o.id}">${esc(o.name)} (rel ${Math.round(relation(g, c.id, o.id))})</option>`).join('')}</select>`}
+        <div class="pact">${why ? '' : `<select id="found-partner-${k}">${partners.filter(o => !canJoin(g, o, k)).map(o => `<option value="${o.id}">${esc(o.name)} (rel ${Math.round(relation(g, c.id, o.id))}, ${pct(foundingChance(g, o, c.id, k))} to accept)</option>`).join('')}</select>`}
         <button class="small" data-act="bloc" data-a="found" data-type="${k}" ${why || c.pc < T.foundPc ? 'disabled' : ''}>Found (${T.foundPc} PC)</button></div></div>`;
     }
     return h + '</div>';

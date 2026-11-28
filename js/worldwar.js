@@ -300,6 +300,16 @@ function peaceConference(game, war) {
 
 // ------------------------------------------------------------------ revisionist powers
 
+// What draws a partner into an axis: its own grievance, and a shared regime.
+function revisionistBonus(game, c, o) {
+  return FOUND_BONUS + clamp(o.revanchism || 0, 0, 0.5) + (o.gov === c.gov ? 0.1 : 0);
+}
+
+// What draws a partner into an alliance against a rival: its own distrust of that rival.
+function rivalBonus(game, o, rival) {
+  return 0.2 + clamp(-relation(game, o.id, rival) / 200, 0, 0.25);
+}
+
 // Nations nursing a defeat look for partners against the order that defeated them.
 function tickRevisionists(game) {
   const rng = game.rng;
@@ -314,9 +324,10 @@ function tickRevisionists(game) {
     if (pact && memberVote(game, pact, c.id).passed) { joinBloc(game, pact, c.id); continue; }
     const partner = game.countries.find(o => fits(o) && !militaryBloc(game, o.id));
     if (!partner) continue;
-    const b = foundBloc(game, c.id, 'pact', `${capitalName(game, c)} Axis`);
+    // A shared grievance is the founder's case; the partner still decides.
+    const b = proposeBloc(game, c.id, partner.id, 'pact', `${capitalName(game, c)} Axis`, revisionistBonus(game, c, partner));
+    if (!b) continue;
     b.revisionist = true;
-    joinBloc(game, b, partner.id);
     logNews(game, `${c.name} and ${partner.name}, both bitter at the present order, sign the ${b.name}.`, 'diplo', [c.id, partner.id]);
   }
 }
@@ -337,12 +348,12 @@ function tickRivalries(game) {
       if (!rng.chance(0.15)) continue;
       const f = recruit();
       if (!f) continue;
-      b = foundBloc(game, id, 'pact');
-      joinBloc(game, b, f.id);
+      b = proposeBloc(game, id, f.id, 'pact', null, rivalBonus(game, f, rival));
+      if (!b) continue;
       logNews(game, `${c.name} and ${f.name} sign the ${b.name}, aimed at ${R.name}.`, 'diplo', [id, f.id, rival]);
     } else if (b.leader === id && b.members.length < 7 && rng.chance(0.2)) {
       const f = recruit();
-      if (f && rng.chance(joinAppeal(game, f, b) + 0.2) && memberVote(game, b, f.id).passed) joinBloc(game, b, f.id);
+      if (f && rng.chance(joinAppeal(game, f, b) + rivalBonus(game, f, rival)) && memberVote(game, b, f.id).passed) joinBloc(game, b, f.id);
     }
   }
 }
