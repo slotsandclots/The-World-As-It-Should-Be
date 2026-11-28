@@ -728,7 +728,7 @@ A prudent, peaceful nation should be able to stay stable and become powerful thr
 
 - **Prudence is a set of choices with costs,** all of them real systems already: regulated banks and deposit insurance (smaller booms), reserves and little foreign borrowing (less to invest), low state debt (less to spend in a slump), a central bank rather than gold (no anchor), welfare, health and schools (taxes).
 - **Proof, kept true:** a prudent-nation check in the test tools. A scripted player follows prudent policies in many worlds; its stability, crisis share and growth are measured against the world's, and must stay clearly better as features are added.
-- **Seeing it:** the interface shows how exposed the nation is to each kind of crisis (bank capital, reserves, debt, import dependence, neighbours in turmoil), from the real numbers rather than a new score.
+- **Seeing it:** the interface shows how exposed the nation is to each kind of crisis (bank capital, reserves, debt, import dependence, neighbours in turmoil), from the real numbers rather than a new score. ✅ **First pass** (`js/exposure.js`): an "Exposure to crises" card at the top of the Economy tab rates six risks low, moderate or high (banking crisis, bankruptcy wave, currency crisis or run on a gold parity, state debt crisis, shortages from imports, trouble next door), each with the number behind it and, on hover, what a prudent government does about it. Read-only.
 - **The reward:** spheres of influence and deeper diplomacy let a creditor nation turn surplus reserves and loans into influence, as Britain, the Netherlands and Switzerland did before 1914. Being the world's banker is the tall nation's road to power.
 
 ## AI ambitions and personalities (M)
