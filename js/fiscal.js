@@ -132,8 +132,8 @@ function payInterest(game, c, interest) {
   const held = debtTotal(D) - D.arrears;
   if (!(held > 0) || !(interest > 0)) { E.bondIncome = 0; return; }
   const f = interest / held;
-  // Savers' interest is income for the owning classes, paid next month (economy.js).
-  E.bondIncome = toEcon(c, D.savers * f);
+  // Savers' interest is income for the owning classes, paid next month (economy.js): a monthly rate.
+  E.bondIncome = rateOf(toEcon(c, D.savers * f));
   if (E.bankCap != null) E.bankCap += toEcon(c, D.banks * f);
   for (const id in D.foreign) {
     const l = game.countries[id];

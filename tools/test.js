@@ -619,8 +619,8 @@ test('notable figures come from the pops, publish works, and inventors speed res
     const wr = makeFigure(g, P, 'writer'); P.figures.push(wr);
     const pat = figureAction(g, wr.id, 'patronize'); const ban = figureAction(g, wr.id, 'ban');
     // Generals gain renown in battle.
-    const gen = bestGeneral(P); const before = gen.renown || 0; for (let i = 0; i < 20; i++) battleFought(g, P.id, 1, true);
-    return { n: all.length, kinds: kinds.size, grievance, shock: (c.ideaShock.fascism || 0) - shock0, r0, r1, pat: pat.ok, ban: ban.ok, banned: !!wr.banned, genGain: (gen.renown || 0) - before, won: gen.won,
+    const gen = bestGeneral(P); const before = gen.renown || 0, wonBefore = gen.won || 0; for (let i = 0; i < 20; i++) battleFought(g, P.id, 1, true);
+    return { n: all.length, kinds: kinds.size, grievance, shock: (c.ideaShock.fascism || 0) - shock0, r0, r1, pat: pat.ok, ban: ban.ok, banned: !!wr.banned, genGain: (gen.renown || 0) - before, won: (gen.won || 0) - wonBefore,
       named: all.every(f => f.name && f.renown >= 0 && f.renown <= 100), hall: (g.hall || []).length >= 0, top: figuresOfTheAge(g, 5).length };
   })()`);
   assert(r.n > 0 && r.kinds >= 2, `figures: ${r.n} of ${r.kinds} kinds`);
@@ -952,6 +952,78 @@ test('time constants: on the monthly step every helper is exact; on a weekly ste
   assert(r.ok, 'on a shorter step a year of steps must add up to a year of months');
 });
 
+test('weekly markets: prices and reserves move every week, the month\'s work runs once, and a save keeps the week', () => {
+  const r = run(`(() => {
+    const g = createGame('weekly', { size: 'small', countries: 8 }); setPlayer(g, 0);
+    for (let i = 0; i < 12; i++) { tick(g); g.pending.length = 0; }
+    const c = g.countries[0], E = c.econ, m0 = g.month;
+    const rhythm = Object.fromEntries(SYSTEMS.map(s => [s.id, s.every]));
+    const seen = [];
+    for (let w = 0; w < 3; w++) {
+      stepGame(g); g.pending.length = 0;
+      seen.push({ week: g.week, month: g.month, price: E.prices.grain, pl: E.pl, reserves: E.reserves, gdp: E.gdpM, hist: c.hist.pl.length });
+    }
+    const mid = deserializeGame(serializeGame(g));
+    stepGame(g); stepGame(mid);
+    return { m0, seen, rhythm, midWeek: deserializeGame(serializeGame(g)).week, after: [g.month, g.week, mid.month, mid.week] };
+  })()`);
+  const s = r.seen, R = r.rhythm;
+  assert(R.markets === 0.25 && R.payments === 0.25 && R.money === 0.25 && R.tradeflows === 0.25, 'markets, payments, trade flows, money and credit are weekly');
+  assert(R.production === 1 && R.accounts === 1 && R.nations === 1 && R.politics === 1 && R.society === 1, 'production, the accounts, the budget and politics stay monthly');
+  assert(s.map(x => x.week).join() === '1,2,3' && s.every(x => x.month === r.m0), 'three more weeks of the same month: ' + JSON.stringify(s.map(x => [x.month, x.week])));
+  assert(s[0].price !== s[1].price && s[1].price !== s[2].price && s[0].pl !== s[2].pl, 'prices and the price level move within the month');
+  assert(s[0].reserves !== s[2].reserves, 'reserves move within the month');
+  assert(s[0].gdp === s[2].gdp && s[0].hist === s[2].hist, 'the month\'s accounts and the histories are not redone each week');
+  assert(r.after.join() === [r.m0 + 1, 0, r.m0 + 1, 0].join(), 'a game saved mid-month resumes at the same week: ' + r.after);
+});
+
+test('flows at their source: rates stay rates on a shorter step, and stocks move by the step\'s share', () => {
+  const r = run(`(() => {
+    const g = createGame('flows-src', { size: 'small', countries: 8 }); setPlayer(g, 0);
+    for (let i = 0; i < 24; i++) { tick(g); g.pending.length = 0; }
+    const save = serializeGame(g);
+    // The economy once on a monthly step and once on a weekly step, from the same state
+    // (warmup: no construction or investment decisions, so the funds move only by the flows).
+    const once = step => {
+      const h = deserializeGame(save), alive = h.countries.filter(c => c.alive);
+      const pools0 = alive.map(c => [c.econ.statePool, c.econ.investPool]);
+      TIME.STEP_MONTHS = step;
+      try {
+        tickEconomy(h, true);
+        const budgets = alive.map(c => projectBudget(c));
+        return { gdp: alive.map(c => c.econ.gdpM), tb: alive.map(c => c.econ.tradeBalance),
+          state: alive.map((c, i) => c.econ.statePool - pools0[i][0]), invest: alive.map((c, i) => c.econ.investPool - pools0[i][1]),
+          rev: budgets.map(b => b.revenue), spend: budgets.map(b => b.spend), target: alive.map(c => reserveTarget(c)) };
+      } finally { TIME.STEP_MONTHS = 1; }
+    };
+    return { m: once(1), w: once(0.25) };
+  })()`);
+  const { m, w } = r;
+  const near = (a, b, tol) => Math.abs(a - b) <= tol * Math.max(Math.abs(a), Math.abs(b), 1e-9);
+  for (let i = 0; i < m.gdp.length; i++) {
+    assert(near(w.gdp[i], m.gdp[i], 0.05), `monthly GDP is a rate, the same on a weekly step (${w.gdp[i]} vs ${m.gdp[i]})`);
+    assert(near(w.target[i], m.target[i], 1e-9), 'the reserve target is three months of imports on any step');
+    if (m.state[i] > 1) assert(near(w.state[i], m.state[i] * 0.25, 0.05), `the state fund grows by a quarter of a month in a week (${w.state[i]} vs ${m.state[i]})`);
+    if (m.invest[i] > 1) assert(near(w.invest[i], m.invest[i] * 0.25, 0.1), `private savings flow into investment by the week (${w.invest[i]} vs ${m.invest[i]})`);
+    assert(near(w.rev[i], m.rev[i] * 0.25, 0.05) && near(w.spend[i], m.spend[i] * 0.25, 0.05), 'the budget books a quarter of a month in a week, revenue and spending alike');
+  }
+});
+
+test('a banking crisis counts down by the week, and the player sees whole months', () => {
+  const r = run(`(() => {
+    const g = createGame('bank-weeks', { size: 'small', countries: 8 }); setPlayer(g, 0);
+    for (let i = 0; i < 3; i++) { tick(g); g.pending.length = 0; }
+    const c = g.countries[0];
+    bankingCrisis(g, c, c.laws.banking || 'regulated');
+    stepGame(g); g.pending.length = 0;
+    const left = c.econ.bankCrisis;
+    const texts = gatherAlerts(g, c).map(a => a.text).filter(t => /Banking crisis/.test(t));
+    return { left, texts };
+  })()`);
+  assert(r.left > 0 && r.left % 1 !== 0, 'after a week the crisis has a fraction of a month left (' + r.left + ')');
+  assert(r.texts.length && r.texts.every(t => !/\d\.\d/.test(t)), 'the alert shows whole months: ' + r.texts.join(' | '));
+});
+
 test('the scheduler: systems run on their own rhythms, each with its own step', () => {
   const r = run(`(() => {
     const seen = { w: 0, m: 0, y: [], steps: [] };
@@ -968,7 +1040,7 @@ test('the scheduler: systems run on their own rhythms, each with its own step', 
     // All monthly: one step is one month, and no week is kept.
     const g2 = { month: 0 }; let ran = 0;
     for (let i = 0; i < 24; i++) runSchedule(g2, [{ id: 'm', every: RHYTHM.MONTH, run: () => ran++ }]);
-    // The game's own schedule: tick runs one month.
+    // The game's own schedule: weekly steps; tick runs on to the start of the next month.
     const game = createGame('sched', { size: 'small', countries: 8 }); setPlayer(game, 0);
     const m0 = game.month; tick(game); game.pending.length = 0;
     return { weekly, ran, month2: g2.month, week2: g2.week, base: baseStepMonths(SYSTEMS), gameMonths: game.month - m0, gameWeek: game.week };
@@ -978,7 +1050,7 @@ test('the scheduler: systems run on their own rhythms, each with its own step', 
   assert(w.y.join() === '6,18', `a yearly system runs once a year in its month (${w.y})`);
   assert(w.stepsOk && w.outer === 1, 'each system runs with its own step, and the step is restored after');
   assert(r.ran === 24 && r.month2 === 24 && r.week2 === undefined, 'with every system monthly, a step is a month');
-  assert(r.base === 1 && r.gameMonths === 1 && r.gameWeek === undefined, 'the game runs monthly today, and tick moves one month');
+  assert(r.base === 0.25 && r.gameMonths === 1 && r.gameWeek === 0, `the game steps by the week, and tick moves one month to the next month's first week (${r.base}, ${r.gameMonths}, ${r.gameWeek})`);
 });
 
 test('the newspaper leads with the biggest news, puts our own first among equals, and changes nothing', () => {

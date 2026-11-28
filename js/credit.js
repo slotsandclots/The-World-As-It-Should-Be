@@ -46,7 +46,7 @@ function tickCredit(game, c) {
   E.gap = Math.log(Y / E.trendY);
   const piEa = annual(E.piE || 0);
   const realRate = (E.rate == null ? 0.04 : E.rate) - piEa;
-  const annualY = annualize(Y);
+  const annualY = yearlyOf(Y);
   const lev = E.credit / annualY;
 
   // 1. New lending: confidence, the real interest rate, and how indebted firms already are.
@@ -66,7 +66,8 @@ function tickCredit(game, c) {
   const rateL = Math.max(0.01, (E.rate == null ? 0.04 : E.rate) + CREDIT.SPREAD);
   const interest = perYear(E.credit * rateL), principal = perStep(E.credit * CREDIT.REPAY);
   E.credit -= principal;
-  const profit = Math.max(1e-6, ownerProfit(c));
+  // Owners' profits are a monthly rate; debt service is paid over this step.
+  const profit = Math.max(1e-6, perStep(ownerProfit(c)));
   E.dsr = (interest + principal) / profit;
   // Borrowed money is spent building; repayments come out of what owners could invest.
   if (ownersAllowed(c)) E.investPool = Math.max(0, E.investPool + E.lending - principal - interest * 0.4);
@@ -74,12 +75,15 @@ function tickCredit(game, c) {
 
   // 3. Defaults: when debts outrun profits, firms go under, closing real buildings.
   const distress = Math.max(0, E.dsr - 0.4);
-  E.defaults = perStep(clamp(distress * 0.03 / Math.max(0.5, E.conf), 0, 0.02));
-  if (E.defaults > perStep(0.001)) {
-    const loss = E.credit * E.defaults;
+  // The default rate is a share of loans per month; this step's share goes bad.
+  E.defaults = clamp(distress * 0.03 / Math.max(0.5, E.conf), 0, 0.02);
+  if (E.defaults > 0.001) {
+    const loss = E.credit * perStep(E.defaults);
     E.credit -= loss;
     E.bankCap -= loss * (law === "unregulated" ? 0.8 : 0.55);
-    bankruptcies(game, c, E.defaults);
+    // The firms behind the bad loans close at the end of the month (sim.js, tickCountry), all at once:
+    // closing buildings belongs to production, which is monthly.
+    E.bkPending = (E.bkPending || 0) + perStep(E.defaults);
   }
   // Banks earn the spread and build capital back up.
   E.bankCap += perYear(E.credit * CREDIT.SPREAD) * 0.5;
@@ -96,7 +100,7 @@ function tickCredit(game, c) {
   const pg = E.profitPrev ? profit / E.profitPrev - 1 : 0;
   E.profitPrev = E.profitPrev == null ? profit : E.profitPrev + (profit - E.profitPrev) * smooth(0.15);
   const confT = clamp(1 + E.gap * 4 + pg * 1 - E.defaults * 40 - (E.bankCrisis > 0 ? 0.45 : 0) - (isAtWar(game, c.id) ? 0.15 : 0)
-    - Math.max(0, c.unrest - 40) * 0.008 + rng.normal() * 0.04 * Math.sqrt(TIME.STEP_MONTHS), 0.3, 1.8);
+    - Math.max(0, c.unrest - 40) * 0.008 + rng.normal() * targetNoise(0.04), 0.3, 1.8);
   E.conf += (confT - E.conf) * smooth(0.1);
 }
 

@@ -25,7 +25,10 @@ function tickSociety(game) {
   for (const c of game.countries) {
     c._slum = 0; c._urban = 0; c._rentBurden = 0; c._dev = 0;
     const E = c.econ;
-    if (E) E.housingBudget = ownersAllowed(c) ? (E.privateSavings || 0) * 0.25 : (E.statePool || 0) * 0.02;
+    // What builders can spend on housing over this step: a share of the monthly savings, or of the state's fund.
+    if (E) E.housingBudget = ownersAllowed(c) ? perStep((E.privateSavings || 0) * 0.25) : (E.statePool || 0) * perStep(0.02);
+    // Housing construction is reported to the economy as a monthly rate (economy.js reads it as construction).
+    if (E && c.alive) E.housingSpend = 0;
   }
   for (const p of provs) {
     if (p.owner < 0 || !p.pops) continue;
@@ -48,7 +51,7 @@ function tickSociety(game) {
       if (afford > 0) {
         E[pool] -= afford * unitCost;
         E.housingBudget -= afford * unitCost;
-        E.housingSpend = (E.housingSpend || 0) + afford * unitCost;
+        E.housingSpend = (E.housingSpend || 0) + rateOf(afford * unitCost);
         p.housing += afford;
       }
     }

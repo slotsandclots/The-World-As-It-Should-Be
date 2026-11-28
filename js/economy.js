@@ -218,7 +218,7 @@ function initEconomy(game) {
   }
   // Warm up the markets so prices, staffing and incomes settle before play starts.
   for (const c of game.countries) {
-    c.gdp = annualize(c.pop * 0.33 * c.econ.tech) / 1e6;
+    c.gdp = yearlyOf(c.pop * 0.33 * c.econ.tech) / 1e6;
     c.econ.gdpM = c.econ.prevGdpM = c.pop * 0.33 * c.econ.tech;
     c.econ.taxBase = c.econ.gdpM / 1e6;
     c.budget = projectBudget(c);
@@ -313,7 +313,17 @@ function addBuilding(p, t, n) {
 
 // ------------------------------------------------------------------ monthly tick
 
+// The economy in one pass: the month's production and demand, the market, then the
+// month's accounts. The game itself runs the three as separate systems (sim.js,
+// SYSTEMS): production and the accounts monthly, the market every week.
 function tickEconomy(game, warmup) {
+  tickProduction(game, warmup);
+  clearMarkets(game, game.countries.filter(c => c.alive));
+  tickAccounts(game, warmup);
+}
+
+// Monthly: what is produced, and what pops and the state want to buy (rates per month).
+function tickProduction(game, warmup) {
   const provs = game.world.provinces;
   const alive = game.countries.filter(c => c.alive);
 
@@ -345,9 +355,9 @@ function tickEconomy(game, warmup) {
     };
     E.construction = 0;
     for (const pr of E.projects) E.construction += pr.cost / ECON.BUILD_MONTHS;
-    // Housing construction (society.js) is real construction too.
+    // Housing construction (society.js) is real construction too: a monthly rate, set
+    // by society each time it runs.
     E.construction += E.housingSpend || 0;
-    E.housingSpend = 0;
   }
   for (const p of provs) { const E = game.countries[p.owner].econ; for (const t of POP_KEYS) E.N[t] += p.pops[t]; }
 
@@ -415,8 +425,13 @@ function tickEconomy(game, warmup) {
     buy('tools', G.infrastructure * 0.1 + E.construction * 0.1);
   }
 
-  // 4. Markets
-  clearMarkets(game, alive);
+}
+
+// Monthly, after the week's market: incomes, wages, savings, jobs and the national statistics.
+function tickAccounts(game, warmup) {
+  const provs = game.world.provinces;
+  const alive = game.countries.filter(c => c.alive);
+  // 4. Markets clear every week (clearMarkets, its own system).
 
   // 5. Accounting
   for (const c of alive) {
@@ -456,7 +471,7 @@ function tickEconomy(game, warmup) {
       if (act > 0.01) b.vaS = b.vaS == null ? vaA : b.vaS + (vaA - b.vaS) * smooth(0.1);
       const wT = Math.max(0, b.vaS || 0) * ECON.LABOR_SHARE * (E.realWage || 1);
       if (!(b.wb >= 0)) b.wb = wT;
-      b.wb += (wT - b.wb) * (wT > b.wb ? 0.15 : wageFall(c));
+      b.wb += (wT - b.wb) * smooth(wT > b.wb ? 0.15 : wageFall(c));
       b.sq = vaA > 0 ? b.wb / vaA : (b.wb > 0 ? 2 : 0);
       const wages = Math.min(Math.max(0, va), b.wb * act);
       const profit = va - wages;
@@ -511,8 +526,9 @@ function tickEconomy(game, warmup) {
     E.uiShare = E.budgetBase > 0 ? Math.min(0.05, ui / E.budgetBase) : 0;
     E.uiRate = rr;
     // Contributions match the long-run cost: a deficit in slumps, a surplus in booms.
-    E.uiAvg = E.uiAvg == null ? E.uiShare : E.uiAvg + (E.uiShare - E.uiAvg) / 60;
-    E.statePool += G.investment;
+    E.uiAvg = E.uiAvg == null ? E.uiShare : E.uiAvg + (E.uiShare - E.uiAvg) / lagMonths(60);
+    // The state's investment fund grows by this step's share of the monthly allocation.
+    E.statePool += perStep(G.investment);
   }
   // Pops: taxes, spending, savings, standard of living.
   for (const c of alive) {
@@ -546,6 +562,7 @@ function tickEconomy(game, warmup) {
         eVal += ve[g] * PC[g]; eGot += plan.fe * ve[g] * F[g] * PC[g];
         lGot += plan.luxM * vl[g] * F[g] * PC[g];
       }
+      // Incomes and spending are monthly rates; what is saved over this step is an amount.
       const incPC = net / N;
       p.inc[t] = incPC;
       let saved = incPC - spend;
@@ -553,7 +570,7 @@ function tickEconomy(game, warmup) {
         E.privateSavings += saved * 0.6 * N;
         saved *= 0.4;
       }
-      p.wealth[t] = clamp(p.wealth[t] + saved, 0, incPC * 24 + 5);
+      p.wealth[t] = clamp(p.wealth[t] + perStep(saved), 0, yearlyOf(incPC) * 2 + 5);
       const fbA = bVal > 0 ? bGot / bVal : 1, feA = eVal > 0 ? eGot / eVal : 1;
       const lux = Math.min(1, lGot / (E.cost.luxury * 3));
       p.fb = p.fb || {};
@@ -611,8 +628,8 @@ function tickEconomy(game, warmup) {
   for (const c of alive) {
     const E = c.econ;
     // High real interest rates make owners hold back; cheap money draws investment out.
-    const realRate = (E.rate == null ? 0.04 : E.rate) - (E.piE ? Math.pow(1 + E.piE, 12) - 1 : 0);
-    if (ownersAllowed(c)) E.investPool += E.privateSavings * clamp(1 - (realRate - 0.02) * 4, 0.6, 1.3);
+    const realRate = (E.rate == null ? 0.04 : E.rate) - (E.piE ? moneyAnnual(E, E.piE) : 0);
+    if (ownersAllowed(c)) E.investPool += perStep(E.privateSavings * clamp(1 - (realRate - 0.02) * 4, 0.6, 1.3));
     if (!warmup) {
       runConstruction(game, c);
       invest(game, c, 'private');
@@ -668,14 +685,11 @@ function tickEconomy(game, warmup) {
     E.gdpM = Math.max(1, E.gdpNew);
     E.prevGdpRealM = E.gdpRealM || E.gdpRealNew;
     E.gdpRealM = Math.max(1, E.gdpRealNew);
-    E.gdpAnnual = annualize(E.gdpM) / 1e6;
+    E.gdpAnnual = yearlyOf(E.gdpM) / 1e6;
     E.taxBase = E.taxGross / 1e6;
     E.stateProfit = E.stateProfitK / 1e6;
     const desiredArms = (E.gov.military * 0.35 + E.gov.police * 0.3) / GOODS.arms.base;
     E.armsRatio = desiredArms > 0 ? clamp(E.govQ.arms * E.fulfill.arms / desiredArms, 0, 1.5) : 1;
-    let tb = 0;
-    for (const g of GOOD_KEYS) tb += (E.exports[g] - E.imports[g]) * game.worldMarket.prices[g];
-    E.tradeBalance = tb / 1e6;
   }
 }
 
@@ -755,7 +769,14 @@ function clearMarkets(game, alive) {
       E.tariffK += im * wp * tariff;
     }
   }
-  for (const c of alive) c.econ.tariffRev = c.econ.tariffK / 1e6;
+  for (const c of alive) {
+    const E = c.econ;
+    E.tariffRev = E.tariffK / 1e6;
+    // The trade balance at world prices, a monthly rate, as the market left it this week.
+    let tb = 0;
+    for (const g of GOOD_KEYS) tb += (E.exports[g] - E.imports[g]) * W.prices[g];
+    E.tradeBalance = tb / 1e6;
+  }
 }
 
 // ------------------------------------------------------------------ investment
@@ -780,7 +801,7 @@ function buildingProspects(game, c) {
     const va = (rev - cost) * E.prod;
     const price = constructionCost(c, t) * (prov && prov.designation === 'sez' ? DESIGNATIONS.sez.buildCost : 1);
     const g0 = Object.keys(def.out)[0];
-    return { t, prov, va, cost: price, roi: annualize(va) / price, scarcity: P[g0] / GOODS[g0].base, reason: prov ? null : def.res ? `No free ${RES_INFO[def.res].toLowerCase()}` : 'No province' };
+    return { t, prov, va, cost: price, roi: yearlyOf(va) / price, scarcity: P[g0] / GOODS[g0].base, reason: prov ? null : def.res ? `No free ${RES_INFO[def.res].toLowerCase()}` : 'No province' };
   });
 }
 
