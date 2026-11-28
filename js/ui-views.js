@@ -103,7 +103,7 @@ Object.assign(UI, {
         <div class="kv"><span>Interest paid abroad</span><span>${fmtMoney(E.interestOut || 0)}/mo at ${(extRate(c) * 100).toFixed(1)}%</span></div>
         <div class="kv"><span>Borrowed this month</span><span>${fmtMoney(E.borrowed || 0)}</span></div>
         ${c.extDefaulted != null && g.month - c.extDefaulted < PAY.DEFAULT_MEMORY ? `<div class="kv" title="Lenders abroad remember a default for five years."><span>Credit abroad</span><span class="bad">None for ${Math.ceil((PAY.DEFAULT_MEMORY - (g.month - c.extDefaulted)) / 12)} more year(s): we defaulted</span></div>` : ''}
-        <div class="kv" title="The currency's value abroad. It falls as reserves run short: exports sell better, imports cost more at home."><span>Exchange rate</span><span class="${(E.fx || 1) < 0.9 ? 'warn' : ''}">${(E.fx || 1).toFixed(2)}×</span></div>
+        <div class="kv" title="The currency's value abroad. It falls as reserves run short: imports cost more at home and exporters earn more at home."><span>Exchange rate</span><span class="${(E.fx || 1) < 0.9 ? 'warn' : ''}">${(E.fx || 1).toFixed(2)}×</span></div>
       </div>
       ${P.owe.length ? `<div class="small">We owe: ${list(P.owe)}</div>` : ''}${P.owed.length ? `<div class="small">Owe us: ${list(P.owed)}</div>` : ''}
       ${E.importSqueeze > 0.02 ? `<div class="alert bad small">Out of foreign currency: imports are cut by ${pct(E.importSqueeze)}.</div>` : ''}</div>`;
