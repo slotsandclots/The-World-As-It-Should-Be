@@ -58,7 +58,7 @@ Object.assign(UI, {
     const capR = E.bankCap / Math.max(1, E.credit);
     let h = `<div class="card"><h3>${icon('ledger', 16)} Credit and the business cycle</h3>
       <p class="small muted" style="margin-top:0"><b>${esc(LAW_CATS.banking.opts[law].name)}</b>: ${BANKING_INFO[law]} Businesses borrow to build when confidence is high and money is cheap; new capacity arrives later, often after demand has peaked, and debts that outrun profits end in bankruptcies.</p>`;
-    if (E.bankCrisis > 0) h += `<div class="alert bad"><b>Banking crisis:</b> lending is frozen for about ${E.bankCrisis} more months. <button class="danger" data-act="bailout" ${c.pc < BAILOUT_PC ? 'disabled' : ''} style="margin-left:6px">Bail out the banks (${BAILOUT_PC} PC, ${fmtMoney(Math.max(0, E.credit * CREDIT.CAP_TARGET - E.bankCap) / 1e6 * (E.pl || 1))})</button></div>`;
+    if (E.bankCrisis > 0) h += `<div class="alert bad"><b>Banking crisis:</b> lending is frozen for about ${Math.ceil(E.bankCrisis)} more months. <button class="danger" data-act="bailout" ${c.pc < BAILOUT_PC ? 'disabled' : ''} style="margin-left:6px">Bail out the banks (${BAILOUT_PC} PC, ${fmtMoney(Math.max(0, E.credit * CREDIT.CAP_TARGET - E.bankCap) / 1e6 * (E.pl || 1))})</button></div>`;
     h += `<div class="grid2">
         <div class="kv"><span>Cycle</span><span class="${['recession', 'crisis', 'slowdown'].includes(phase) ? 'bad' : ['boom', 'peak'].includes(phase) ? 'warn' : 'good'}">${CYCLE_NAMES[phase]}</span></div>
         <div class="kv"><span>Output vs trend</span><span>${fmtSigned(E.gap * 100)}%</span></div>
@@ -110,7 +110,7 @@ Object.assign(UI, {
       </div>
       ${P.owe.length ? `<div class="small">We owe: ${list(P.owe)}</div>` : ''}${P.owed.length ? `<div class="small">Owe us: ${list(P.owed)}</div>` : ''}
       ${E.attack ? `<div class="alert bad small"><b>Run on the currency</b> for ${g.month - E.attack.since} month(s): owners are sending ${fmtMoney(E.attack.flight)} a month abroad and interest rates carry a ${pct(PAY.DEFEND_PREMIUM)} premium to defend the parity. The attack ends when reserves are back above ${pct(PAY.ATTACK_OVER)} of GDP, or once they have risen four months running. <button class="danger" data-act="leavegold" style="margin-left:6px">Leave the gold standard</button></div>` : onGold(c) && E.reserves / Math.max(0.01, c.gdp) < PAY.ATTACK_AT / 2 ? `<div class="alert warn small">Reserves are running low: speculators will attack the parity if they fall below ${pct(-PAY.ATTACK_AT)} of GDP.</div>` : ''}
-      ${E.fxCrisis > 0 ? `<div class="alert bad small"><b>Currency crisis:</b> foreign lenders have pulled out for ${E.fxCrisis} more month(s), and owners are moving capital abroad.</div>` : ''}
+      ${E.fxCrisis > 0 ? `<div class="alert bad small"><b>Currency crisis:</b> foreign lenders have pulled out for ${Math.ceil(E.fxCrisis)} more month(s), and owners are moving capital abroad.</div>` : ''}
       ${E.importSqueeze > 0.02 ? `<div class="alert bad small">Out of foreign currency: imports are cut by ${pct(E.importSqueeze)}.</div>` : ''}</div>`;
   },
 
@@ -145,10 +145,10 @@ Object.assign(UI, {
     let h = `<div class="card"><h3>${icon('coin', 16)} Money and prices</h3><p class="small muted" style="margin-top:0"><b>${esc(LAW_CATS.monetary.opts[law].name)}</b>: ${MONETARY_INFO[law]} (Change it in the Constitution, Politics tab.)</p>
       <div class="grid2">
         <div class="kv" data-tip="inflation"><span>Inflation</span><span class="${inf > 0.08 ? 'bad' : inf < -0.01 ? 'warn' : ''}">${fmtSigned(inf * 100)}%/yr</span></div>
-        <div class="kv" data-tip="inflation"><span>Expected</span><span>${fmtSigned((Math.pow(1 + E.piE, 12) - 1) * 100)}%/yr</span></div>
+        <div class="kv" data-tip="inflation"><span>Expected</span><span>${fmtSigned(moneyAnnual(E, E.piE) * 100)}%/yr</span></div>
         <div class="kv"><span>Price level</span><span>${(E.pl * 100).toFixed(0)} <small class="muted">(1950 = 100)</small></span></div>
         <div class="kv"><span>Interest rate</span><span>${(E.rate * 100).toFixed(1)}%</span></div>
-        <div class="kv"><span>Money growth</span><span>${fmtSigned((Math.pow(1 + E.moneyGrowth, 12) - 1) * 100)}%/yr</span></div>
+        <div class="kv"><span>Money growth</span><span>${fmtSigned(moneyAnnual(E, E.moneyGrowth) * 100)}%/yr</span></div>
         <div class="kv" title="Nominal wages relative to prices: below 100, pay is lagging behind prices"><span>Real wages</span><span class="${E.realWage < 0.98 ? 'bad' : E.realWage > 1.02 ? 'good' : ''}">${Math.round(E.realWage * 100)}</span></div>
       </div>`;
     if (law === 'state') {

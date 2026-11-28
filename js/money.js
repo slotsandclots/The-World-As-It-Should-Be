@@ -30,15 +30,25 @@ function ensureMoney(c) {
 
 // A rate per step, compounded over a year (time.js).
 function annual(m) { return Math.pow(1 + m, 12 / TIME.STEP_MONTHS) - 1; }
+// A rate per step of the money system, compounded over a year, read from anywhere:
+// money runs weekly, so its rates (pi, piE, moneyGrowth, gY) are per week.
+function moneyAnnual(E, m) { return Math.pow(1 + (m || 0), 12 / ((E && E.moneyStep) || 1)) - 1; }
 
 function tickMoney(game, c) {
   const E = ensureMoney(c);
   ensureLaws(c);
   const law = c.laws.monetary, p = c.policy;
+  // The money system's rates are per step: remember the step, so other systems can read them (moneyAnnual).
+  E.moneyStep = TIME.STEP_MONTHS;
   const Y = Math.max(1, E.gdpRealM || E.gdpM || 1);
   if (E.money == null) E.money = Y * E.pl * MONEY_MONTHS;
-  if (E.prevRealForMoney) E.gY += (clamp(Y / E.prevRealForMoney - 1, -perStep(0.03), perStep(0.03)) - E.gY) * smooth(0.03);
-  E.prevRealForMoney = Y;
+  // Real output is measured once a month (economy.js, the accounts): its latest monthly
+  // growth, converted to this step, is what money and the banks expect.
+  if (Y !== E.prevRealForMoney) {
+    if (E.prevRealForMoney) E.gYm = clamp(Y / E.prevRealForMoney - 1, -0.03, 0.03);
+    E.prevRealForMoney = Y;
+  }
+  if (E.gYm != null) E.gY += (growStep(E.gYm) - E.gY) * smooth(0.03);
 
   // Money growth, by monetary system.
   let g;
@@ -51,7 +61,8 @@ function tickMoney(game, c) {
   // Printing to pay for the deficit: the treasury is spared, the money supply swells.
   E.printed = 0;
   if (law === 'state' && p.monetize && c.budget && c.budget.net < 0) {
-    E.printed = -c.budget.net;
+    // The budget is monthly (sim.js): this step prints its share of the month's deficit.
+    E.printed = -perStep(c.budget.net);
     c.treasury += E.printed;
     E.money += E.printed * 1e6; // $B a month → raw output units
   }
@@ -85,8 +96,9 @@ function tickMoney(game, c) {
 // Inflation over the last twelve months, from the price-level history.
 function inflationYoY(c) {
   const H = c.hist && c.hist.pl;
-  if (!H || H.length < 2) return annual((c.econ && c.econ.pi) || 0);
-  const yearSteps = Math.round(12 / TIME.STEP_MONTHS);
+  if (!H || H.length < 2) return moneyAnnual(c.econ, (c.econ && c.econ.pi) || 0);
+  // Histories are kept per month (sim.js, recordHistory).
+  const yearSteps = 12;
   const a = H[Math.max(0, H.length - 1 - yearSteps)], b = H[H.length - 1];
   return a > 0 ? Math.pow(b / a, yearSteps / Math.min(yearSteps, H.length - 1)) - 1 : 0;
 }
@@ -95,11 +107,12 @@ function inflationYoY(c) {
 function inflationParts(c) {
   const E = ensureMoney(c);
   const gap = Math.log((E.money / (Math.max(1, E.gdpRealM || E.gdpM) * MONEY_MONTHS)) / E.pl);
+  const A = m => moneyAnnual(E, m);
   return [
-    ['Money growth', annual(E.moneyGrowth) * 100],
-    ['Real growth absorbs money', -annual(E.gY) * 100],
-    ['Expectations (inertia)', annual(E.piE) * 100 - (annual(E.moneyGrowth) - annual(E.gY)) * 100],
-    ['Too much / too little money', (annual(E.piE + 0.15 * gap) - annual(E.piE)) * 100],
+    ['Money growth', A(E.moneyGrowth) * 100],
+    ['Real growth absorbs money', -A(E.gY) * 100],
+    ['Expectations (inertia)', A(E.piE) * 100 - (A(E.moneyGrowth) - A(E.gY)) * 100],
+    ['Too much / too little money', (A(E.piE + (1 - Math.pow(0.85, E.moneyStep || 1)) * gap) - A(E.piE)) * 100],
   ];
 }
 

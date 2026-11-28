@@ -284,8 +284,9 @@ function tickCountry(game, c) {
     - c.corruption * 0.000006 + g.growth * 0.6 + (T.growth || 0) + (M.growth || 0) + LF.growth + rng.normal() * 0.0004;
   if (debtRatio > 0.8) techG -= (debtRatio - 0.8) * 0.002;
   E.tech = Math.max(0.1, E.tech * (1 + techG));
-  tickMoney(game, c);
-  tickCredit(game, c);
+  // Money and credit run every week, on their own (the 'money' system below).
+  // The month's bad loans close their firms now (credit.js).
+  if (E.bkPending > 0) { bankruptcies(game, c, E.bkPending); E.bkPending = 0; }
   c.gdpNom = c.gdp * E.pl;
   const gr = (E.gdpRealM && E.prevGdpRealM ? E.gdpRealM / E.prevGdpRealM : E.gdpM / E.prevGdpM) - 1;
   c.lastGrowth = gr;
@@ -1207,25 +1208,32 @@ function tickPolitics(game, c) {
 // ------------------------------------------------------------------ main tick
 
 // The systems of the world, each with its rhythm (time.js), in the order they run
-// within a step. Today every system is monthly except the yearly unification
-// check; the tick rework (ROADMAP, "Time and pacing", stage 2) moves markets,
-// money and payments to weekly.
+// within a step (ROADMAP, "Time and pacing", stage 2). Weekly: market clearing and
+// trade, payments and currencies, trade flows, money and credit (bank runs
+// included). Monthly: production and pops' demand, the month's accounts (incomes,
+// wages, savings), society, the budget and politics. Yearly: unification.
+// On the first week of a month the monthly systems run in their place in the
+// order, so production comes before that week's market and the accounts after it.
 const SYSTEMS = [
   { id: 'setup', every: RHYTHM.MONTH, run(game) {
     const D = difficulty(game);
     for (const c of game.countries) c.aiArmyBonus = c.id === game.player ? 0 : D.aiArmy;
     refreshCores(game);
   } },
-  { id: 'economy', every: RHYTHM.MONTH, run: game => tickEconomy(game, false) },
-  { id: 'payments', every: RHYTHM.MONTH, run(game) { if (typeof tickPayments === 'function') tickPayments(game); } },
+  { id: 'production', every: RHYTHM.MONTH, run: game => tickProduction(game, false) },
+  { id: 'markets', every: RHYTHM.WEEK, run: game => clearMarkets(game, game.countries.filter(c => c.alive)) },
+  { id: 'accounts', every: RHYTHM.MONTH, run: game => tickAccounts(game, false) },
+  { id: 'payments', every: RHYTHM.WEEK, run(game) { if (typeof tickPayments === 'function') tickPayments(game); } },
   { id: 'peoples', every: RHYTHM.MONTH, run: game => tickPeoples(game) },
   { id: 'society', every: RHYTHM.MONTH, run: game => tickSociety(game) },
   // Who trades with whom: accounting on this month's trade, read before any bloc membership changes (tradeflows.js).
-  { id: 'tradeflows', every: RHYTHM.MONTH, run(game) { if (typeof tickTradeFlows === 'function') tickTradeFlows(game); } },
+  { id: 'tradeflows', every: RHYTHM.WEEK, run(game) { if (typeof tickTradeFlows === 'function') tickTradeFlows(game); } },
   { id: 'universities', every: RHYTHM.MONTH, run(game) { for (const c of game.countries) if (c.alive) tickUniversities(game, c); } },
   { id: 'ideas', every: RHYTHM.MONTH, run: game => tickIdeas(game) },
   // Once a year, in July; it was written as a monthly step and keeps that step.
   { id: 'unification', every: RHYTHM.YEAR, phase: 6, step: RHYTHM.MONTH, run: game => tickUnification(game) },
+  // Money, prices and interest rates, then the banks: lending, defaults, bank runs (money.js, credit.js).
+  { id: 'money', every: RHYTHM.WEEK, run(game) { for (const c of game.countries) if (c.alive) { tickMoney(game, c); tickCredit(game, c); } } },
   { id: 'nations', every: RHYTHM.MONTH, run(game) { for (const c of game.countries) if (c.alive) tickCountry(game, c); } },
   { id: 'wars', every: RHYTHM.MONTH, run: game => tickWars(game) },
   { id: 'worldwars', every: RHYTHM.MONTH, run(game) { if (typeof tickWorld === 'function') tickWorld(game); } },
@@ -1678,7 +1686,7 @@ const SAVE_VERSION = 3;
 
 function serializeGame(game) {
   return JSON.stringify({
-    v: SAVE_VERSION, seed: game.seed, opts: game.opts, month: game.month, startYear: game.startYear,
+    v: SAVE_VERSION, seed: game.seed, opts: game.opts, month: game.month, week: game.week == null ? null : game.week, startYear: game.startYear,
     countries: game.countries, wars: game.wars, log: game.log.slice(-300), player: game.player,
     nextWarId: game.nextWarId, truces: game.truces, rng: game.rng.getState(),
     owners: game.world.provinces.map(p => p.owner),
@@ -1731,6 +1739,7 @@ function deserializeGame(str) {
     hall: d.hall || [], worldWars: d.worldWars || [], worldWarCount: d.worldWarCount || 0,
   };
   game.rng.setState(d.rng);
+  if (d.week != null) game.week = d.week;
   refreshAll(game);
   return game;
 }

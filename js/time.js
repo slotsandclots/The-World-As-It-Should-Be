@@ -36,6 +36,10 @@ function perStepChance(p) { return TIME.STEP_MONTHS === 1 ? p : 1 - Math.pow(1 -
 function lagMonths(n) { return TIME.STEP_MONTHS === 1 ? n : 1 / smooth(1 / n); }
 // A countdown in months, one step later (replaces "x--" on month counters).
 function countdown(months) { return months - TIME.STEP_MONTHS; }
+// Random noise in the target of a smoothed quantity (x += (target + noise − x) · smooth(k)), per step.
+// On a shorter step each draw is smoothed away faster, so it must be larger for the quantity
+// to wander as much as on the monthly step: the standard deviation grows as 1/√step.
+function targetNoise(sd) { return TIME.STEP_MONTHS === 1 ? sd : sd / Math.sqrt(TIME.STEP_MONTHS); }
 
 // Rates and amounts (tick rework, step 2: flows at their source).
 // The national statistics (GDP, incomes, wages, imports and exports, the trade
