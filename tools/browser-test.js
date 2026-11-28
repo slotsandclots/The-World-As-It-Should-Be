@@ -57,6 +57,28 @@ const { chromium } = require('playwright');
   const seg = await page.evaluate(() => { const s = (UI._tradeSegs || [])[0]; if (!s) return null; const wr = document.querySelector('#map-wrap').getBoundingClientRect(); const t = 0.5; return { x: wr.left + (1 - t) * (1 - t) * s.x1 + 2 * (1 - t) * t * s.cx + t * t * s.x2, y: wr.top + (1 - t) * (1 - t) * s.y1 + 2 * (1 - t) * t * s.cy + t * t * s.y2 }; });
   if (seg) { await page.mouse.move(seg.x, seg.y); const tipText = await page.textContent('#map-tooltip'); if (!/Trade:/.test(tipText)) errors.push('Hovering a trade line shows no trade tooltip: ' + tipText.slice(0, 80)); }
   else errors.push('The trade map mode drew no trade lines.');
+  // The daily clock runs the weekly steps on their days, and each week's news comes in its week.
+  const clock = await page.evaluate(() => {
+    const g = App.game, keep = UI.modalOpen;
+    UI.modalOpen = () => false;
+    try {
+      App.setSpeed(0);
+      App.step(false, true);
+      const m = g.month, days = monthDays(m), weeks = [], grain = [];
+      weeks.push([App.day, g.week]);
+      grain.push(g.countries[g.player].econ.prices.grain);
+      while (App.day < days) { App.nextDay(); weeks.push([App.day, g.week]); if ([8, 15, 22].includes(App.day)) grain.push(g.countries[g.player].econ.prices.grain); }
+      const lines = g.log.filter(l => l.m === m);
+      const misplaced = lines.filter(l => l.w != null && l.d != null && (l.d < [1, 8, 15, 22][l.w] || (l.w < 3 && l.d >= [1, 8, 15, 22][l.w + 1]))).length;
+      return { m, month: g.month, weeks, grain, lines: lines.length, weekly: lines.filter(l => l.w > 0).length, misplaced, text: App.dateText() };
+    } finally { UI.modalOpen = keep; }
+  });
+  const wk = Object.fromEntries(clock.weeks);
+  if (clock.month !== clock.m) errors.push('The daily clock left the month early: ' + JSON.stringify(clock.weeks));
+  if (!(wk[1] === 0 && wk[7] === 0 && wk[8] === 1 && wk[14] === 1 && wk[15] === 2 && wk[22] === 3 && wk[28] === 3)) errors.push('Weekly steps should fall on the 1st, 8th, 15th and 22nd: ' + JSON.stringify(clock.weeks));
+  if (new Set(clock.grain).size < 3) errors.push('Prices should move from week to week: ' + clock.grain.join(', '));
+  if (clock.misplaced) errors.push(clock.misplaced + ' news lines were shown outside their week');
+  console.log(`Daily clock: ${clock.lines} news lines in ${clock.text.replace(/^\d+ /, '')}, ${clock.weekly} of them from weeks 2–4; grain price by week ${clock.grain.map(x => x.toFixed(3)).join(' → ')}.`);
   await page.click('#tabs [data-tab="market"]');
   const modes = await page.$$eval('#map-modes [data-mode]', els => els.map(e => e.dataset.mode));
   for (const m of modes) { await page.click(`[data-mode="${m}"]`); }
