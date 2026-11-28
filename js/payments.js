@@ -69,8 +69,8 @@ function importBill(game, c) {
   return v / 1e6;
 }
 
-// avgBill is the import bill per step; the target is three months of it.
-function reserveTarget(c) { return Math.max(c.econ.avgBill * PAY.RESERVE_MONTHS / TIME.STEP_MONTHS, c.gdp * 0.02); }
+// avgBill is the import bill, a monthly rate; the target is three months of it (the same on any step).
+function reserveTarget(c) { return Math.max(c.econ.avgBill * PAY.RESERVE_MONTHS, c.gdp * 0.02); }
 function extDebtOf(c) { let d = 0; for (const k in c.extDebt || {}) d += c.extDebt[k]; return d; }
 function extAssetsOf(game, c) { let a = 0; for (const o of game.countries) if (o.alive && o.extDebt && o.extDebt[c.id]) a += o.extDebt[c.id]; return a; }
 // The market rate a nation pays abroad, and why.
@@ -107,7 +107,8 @@ function tickPayments(game) {
     E.avgBill = E.avgBill == null ? bill[c.id] : E.avgBill * (1 - smooth(0.1)) + bill[c.id] * smooth(0.1);
     if (E.reserves == null) E.reserves = c.gdp * 0.03;
     E.res0 = E.reserves;
-    E.reserves += E.tradeBalance || 0;
+    // The trade balance is a monthly rate; this step's share of it settles in reserves.
+    E.reserves += perStep(E.tradeBalance || 0);
     E.interestOut = 0;
     E.rateAbroad = extRate(c, game);
     const rate = perYear(E.rateAbroad);

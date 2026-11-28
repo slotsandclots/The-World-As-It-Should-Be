@@ -46,7 +46,7 @@ function tickCredit(game, c) {
   E.gap = Math.log(Y / E.trendY);
   const piEa = annual(E.piE || 0);
   const realRate = (E.rate == null ? 0.04 : E.rate) - piEa;
-  const annualY = annualize(Y);
+  const annualY = yearlyOf(Y);
   const lev = E.credit / annualY;
 
   // 1. New lending: confidence, the real interest rate, and how indebted firms already are.
@@ -66,7 +66,8 @@ function tickCredit(game, c) {
   const rateL = Math.max(0.01, (E.rate == null ? 0.04 : E.rate) + CREDIT.SPREAD);
   const interest = perYear(E.credit * rateL), principal = perStep(E.credit * CREDIT.REPAY);
   E.credit -= principal;
-  const profit = Math.max(1e-6, ownerProfit(c));
+  // Owners' profits are a monthly rate; debt service is paid over this step.
+  const profit = Math.max(1e-6, perStep(ownerProfit(c)));
   E.dsr = (interest + principal) / profit;
   // Borrowed money is spent building; repayments come out of what owners could invest.
   if (ownersAllowed(c)) E.investPool = Math.max(0, E.investPool + E.lending - principal - interest * 0.4);

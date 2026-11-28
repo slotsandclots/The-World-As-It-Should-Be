@@ -105,7 +105,7 @@ function recomputeCountry(game, c) {
     pop += p.pop; tiles += p.tiles; n++;
   }
   c.pop = pop; c.tiles = tiles; c.provinceCount = n;
-  c.gdp = Math.max(0.01, c.econ ? c.econ.gdpAnnual : annualize(pop * 0.33 * c.tech) / 1e6); // real, billions per year
+  c.gdp = Math.max(0.01, c.econ ? c.econ.gdpAnnual : yearlyOf(pop * 0.33 * c.tech) / 1e6); // real, billions per year
   c.gdpNom = c.gdp * ((c.econ && c.econ.pl) || 1); // in the national currency
   c.gdpPerCap = pop > 0 ? c.gdp * 1e6 / pop : 0; // thousands of $
 }
@@ -247,11 +247,12 @@ function strength(c) {
 function projectBudget(c) {
   const p = c.policy;
   const E = c.econ;
-  const taxBase = E ? E.taxBase : perYear(c.gdp);
+  // The tax base, tariffs and state profits are monthly rates (economy.js); the budget books this step's share.
+  const taxBase = E ? E.taxBase : monthlyOf(c.gdp);
   const pl = (E && E.pl) || 1;
-  const taxes = pl * taxBase * p.tax * (1 - c.corruption / 250) * (1 - (c.nonCoreShare || 0) * 0.3) * (c.federal ? 0.95 : 1) * (1 + (c.cabinet ? cabinetFx(c).taxEff : 0) + techSum(c, 'taxEff'));
-  const tariffs = E ? E.tariffRev * pl : 0;
-  const stateProfit = E ? E.stateProfit * pl : 0;
+  const taxes = perStep(pl * taxBase) * p.tax * (1 - c.corruption / 250) * (1 - (c.nonCoreShare || 0) * 0.3) * (c.federal ? 0.95 : 1) * (1 + (c.cabinet ? cabinetFx(c).taxEff : 0) + techSum(c, 'taxEff'));
+  const tariffs = E ? perStep(E.tariffRev) * pl : 0;
+  const stateProfit = E ? perStep(E.stateProfit) * pl : 0;
   const revenue = taxes + tariffs + stateProfit;
   const spendPct = ADMIN_COST + SPEND_KEYS.reduce((s, k) => s + p[k], 0);
   const gN = c.gdpNom || c.gdp;
@@ -1269,8 +1270,8 @@ function recordHistory(game) {
     push(H, 'pop', Math.round(c.pop / 1e4) / 100);
     push(H, 'sol', r1(c.econ.avgSol));
     push(H, 'pl', Math.round((c.econ.pl || 1) * 1e4) / 1e4);
-    push(H, 'rgdp', r1(annualize(c.econ.gdpRealM || c.econ.gdpM) / 1e6));
-    push(H, 'credit', Math.round((c.econ.credit || 0) / Math.max(1, annualize(c.econ.gdpRealM || c.econ.gdpM)) * 1000) / 10);
+    push(H, 'rgdp', r1(yearlyOf(c.econ.gdpRealM || c.econ.gdpM) / 1e6));
+    push(H, 'credit', Math.round((c.econ.credit || 0) / Math.max(1, yearlyOf(c.econ.gdpRealM || c.econ.gdpM)) * 1000) / 10);
     push(H, 'conf', Math.round((c.econ.conf || 1) * 100));
     if (c.id === game.player) {
       // Keep the player's series aligned with the shared ones.

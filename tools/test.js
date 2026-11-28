@@ -952,6 +952,38 @@ test('time constants: on the monthly step every helper is exact; on a weekly ste
   assert(r.ok, 'on a shorter step a year of steps must add up to a year of months');
 });
 
+test('flows at their source: rates stay rates on a shorter step, and stocks move by the step\'s share', () => {
+  const r = run(`(() => {
+    const g = createGame('flows-src', { size: 'small', countries: 8 }); setPlayer(g, 0);
+    for (let i = 0; i < 24; i++) { tick(g); g.pending.length = 0; }
+    const save = serializeGame(g);
+    // The economy once on a monthly step and once on a weekly step, from the same state
+    // (warmup: no construction or investment decisions, so the funds move only by the flows).
+    const once = step => {
+      const h = deserializeGame(save), alive = h.countries.filter(c => c.alive);
+      const pools0 = alive.map(c => [c.econ.statePool, c.econ.investPool]);
+      TIME.STEP_MONTHS = step;
+      try {
+        tickEconomy(h, true);
+        const budgets = alive.map(c => projectBudget(c));
+        return { gdp: alive.map(c => c.econ.gdpM), tb: alive.map(c => c.econ.tradeBalance),
+          state: alive.map((c, i) => c.econ.statePool - pools0[i][0]), invest: alive.map((c, i) => c.econ.investPool - pools0[i][1]),
+          rev: budgets.map(b => b.revenue), spend: budgets.map(b => b.spend), target: alive.map(c => reserveTarget(c)) };
+      } finally { TIME.STEP_MONTHS = 1; }
+    };
+    return { m: once(1), w: once(0.25) };
+  })()`);
+  const { m, w } = r;
+  const near = (a, b, tol) => Math.abs(a - b) <= tol * Math.max(Math.abs(a), Math.abs(b), 1e-9);
+  for (let i = 0; i < m.gdp.length; i++) {
+    assert(near(w.gdp[i], m.gdp[i], 0.05), `monthly GDP is a rate, the same on a weekly step (${w.gdp[i]} vs ${m.gdp[i]})`);
+    assert(near(w.target[i], m.target[i], 1e-9), 'the reserve target is three months of imports on any step');
+    if (m.state[i] > 1) assert(near(w.state[i], m.state[i] * 0.25, 0.05), `the state fund grows by a quarter of a month in a week (${w.state[i]} vs ${m.state[i]})`);
+    if (m.invest[i] > 1) assert(near(w.invest[i], m.invest[i] * 0.25, 0.1), `private savings flow into investment by the week (${w.invest[i]} vs ${m.invest[i]})`);
+    assert(near(w.rev[i], m.rev[i] * 0.25, 0.05) && near(w.spend[i], m.spend[i] * 0.25, 0.05), 'the budget books a quarter of a month in a week, revenue and spending alike');
+  }
+});
+
 test('the scheduler: systems run on their own rhythms, each with its own step', () => {
   const r = run(`(() => {
     const seen = { w: 0, m: 0, y: [], steps: [] };
