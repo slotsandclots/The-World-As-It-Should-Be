@@ -13,7 +13,7 @@ The order at the end of this file follows these priorities, with the economic fo
 
 Open questions about where the game should go, in plain language, each with the default in place until the owner answers. Code and balance decisions are not asked here.
 
-*No open questions.*
+- **Should the year in review open by itself every January?** On the first of January the newspaper now opens a special edition about the year just ended. *Default:* it opens by itself every January, and the player can turn it off with one click. The alternative is to keep it in the News tab only, so it never interrupts play.
 
 **Decided:**
 - **It is a political simulator** (November 2026). The economy is modelled in depth, but it is the engine underneath: the player feels it through politics. Every economic choice has visible winners and losers, and every economic crisis becomes a political decision. War stays, as the extreme end of politics rather than a game of its own, and moves later in the order. See "Political economy" and design rule 9.
