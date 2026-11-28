@@ -353,7 +353,8 @@ function tickRivalries(game) {
       logNews(game, `${c.name} and ${f.name} sign the ${b.name}, aimed at ${R.name}.`, 'diplo', [id, f.id, rival]);
     } else if (b.leader === id && b.members.length < 7 && rng.chance(0.2)) {
       const f = recruit();
-      if (f && rng.chance(joinAppeal(game, f, b) + rivalBonus(game, f, rival)) && memberVote(game, b, f.id).passed) joinBloc(game, b, f.id);
+      // Never into an alliance with a nation it is fighting, however much it distrusts the rival.
+      if (f && !b.members.some(m => atWarWith(game, f.id, m)) && rng.chance(joinAppeal(game, f, b) + rivalBonus(game, f, rival)) && memberVote(game, b, f.id).passed) joinBloc(game, b, f.id);
     }
   }
 }
