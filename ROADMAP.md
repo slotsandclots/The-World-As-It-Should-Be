@@ -21,6 +21,7 @@ Open questions about where the game should go, in plain language, each with the 
 - **Substitutes, yes, the concrete way** (November 2026). Nations short of a good switch to close alternatives and can build costly synthetic industries, as described under 4d. No abstract "substitute" good.
 - **Borrowing abroad should hurt** (November 2026). State bonds sold abroad drain foreign currency like any other foreign payment, even though the world gets somewhat more financial stress (banking crises, depressions, wars) from it. Crises are what make conflict in this world; a world that is too stable would be boring.
 - **Playing tall must be possible** (November 2026). A prudent, peaceful nation should be able to stay stable and grow powerful through prosperity, finance and trade, while the world around it stays stormy. See "Playing tall".
+- **The tick rework now, before more features** (November 2026). The simulation moves to systems on their own rhythms (weekly markets, money and payments; monthly production, pops and politics; yearly slow systems), as Victoria 3 does, so the world really moves within the month. It comes before the rest of Milestone 4, so new features are tuned for it from the start. The 3-hour work-mode runs carry it out. See "Time and pacing", stage 2.
 - **Diplomacy and trade before national focuses** (November 2026). Deeper diplomacy and trade come first. Long-term national goals come as national programmes drawn from a nation's real situation, not scripted focus trees. See "Deeper diplomacy and trade" and "National programmes".
 
 ## Design philosophy
@@ -756,19 +757,29 @@ The world moves in monthly jumps: every nation updates at once, news arrives in 
 - **Smoothly moving numbers:** values shown in the interface (treasury, prices, exchange rate, army strength) slide between last month's and this month's values.
 - **Unchanged:** the economy, politics, tests and balance report. A 40-year run must give the same numbers, apart from the nation-order effects of staggering, which are measured and explained.
 
-**Stage 2: weekly ticks.** The simulation steps four times as often (or 52 times a year, with months as calendar labels).
-- **One time constant per rate:** every per-month rate, smoothing factor and duration goes into a single table of time constants (`js/time.js`) and is converted with `perStep(monthlyRate)` / `smooth(monthlyFactor)` helpers instead of `/ 12` and fixed factors scattered through the code. This can be done first, on the monthly tick, with no change in behaviour: a pure refactor that the balance report checks.
-- **Durations in time, not ticks:** crises, memories, elections, reforms, wars and cooldowns are counted in months (or days) of game time, whatever the step.
-- **What runs weekly and what stays monthly:** war, markets and payments benefit most. Slow systems (demographics, ideas, figures, research) may stay monthly to save time.
-- **Speed:** about 4× the work per game year. It needs the Web Worker (deferred from Foundations) and profiling, so a 40-year run stays playable and the 24-world balance report stays under about 20 minutes.
-- **Re-tuning:** compare 24 worlds × 40 years against the monthly baseline (growth, calm-year falling-GDP share, inflation, stability, crisis share, unemployment, regime changes, wars, banking and debt crises, payments, speed) and tune until they match, or explain the changes kept. Shocks and random events must be rescaled so their yearly frequency stays the same.
-- **The player:** weekly turns for war (fronts, supply, battles) arrive with Milestone 5; the daily clock from stage 1 stays the pacing layer on top.
+**Stage 2: systems on their own rhythms (the tick rework; next, at the owner's decision).** Each system runs as often as it needs to and no more, as in Victoria 3: the world really moves within the month, and the work stays affordable.
+
+| Rhythm | Systems |
+|---|---|
+| Daily (with Milestone 5) | army movement and battles on the fronts |
+| Weekly | market prices and trade (clearing, world and bloc markets, trade flows), money and credit, payments and currencies (reserves, lending, attacks, currency crises), bank runs |
+| Monthly | production and construction, pops' jobs and wages, the budget and its financing, politics (meters, interest groups, laws, movements, elections when due), diplomacy and blocs, events |
+| Yearly, where it saves time without harm | demographics (births, ageing, migration), research progress, notable people |
+
+- **Measured today** (14 nations, monthly): 28 ms a month, of which the economy is 64% (mostly production and pops), each nation's politics, budget and army 17%, payments, trade flows, peoples and society about 6%. With only prices, trade, money and payments weekly, the cost should be about 1.5–2× today's, not 4×: at normal speed (a month in about 5 seconds) that is far below what a player notices, and the 24-world balance report stays well under 20 minutes. The Web Worker is not needed for this; it stays for world scale.
+- **Steps, each its own pull request:**
+  1. **A scheduler** (`js/time.js` and `tick` in `sim.js`): each system declares its rhythm and runs when it is due; durations count months of game time; histories (`c.hist`) are kept per month. With every rhythm still monthly, 24 worlds × 40 years must come out identical to main (game-state fingerprints and the balance report, apart from timing).
+  2. **Flows at their source:** quantities computed as "a month's worth" each run (production, consumption, wages, the budget, trade) are scaled once where they are produced, using the step of the system that runs them. Still monthly, still identical to main.
+  3. **Switch** markets and trade, money and credit, payments and bank runs to weekly. Compare 24 worlds × 40 years against the monthly game (growth, calm-year falling-GDP share, inflation, stability, crisis share, unemployment, regime changes, wars, banking and debt crises, payments crises, speed) and re-tune until the yearly numbers match, or explain what changes and why it is better. Random events keep their yearly frequency.
+  4. **The interface:** news carries its real week (the daily clock then shows real timing, not spread-out days); numbers update weekly.
+  5. **Later:** war daily with Milestone 5; slow systems yearly where it saves time.
+- **Freeze:** while steps 1–3 are open, no other change to simulation files (interface-only and documentation work may go on), so the rework is not built on a moving base.
 
 **Order:**
-1. Stage 1 (the daily clock), any time; it touches only the clock and the interface.
-2. The time-constant refactor, on the monthly tick, measured to change nothing.
-3. Weekly ticks for war, with Milestone 5 and the Web Worker.
-4. Weekly ticks for markets and payments, then the rest as speed allows.
+1. ✅ Stage 1 (the daily clock), first pass.
+2. ✅ The time-constant refactor, on the monthly tick, measured to change nothing.
+3. Stage 2, steps 1–4 (next, before the rest of Milestone 4).
+4. Daily war with Milestone 5; yearly slow systems as speed allows.
 
 ## Milestone 5: Military strategy, an operational layer (L)
 
@@ -1027,20 +1038,21 @@ Ideas for after (or alongside) the milestones. They follow the same design philo
 7. ✅ **Milestone 3** (first pass), with ideas spreading through the world folded in: 3a peoples, 3b cities and demographics, 3c aging, inequality, minority movements and healthcare, 3d universities, kinship and unification, idea spread, 3e secondary schools, the minorities interest group, unification by force. Also done: **the alert bar** (see Quality of life).
 8. ✅ **History makers (first pass):** notable people, the memory of defeat and its demagogues, world wars and peace conferences. Pulled forward at the player's request; it uses the existing war layer and leaves the operational war layer to Milestone 5.
 9. ✅ **The time-constant refactor** (stage 2, step 1 of Time and pacing): `js/time.js`, measured on 24 worlds × 40 years to change nothing. New code uses the helpers.
-10. **Milestone 4c–4e,** with step 1 of "Governments that play differently" (mechanisms instead of flat per-type numbers) in 4c: labor relations and fiscal policy (including AI governments responding to the cycle), the world economy (with distance that matters, from World scale), and the stock and land markets, with the **closed-loop economy** running through all three (phase 1, the state's budget and debt, and phase 2's payments layers 1–3 are done). 4d includes substitutes and asymmetric tariffs.
-11. **Spheres of influence,** with loans with conditions, once payments and foreign ownership exist (bilateral trade flows already do).
-12. **Deeper diplomacy and trade:** treaties with terms and embargoes, then trade routes.
-13. **National programmes,** with "Governments that play differently".
-14. **AI ambitions and personalities, with the graphics-card map**, plus the first art commissions: an art direction document, map textures and an icon set. The war layer needs the new map for army counters, fronts, plan arrows and supply routes.
-15. **Milestone 5:** the war layer, an operational layer.
-16. **The world newspaper and history book.** This can move earlier. World wars, treaties and the figures of the age are natural headlines and chapters.
-17. **Eras and scenarios (Milestone 6) and the desktop release,** together toward a public release.
+10. **The tick rework** (Time and pacing, stage 2): systems on their own rhythms, weekly markets, money and payments, measured and re-tuned against the monthly game. Steps 1–2 change nothing; step 3 is the switch. New simulation features wait until it lands.
+11. **Milestone 4c–4e,** with step 1 of "Governments that play differently" (mechanisms instead of flat per-type numbers) in 4c: labor relations and fiscal policy (including AI governments responding to the cycle), the world economy (with distance that matters, from World scale), and the stock and land markets, with the **closed-loop economy** running through all three (phase 1, the state's budget and debt, and phase 2's payments layers 1–3 are done). 4d includes substitutes and asymmetric tariffs.
+12. **Spheres of influence,** with loans with conditions, once payments and foreign ownership exist (bilateral trade flows already do).
+13. **Deeper diplomacy and trade:** treaties with terms and embargoes, then trade routes.
+14. **National programmes,** with "Governments that play differently".
+15. **AI ambitions and personalities, with the graphics-card map**, plus the first art commissions: an art direction document, map textures and an icon set. The war layer needs the new map for army counters, fronts, plan arrows and supply routes.
+16. **Milestone 5:** the war layer, an operational layer.
+17. **The world newspaper and history book.** This can move earlier. World wars, treaties and the figures of the age are natural headlines and chapters.
+18. **Eras and scenarios (Milestone 6) and the desktop release,** together toward a public release.
 
 Later: Milestone 8 (intrigue and dynasties), world scale (as the map and Web Worker allow), and the rest of Beyond the milestones.
 
-Playing tall runs through items 10–13: the prudent-nation check comes first (with 4c–4e), the exposure view with it, and the creditor's road to power with spheres of influence and deeper diplomacy.
+Playing tall runs through items 11–14: the prudent-nation check comes first (with 4c–4e), the exposure view with it, and the creditor's road to power with spheres of influence and deeper diplomacy.
 
-Time and pacing: the time-constant refactor is done (item 9), and the daily calendar with news on its day (stage 1, first pass). Numbers that slide between months slot in between features; staggered nation updates after that, as their own measured step. Weekly ticks wait for Milestone 5 and the Web Worker.
+Time and pacing: the time-constant refactor (item 9) and the daily calendar (stage 1, first pass) are done; the tick rework is item 10. Numbers that slide between updates slot in between features. Staggered nation updates are no longer needed: real weekly steps replace them. Weekly ticks wait for Milestone 5 and the Web Worker.
 
 Flow views (visuals track) slot in as their data arrives: migration right after the trade view, capital and debt after phase 2 of the closed-loop economy, and ideas after that.
 
