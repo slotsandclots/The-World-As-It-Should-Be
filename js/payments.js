@@ -8,7 +8,7 @@
 // lenders and pay interest out of their reserves. A nation that can neither
 // pay nor borrow has to cut its imports: shortages and dearer goods at home,
 // fewer sales for the exporters abroad. Long before that, the currency falls,
-// which wins exporters sales and makes imports dearer at home.
+// which makes imports dearer at home and pays exporters more at home.
 //
 // Reserves are held in world money. Each currency has an exchange rate
 // (c.econ.fx) that falls as reserves drain: imports grow dearer at home and the
@@ -192,7 +192,8 @@ function tickPayments(game) {
       for (const k in c.extDebt) repayTo(game, c, k, pay * c.extDebt[k] / debt);
       E.reserves -= pay; payAtHome(c, pay);
     }
-    if (debt > c.gdp * 1.2) foreignDefault(game, c);
+    // One default at a time: a nation that defaulted in the last five years is not counted as defaulting again.
+    if (debt > c.gdp * 1.2 && !(c.extDefaulted != null && game.month - c.extDefaulted < PAY.DEFAULT_MEMORY)) foreignDefault(game, c);
     // Reserves are judged against the size of the economy: trade is small, but reparations and debts are not.
     const r = (E.reserves - target) / Math.max(0.01, c.gdp);
     tickCurrency(game, c, r, wpl);

@@ -765,7 +765,12 @@ test('closed loop, phase 2: a strong currency never imports past the shortfall; 
     const d = alive[1], L = alive[2];
     d.extDebt = { [L.id]: d.gdp * 1.5 }; d.econ.reserves = -d.gdp * 0.05;
     tickPayments(g);
-    const defaulted = d.extDefaulted === g.month, lockedOut = d.econ.borrowed === 0;
+    const defaulted = d.extDefaulted === g.month, once = d.extDefaulted;
+    // Even with room to borrow again and reserves drained, no one lends, and it does not default twice.
+    d.extDebt = { [L.id]: d.gdp * 0.05 }; d.econ.reserves = -d.gdp * 0.05; d.debt = d.debt || {}; d.debt.crisis = 0;
+    g.month += 1; tickPayments(g);
+    d.extDebt = { [L.id]: d.gdp * 1.5 }; tickPayments(g);
+    const lockedOut = d.econ.borrowed === 0 && d.extDefaulted === once;
     // A borrower that ceases to exist takes its debts with it.
     const b = alive[3]; b.extDebt = { [L.id]: 1 }; b.alive = false;
     tickPayments(g);
@@ -774,7 +779,7 @@ test('closed loop, phase 2: a strong currency never imports past the shortfall; 
     return { over, defaulted, lockedOut, gone, sane: __sane(g) };
   })()`);
   assert(r.over === 0, `${r.over} goods imported beyond the shortfall at a strong currency`);
-  assert(r.defaulted && r.lockedOut, 'a nation that defaults abroad should get no new foreign loans');
+  assert(r.defaulted && r.lockedOut, 'a nation that defaults abroad should get no new foreign loans, and should not default again at once');
   assert(r.gone, 'debts of a nation that no longer exists should be written off');
   assert(r.sane.length === 0, r.sane.join('; '));
 });
