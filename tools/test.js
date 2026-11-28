@@ -932,6 +932,29 @@ test('time constants: on the monthly step every helper is exact; on a weekly ste
   assert(r.ok, 'on a shorter step a year of steps must add up to a year of months');
 });
 
+test('the newspaper leads with the biggest news, puts our own first among equals, and changes nothing', () => {
+  const r = run(`(() => {
+    const g = createGame('paper', { size: 'small', countries: 10 }); setPlayer(g, 0);
+    for (let i = 0; i < 36; i++) { tick(g); g.pending.length = 0; }
+    // Far enough ahead that the edition holds only these stories (an edition reaches back three months).
+    const m = g.month + 1 + PAPER.WINDOW, o = g.countries.find(x => x.alive && x.id !== 0).id;
+    g.log.push({ m, text: 'A minor law is debated somewhere.', kind: 'gov', ids: [o] });
+    g.log.push({ m, text: 'Revolution in ' + g.countries[o].name + ': the government is overthrown.', kind: 'gov', ids: [o] });
+    g.log.push({ m, text: 'A bridge opens abroad.', kind: 'info', ids: [o] });
+    g.log.push({ m, text: 'A bridge opens at home.', kind: 'info', ids: [0] });
+    const before = serializeGame(g);
+    const P = frontPage(g, 0, m), Q = frontPage(g, 0, m);
+    const order = [P.lead].concat(P.stories).map(s => s.head);
+    return { lead: P.lead.head, order, same: JSON.stringify(P) === JSON.stringify(Q), untouched: serializeGame(g) === before, months: paperMonths(g)[0] === m, real: frontPage(g, 0, g.month) };
+  })()`);
+  assert(/Revolution/.test(r.lead), 'a revolution should lead over minor news: ' + r.lead);
+  assert(r.order.indexOf('A bridge opens at home.') < r.order.indexOf('A bridge opens abroad.'), 'our own news comes first among equals');
+  assert(r.same, 'the same month should give the same front page');
+  assert(r.untouched, 'the newspaper must not change the game');
+  assert(r.months, 'the newest month with news comes first');
+  assert(r.real.lead && r.real.title, 'a real month should have a front page with a title and a lead');
+});
+
 test('trade view: bilateral flows add up to every nation\'s trade and leave the economy unchanged', () => {
   const code = `(() => {
     const g = createGame('flows', { size: 'small', countries: 12 }); setPlayer(g, 0);

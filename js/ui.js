@@ -582,6 +582,7 @@ const UI = {
       case 'lawact': { const r = lawAction(g, ds.a); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }
       case 'ledger': this.ledger = Object.assign(this.ledger || {}, { [ds.k]: ds.v }); this.renderTab(); return;
       case 'newsmine': this.newsMine = !this.newsMine; this.renderTab(); return;
+      case 'paper': this.paperIdx = Math.max(0, (this.paperIdx || 0) + (+ds.d)); this.renderTab(); return;
       case 'dom': { const r = performDomestic(g, ds.id); this.track('dom:' + ds.id, r.ok); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }
       case 'appease': { const r = appeaseFaction(g, ds.f); this.track('appease:' + ds.f, r.ok); this.toast(r.msg, r.ok ? 'good' : 'bad'); App.afterAction(); return; }
       case 'regime': this.showRegimeModal(); return;
