@@ -319,12 +319,22 @@ function playerLeaveGold(game) {
 }
 
 // Debt service at home comes out of the owners' capital, then the state's fund, then the treasury.
+// The treasury's part is charged with next month's budget, so the state borrows it from real lenders (fiscal.js).
 function payAtHome(c, amount) {
   const E = c.econ;
   let k = amount * 1e6;
   const a = Math.min(Math.max(0, E.investPool), k); E.investPool -= a; k -= a;
   const b = Math.min(Math.max(0, E.statePool), k); E.statePool -= b; k -= b;
-  if (k > 0) c.treasury -= k / 1e6 * (E.pl || 1);
+  if (k > 0) E.treasuryAbroad = (E.treasuryAbroad || 0) + k / 1e6 * (E.pl || 1);
+}
+
+// Charged before the budget is financed (sim.js). Reparations go through it too: negative for the receiver.
+function chargeTreasuryAbroad(c) {
+  const E = c.econ;
+  if (!E || !E.treasuryAbroad) return 0;
+  const t = E.treasuryAbroad; E.treasuryAbroad = 0;
+  c.treasury -= t;
+  return t;
 }
 
 // Debts abroad past paying: the lenders take the loss and remember it.
